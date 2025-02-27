@@ -28,4 +28,8 @@ class EVColors {
   // Alert Message Colors
   static const alertSuccess = Color(0xFFB3E6C2); // Soft pastel green
   static const alertFailure = Color(0xFFF4C2C2); // Light washed-out red
+
+  // RadioListTile Colors
+  static const radioActive = Color(0xFFE45B34); // Warm, noticeable orange-red
+  static const radioInactive = Color(0xFFD1B8B2); // Muted, soft warm gray
 }
