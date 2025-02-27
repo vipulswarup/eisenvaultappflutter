@@ -1,6 +1,7 @@
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:flutter/material.dart';
-
+import 'package:eisenvaultappflutter/services/auth/classic_auth_service.dart';
+import 'package:eisenvaultappflutter/services/auth/angora_auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -176,22 +177,55 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
-
-  void _handleLogin() {
+  void _handleLogin() async {
     if (_formKey.currentState?.validate() ?? false) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Login Successful!'),
-          backgroundColor: EVColors.alertSuccess,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      );
+      try {
+        var baseUrl = _urlController.text.trim();
+        final username = _usernameController.text.trim();
+        final password = _passwordController.text;
+
+        // Add https:// if no protocol specified
+        if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+          baseUrl = 'https://$baseUrl';
+        }
+
+        // For Classic instances, append /alfresco if not present
+        if (_selectedVersion == 'Classic' && !baseUrl.endsWith('/alfresco')) {
+          baseUrl = '$baseUrl/alfresco';
+        }
+
+        Map<String, dynamic> loginResult;
+        
+        if (_selectedVersion == 'Classic') {
+          final authService = ClassicAuthService(baseUrl);
+          loginResult = await authService.login(username, password);
+        } else {
+          final authService = AngoraAuthService(baseUrl);
+          loginResult = await authService.login(username, password);
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Login Successful!'),
+              backgroundColor: EVColors.alertSuccess,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Login Failed: ${e.toString()}'),
+              backgroundColor: EVColors.alertFailure,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
     }
   }
-
   @override
   void dispose() {
     _urlController.dispose();
