@@ -1,8 +1,10 @@
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
+import 'package:eisenvaultappflutter/screens/login_screen.dart';
 import 'package:eisenvaultappflutter/services/browse/browse_service_factory.dart';
+import 'package:eisenvaultappflutter/services/auth/angora_auth_service.dart';
+import 'package:eisenvaultappflutter/utils/logger.dart'; // Add this import
 import 'package:eisenvaultappflutter/widgets/browse_item_tile.dart';
-import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:flutter/material.dart';
 
 class BrowseScreen extends StatefulWidget {
@@ -27,36 +29,17 @@ class _BrowseScreenState extends State<BrowseScreen> {
   bool _isLoading = true;
   List<BrowseItem> _items = [];
   String? _errorMessage;
-  
-  // Track current folder navigation
+  // Add these missing properties
   List<BrowseItem> _navigationStack = [];
   BrowseItem? _currentFolder;
 
   @override
   void initState() {
     super.initState();
-    // Create a root BrowseItem to fetch top-level departments/sites
-    _currentFolder = BrowseItem(
-      id: 'root',
-      name: 'Departments',
-      type: 'folder',
-      isDepartment: widget.instanceType == 'Angora',
-    );
-    _loadFolderContents(_currentFolder!);
-    
-    EVLogger.debug('BrowseScreen initialized', {
-      'instanceType': widget.instanceType,
-      'baseUrl': widget.baseUrl
-    });
+    _loadDepartments();
   }
 
-  // Load the contents of the specified folder
-  Future<void> _loadFolderContents(BrowseItem folder) async {
-    EVLogger.info('Loading folder contents', {
-      'folderId': folder.id,
-      'folderName': folder.name
-    });
-    
+  Future<void> _loadDepartments() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -69,105 +52,222 @@ class _BrowseScreenState extends State<BrowseScreen> {
         widget.authToken
       );
 
-      final items = await browseService.getChildren(folder);
+      // Create a root BrowseItem to fetch top-level departments/sites
+      final rootItem = BrowseItem(
+        id: 'root',
+        name: 'Root',
+        type: 'folder',
+        isDepartment: widget.instanceType == 'Angora',
+      );
+
+      final items = await browseService.getChildren(rootItem);
       
-      EVLogger.info('Folder contents loaded successfully', {
-        'folderId': folder.id,
-        'itemCount': items.length
+      setState(() {
+        _items = items;
+        _isLoading = false;
+        _currentFolder = rootItem; // Set root as current folder
+        _navigationStack = []; // Clear navigation stack at root
       });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Failed to load departments: ${e.toString()}';
+        _isLoading = false;
+      });
+    }
+  }
+
+  // Add this missing method for folder navigation
+  void _navigateToFolder(BrowseItem folder) async {
+    EVLogger.debug('Navigating to folder', {'id': folder.id, 'name': folder.name});
+    
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await _loadFolderContents(folder);
+      
+      setState(() {
+        // If navigating from root, start a new navigation stack
+        if (_currentFolder?.id == 'root') {
+          _navigationStack = [];
+        } 
+        // Otherwise add current folder to navigation stack
+        else if (_currentFolder != null) {
+          _navigationStack.add(_currentFolder!);
+        }
+        
+        _currentFolder = folder;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Failed to load folder contents: ${e.toString()}';
+        _isLoading = false;
+      });
+    }
+  }
+
+  // Add this missing method to load folder contents
+  Future<void> _loadFolderContents(BrowseItem folder) async {
+    try {
+      final browseService = BrowseServiceFactory.getService(
+        widget.instanceType, 
+        widget.baseUrl, 
+        widget.authToken
+      );
+
+      final items = await browseService.getChildren(folder);
       
       setState(() {
         _items = items;
         _isLoading = false;
       });
     } catch (e) {
-      EVLogger.error('Failed to load folder contents', {
-        'folderId': folder.id,
-        'error': e.toString()
-      });
-      
       setState(() {
         _errorMessage = 'Failed to load contents: ${e.toString()}';
         _isLoading = false;
       });
+      
+      // Re-throw to be caught by the calling method
+      throw e;
     }
   }
-  
-  // Handle navigating to a folder
-  void _navigateToFolder(BrowseItem folder) {
-    EVLogger.info('Navigating to folder', {
-      'folderId': folder.id,
-      'folderName': folder.name
-    });
-    
-    // Add current folder to navigation stack before moving to new folder
-    if (_currentFolder != null) {
-      _navigationStack.add(_currentFolder!);
-    }
-    
-    setState(() {
-      _currentFolder = folder;
-    });
-    
-    _loadFolderContents(folder);
+
+  void _handleLogout() {
+    // Show confirmation dialog
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Logout Confirmation"),
+          content: const Text("Are you sure you want to logout?"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(), // Close the dialog
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+                _performLogout();
+              },
+              child: const Text("Logout"),
+            ),
+          ],
+        );
+      },
+    );
   }
-  
-  // Navigate back to the parent folder
-  void _navigateBack() {
-    if (_navigationStack.isEmpty) {
-      EVLogger.debug('No parent folders to navigate back to');
-      return;
+
+  void _performLogout() {
+    // For Classic instance - clear token if needed
+    if (widget.instanceType == 'Classic') {
+      // No persistent token storage in the current implementation
+    } 
+    // For Angora instance - clear token
+    else if (widget.instanceType == 'Angora') {
+      final authService = AngoraAuthService(widget.baseUrl);
+      authService.setToken(null); // Clear the token
     }
-    
-    final parentFolder = _navigationStack.removeLast();
-    EVLogger.info('Navigating back to parent folder', {
-      'folderId': parentFolder.id,
-      'folderName': parentFolder.name
-    });
-    
-    setState(() {
-      _currentFolder = parentFolder;
-    });
-    
-    _loadFolderContents(parentFolder);
+
+    // Navigate back to login screen and remove all previous routes
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
+      (Route<dynamic> route) => false,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final bool canNavigateBack = _navigationStack.isNotEmpty;
-    
     return Scaffold(
       backgroundColor: EVColors.screenBackground,
       appBar: AppBar(
-        title: Text(_currentFolder?.name ?? 'Browse'),
+        title: const Text('Departments'),
         backgroundColor: EVColors.appBarBackground,
         foregroundColor: EVColors.appBarForeground,
-        // Show back button in app bar if we can navigate back
-        leading: canNavigateBack
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: _navigateBack,
-              )
-            : null,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Logout',
+            onPressed: _handleLogout,
+          ),
+        ],
+      ),
+      // Add a drawer with logout option
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: EVColors.appBarBackground,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'EisenVault',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Welcome, ${widget.firstName}!',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Server: ${widget.baseUrl}',
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.folder),
+              title: const Text('Departments'),
+              onTap: () {
+                Navigator.pop(context); // Close the drawer
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.logout),
+              title: const Text('Logout'),
+              onTap: () {
+                Navigator.pop(context); // Close the drawer
+                _handleLogout(); // Show logout confirmation
+              },
+            ),
+          ],
+        ),
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Show welcome message only at the root level
-          if (_navigationStack.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Text(
-                'Welcome, ${widget.firstName}!',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+          // Welcome message
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              'Welcome, ${widget.firstName}!',
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
               ),
             ),
+          ),
           
-          // Breadcrumb navigation (optional)
-          if (_navigationStack.isNotEmpty)
+          // Add breadcrumb navigation if we're not at root level
+          if (_currentFolder != null && _currentFolder!.id != 'root')
             _buildBreadcrumbNavigation(),
           
           Expanded(
@@ -180,12 +280,38 @@ class _BrowseScreenState extends State<BrowseScreen> {
 
   // Build breadcrumb navigation display
   Widget _buildBreadcrumbNavigation() {
+    // Add these color constants to EVColors class if they don't exist
+    final breadcrumbText = Colors.black87;
+    final breadcrumbSeparator = Colors.grey;
+    final breadcrumbCurrentText = Colors.blue;
+    
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
+          InkWell(
+            onTap: () {
+              // Navigate back to root
+              _loadDepartments();
+            },
+            child: const Text(
+              'Root',
+              style: TextStyle(
+                color: Colors.black87,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
           for (int i = 0; i < _navigationStack.length; i++) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Icon(
+                Icons.chevron_right,
+                size: 16,
+                color: breadcrumbSeparator,
+              ),
+            ),
             InkWell(
               onTap: () {
                 // Navigate to this specific point in the path
@@ -202,33 +328,29 @@ class _BrowseScreenState extends State<BrowseScreen> {
               child: Text(
                 _navigationStack[i].name,
                 style: TextStyle(
-                  color: EVColors.breadcrumbText,
+                  color: breadcrumbText,
                   fontWeight: FontWeight.w500,
                 ),
               ),
             ),
-            if (i < _navigationStack.length - 1)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Icon(
-                  Icons.chevron_right,
-                  size: 16,
-                  color: EVColors.breadcrumbSeparator,
-                ),
-              ),
           ],
-          Icon(
-            Icons.chevron_right,
-            size: 16,
-            color: EVColors.breadcrumbSeparator,
-          ),
-          Text(
-            _currentFolder?.name ?? '',
-            style: TextStyle(
-              color: EVColors.breadcrumbCurrentText,
-              fontWeight: FontWeight.bold,
+          if (_currentFolder != null && _currentFolder!.id != 'root') ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Icon(
+                Icons.chevron_right,
+                size: 16,
+                color: breadcrumbSeparator,
+              ),
             ),
-          ),
+            Text(
+              _currentFolder?.name ?? '',
+              style: TextStyle(
+                color: breadcrumbCurrentText,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -250,6 +372,8 @@ class _BrowseScreenState extends State<BrowseScreen> {
               onPressed: () {
                 if (_currentFolder != null) {
                   _loadFolderContents(_currentFolder!);
+                } else {
+                  _loadDepartments();
                 }
               },
               child: const Text('Retry'),
@@ -282,7 +406,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
       onRefresh: () {
         return _currentFolder != null
             ? _loadFolderContents(_currentFolder!)
-            : Future.value();
+            : _loadDepartments();
       },
       child: ListView.separated(
         itemCount: _items.length,
@@ -297,7 +421,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
               if (item.type == 'folder' || item.isDepartment) {
                 _navigateToFolder(item);
               } else {
-                // Handle file tap later
+                // Handle file tap
                 EVLogger.info('File tapped', {
                   'fileId': item.id,
                   'fileName': item.name
