@@ -40,8 +40,8 @@ class EVColors {
   static const documentIconBackground = Color(0xFFFDF6F3); // Very light peach
   static const documentIconForeground = Color(0xFFB58B85); // Faded warm gray
   // AppBar Colors
-  static const appBarBackground = Color(0xFFE76F51); // Vibrant coral
-  static const appBarForeground = Color(0xFFFFF5EE); // Light peach
+  static const appBarBackground = Color(0xFFEE886A); // Soft warm orange
+  static const appBarForeground = Color(0xFFFFFFFF); // White for contrast
   
   // List Item Colors
   static const listItemBackground = Color(0xFFFFF9F5); // Lighter peach than screen background

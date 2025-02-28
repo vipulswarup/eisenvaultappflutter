@@ -3,10 +3,11 @@ import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/screens/login_screen.dart';
 import 'package:eisenvaultappflutter/services/browse/browse_service_factory.dart';
 import 'package:eisenvaultappflutter/services/auth/angora_auth_service.dart';
-import 'package:eisenvaultappflutter/utils/logger.dart'; // Add this import
+import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:eisenvaultappflutter/widgets/browse_item_tile.dart';
 import 'package:flutter/material.dart';
-
+import 'package:eisenvaultappflutter/services/document/document_service.dart';
+import 'package:eisenvaultappflutter/screens/pdf_viewer_screen.dart';
 class BrowseScreen extends StatefulWidget {
   final String baseUrl;
   final String authToken;
@@ -38,6 +39,53 @@ class _BrowseScreenState extends State<BrowseScreen> {
     super.initState();
     _loadDepartments();
   }
+  bool _isPdfFile(String fileName) {
+  return fileName.toLowerCase().endsWith('.pdf');
+}
+
+void _handlePdfTap(BrowseItem document) async {
+  try {
+    // Show loading indicator
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Loading PDF...'),
+        duration: Duration(seconds: 1),
+      ),
+    );
+    
+    // Get document service
+    final documentService = DocumentServiceFactory.getService(
+      widget.instanceType,
+      widget.baseUrl,
+      widget.authToken
+    );
+    
+    // Get the document content
+    final pdfContent = await documentService.getDocumentContent(document);
+    
+    if (mounted) {
+      // Navigate to PDF viewer
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => PdfViewerScreen(
+            title: document.name,
+            pdfContent: pdfContent,
+          ),
+        ),
+      );
+    }
+  } catch (e) {
+    EVLogger.error('Error handling PDF tap', e);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading PDF: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+}  
 
   Future<void> _loadDepartments() async {
     setState(() {
@@ -421,20 +469,20 @@ class _BrowseScreenState extends State<BrowseScreen> {
               if (item.type == 'folder' || item.isDepartment) {
                 _navigateToFolder(item);
               } else {
-                // Handle file tap
-                EVLogger.info('File tapped', {
-                  'fileId': item.id,
-                  'fileName': item.name
-                });
-                
-                // Show a snackbar indicating this feature is coming soon
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Viewing file "${item.name}" will be implemented soon'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              }
+                // Check if it's a PDF file
+                if (_isPdfFile(item.name)) {
+                  _handlePdfTap(item);
+                } else {
+                  // Show a snackbar for non-PDF files
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Viewing "${item.name}" is not supported yet.'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+
+            }
             },
           );
         },
