@@ -18,7 +18,32 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _showPassword = false;
   String _selectedVersion = 'Classic';
+  
+  // Development mode flag - set to false before production
+  final bool _devMode = true;
 
+  @override
+  void initState() {
+    super.initState();
+    // Pre-fill the login form in development mode based on initially selected instance type
+    if (_devMode) {
+      _updateDevCredentials(_selectedVersion);
+    }
+  }
+  
+  // Update credentials based on selected instance type
+  void _updateDevCredentials(String instanceType) {
+    if (instanceType == 'Classic') {
+      _urlController.text = 'systest.eisenvault.net';
+      _usernameController.text = 'vipul';
+      _passwordController.text = 'Vipul@123';
+    } else if (instanceType == 'Angora') {
+      _urlController.text = 'binod.angorastage.in';
+      _usernameController.text = 'vipul@binod.in';
+      _passwordController.text = 'Vipul@123';
+    }
+  }
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -58,6 +83,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     onChanged: (value) {
                       setState(() {
                         _selectedVersion = value!;
+                        // Auto-update credentials when instance type changes in dev mode
+                        if (_devMode) {
+                          _updateDevCredentials(_selectedVersion);
+                        }
                       });
                     },
                   ),
@@ -93,7 +122,15 @@ class _LoginScreenState extends State<LoginScreen> {
     String? hint,
     IconData? icon,
   }) {
-    return TextFormField(
+
+  @override
+  void dispose() {
+    _urlController.dispose();
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+   return TextFormField(
       controller: controller,
       autocorrect: false,
       enableSuggestions: false,

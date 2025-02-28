@@ -32,12 +32,13 @@ class EVColors {
   // RadioListTile Colors
   static const radioActive = Color(0xFFE45B34); // Warm, noticeable orange-red
   static const radioInactive = Color(0xFFD1B8B2); // Muted, soft warm gray
-  
   // Icon Colors
-  static const departmentIcon = Color(0xFFB65C3C); // Rich terracotta brown
-  static const folderIcon = Color(0xFFEE9E6A); // Warm apricot
-  static const fileIcon = Color(0xFFD17E62); // Medium coral orange
-  
+  static const departmentIconBackground = Color(0xFFFAE1C8); // Light peach
+  static const departmentIconForeground = Color(0xFFEE886A); // Warm orange
+  static const folderIconBackground = Color(0xFFF9E9DA); // Very light peach
+  static const folderIconForeground = Color(0xFFECA07E); // Soft pastel orange
+  static const documentIconBackground = Color(0xFFFDF6F3); // Very light peach
+  static const documentIconForeground = Color(0xFFB58B85); // Faded warm gray
   // AppBar Colors
   static const appBarBackground = Color(0xFFE76F51); // Vibrant coral
   static const appBarForeground = Color(0xFFFFF5EE); // Light peach
