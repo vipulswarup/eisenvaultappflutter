@@ -2,6 +2,7 @@ import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:flutter/material.dart';
 import 'package:eisenvaultappflutter/services/auth/classic_auth_service.dart';
 import 'package:eisenvaultappflutter/services/auth/angora_auth_service.dart';
+import 'package:eisenvaultappflutter/screens/browse_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -210,6 +211,18 @@ class _LoginScreenState extends State<LoginScreen> {
               content: const Text('Login Successful!'),
               backgroundColor: EVColors.alertSuccess,
               behavior: SnackBarBehavior.floating,
+            ),
+          );
+          
+          // Navigate to the BrowseScreen after successful login
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => BrowseScreen(
+                baseUrl: baseUrl,
+                authToken: loginResult['token'],
+                firstName: loginResult['firstName'] ?? 'User',
+                instanceType: _selectedVersion,
+              ),
             ),
           );
         }

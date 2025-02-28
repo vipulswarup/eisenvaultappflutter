@@ -32,4 +32,23 @@ class EVColors {
   // RadioListTile Colors
   static const radioActive = Color(0xFFE45B34); // Warm, noticeable orange-red
   static const radioInactive = Color(0xFFD1B8B2); // Muted, soft warm gray
+  
+  // Icon Colors
+  static const departmentIcon = Color(0xFFB65C3C); // Rich terracotta brown
+  static const folderIcon = Color(0xFFEE9E6A); // Warm apricot
+  static const fileIcon = Color(0xFFD17E62); // Medium coral orange
+  
+  // AppBar Colors
+  static const appBarBackground = Color(0xFFE76F51); // Vibrant coral
+  static const appBarForeground = Color(0xFFFFF5EE); // Light peach
+  
+  // List Item Colors
+  static const listItemBackground = Color(0xFFFFF9F5); // Lighter peach than screen background
+  static const listItemDivider = Color(0xFFFFE6D9); // Soft peachy divider
+
+
+  // Breadcrumb Navigation Colors
+  static const breadcrumbText = Color(0xFF944E40); // Matches textFieldLabel
+  static const breadcrumbCurrentText = Color(0xFFEE886A); // Matches buttonBackground
+  static const breadcrumbSeparator = Color(0xFFB58B85); // Matches textFieldHint
 }
