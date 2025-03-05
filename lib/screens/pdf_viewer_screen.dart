@@ -81,19 +81,22 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
   }
   
   Widget _buildPdfViewer() {
-    Future<Uint8List> _fetchPdfContent(String url) async {
-      final response = await http.get(Uri.parse(url));
-      return response.bodyBytes;
-    }
-
     try {
       if (kIsWeb) {
         return PdfPreview(
           build: (format) => widget.pdfContent is Uint8List 
             ? widget.pdfContent
-            : _fetchPdfContent(widget.pdfContent),
+            : downloadDocument(widget.pdfContent),
           canChangeOrientation: false,
           canDebug: false,
+          maxPageWidth: 700,
+          actions: [],
+          onPrinted: (context) {
+            EVLogger.debug('PDF printed successfully');
+          },
+          onShared: (context) {
+            EVLogger.debug('PDF shared successfully');
+          },
         );
       }
 
@@ -105,8 +108,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
           controller: _pdfViewerController,
         );
       }
-  
-      // If content type doesn't match platform type
+
       return const Center(
         child: Text('Error: PDF content format not supported on this platform'),
       );
@@ -145,5 +147,15 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
   void dispose() {
     _pdfViewerController.dispose();
     super.dispose();
+  }
+}
+
+Future<Uint8List> downloadDocument(String url) async {
+  final http.Client client = http.Client();
+  try {
+    final response = await client.get(Uri.parse(url));
+    return response.bodyBytes;
+  } finally {
+    client.close();
   }
 }

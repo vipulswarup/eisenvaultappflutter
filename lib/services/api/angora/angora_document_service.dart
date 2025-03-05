@@ -5,13 +5,13 @@ import 'package:http/http.dart' as http;
 import '../angora_base_service.dart';
 import '../../../utils/logger.dart';
 
+
 class AngoraDocumentService {
   final AngoraBaseService _baseService;
   
   static const _serviceName = 'service-file';
-  // Public CORS proxy (for development only)
-  // TODO
-  static const _corsProxyUrl = 'https://corsproxy.io/?';
+  // Use a reliable CORS proxy for web PDF downloads
+  static const _corsProxyUrl = 'https://api.allorigins.win/raw?url=';
   
   AngoraDocumentService(this._baseService);
   
@@ -47,31 +47,25 @@ class AngoraDocumentService {
       throw Exception('Failed to get document download link: $error');
     }
   }  
-  /// Download document for preview
+  
   Future<Uint8List> downloadDocument(String documentId) async {
     try {
       EVLogger.debug('Downloading document', {'documentId': documentId});
       
-      // First get the document download link
       final downloadLink = await getDocumentDownloadLink(documentId);
       EVLogger.debug('Got download link', {'link': downloadLink});
       
-      // For web platform, use a CORS proxy
       final effectiveUrl = kIsWeb 
           ? '$_corsProxyUrl${Uri.encodeComponent(downloadLink)}'
           : downloadLink;
       
       EVLogger.debug('Using URL for download', {'url': effectiveUrl});
       
-      // Now download the actual file
       final response = await http.get(Uri.parse(effectiveUrl));
       
       if (response.statusCode != 200) {
         throw Exception('Download failed with status: ${response.statusCode}');
       }
-      
-      EVLogger.debug('Document downloaded successfully', 
-          {'documentId': documentId, 'size': response.bodyBytes.length});
       
       return response.bodyBytes;
     } catch (error) {
@@ -80,3 +74,4 @@ class AngoraDocumentService {
     }
   }
 }
+
