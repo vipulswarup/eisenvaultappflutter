@@ -15,47 +15,38 @@ class AngoraDocumentService {
   
   AngoraDocumentService(this._baseService);
   
-  /// Get document download link
-Future<String> getDocumentDownloadLink(String documentId) async {
-  try {
-    EVLogger.debug('Fetching document download link', {'documentId': documentId});
-    
-    final url = _baseService.buildUrl('files/$documentId/download');
-    final headers = _baseService.createHeaders(serviceName: _serviceName);
-    
-    EVLogger.debug('Making download link request', {
-      'url': url,
-      'headers': headers,
-      'serviceName': _serviceName
-    });
-    
-    final response = await http.get(Uri.parse(url), headers: headers);
-    
-    EVLogger.debug('Download link response', {
-      'statusCode': response.statusCode,
-      'body': response.body
-    });
-    
-    if (response.statusCode != 200) {
+  Future<String> getDocumentDownloadLink(String documentId) async {
+    try {
+      EVLogger.debug('Fetching document download link', {'documentId': documentId});
+      
+      final url = _baseService.buildUrl('files/$documentId/download');
+      final headers = {
+        ..._baseService.createHeaders(serviceName: _serviceName),
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en',
+        'referer': 'https://binod.angorastage.in/nodes'  // Adding referer header
+      };
+      
+      EVLogger.debug('Making download link request', {
+        'url': url,
+        'headers': headers
+      });
+      
+      final response = await http.get(Uri.parse(url), headers: headers);
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final downloadLink = data['data']['download_link'];
+        EVLogger.debug('Retrieved download link', {'link': downloadLink});
+        return downloadLink;
+      }
+      
       throw Exception('Failed to get download link: ${response.statusCode}');
+    } catch (error) {
+      EVLogger.error('Failed to get document download link', error);
+      throw Exception('Failed to get document download link: $error');
     }
-    
-    final data = json.decode(response.body);
-    
-    if (data['status'] == 200 && data['data'] != null && data['data']['download_link'] != null) {
-      final downloadLink = data['data']['download_link'];
-      EVLogger.debug('Retrieved download link', {'link': downloadLink});
-      return downloadLink;
-    } else {
-      throw Exception('Download link not found in response');
-    }
-  } catch (error) {
-    EVLogger.error('Failed to get document download link', error);
-    throw Exception('Failed to get document download link: $error');
-  }
-}
-
-  
+  }  
   /// Download document for preview
   Future<Uint8List> downloadDocument(String documentId) async {
     try {
