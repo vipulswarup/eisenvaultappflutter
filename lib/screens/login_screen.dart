@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:eisenvaultappflutter/services/auth/classic_auth_service.dart';
 import 'package:eisenvaultappflutter/services/auth/angora_auth_service.dart';
 import 'package:eisenvaultappflutter/screens/browse_screen.dart';
+import 'package:eisenvaultappflutter/services/api/base_service.dart';
+import 'package:eisenvaultappflutter/widgets/error_display.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -236,10 +238,16 @@ class _LoginScreenState extends State<LoginScreen> {
         
         if (_selectedVersion == 'Classic') {
           final authService = ClassicAuthService(baseUrl);
-          loginResult = await authService.login(username, password);
+          loginResult = await authService.makeRequest(
+            'login',
+            requestFunction: () => authService.login(username, password)
+          );
         } else {
           final authService = AngoraAuthService(baseUrl);
-          loginResult = await authService.login(username, password);
+          loginResult = await authService.makeRequest(
+            'login',
+            requestFunction: () => authService.login(username, password)
+          );
         }
 
         if (mounted) {
@@ -251,7 +259,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           );
           
-          // Navigate to the BrowseScreen after successful login
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
               builder: (context) => BrowseScreen(
@@ -263,20 +270,55 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           );
         }
-      } catch (e) {
+      } on ServiceException catch (error) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Login Failed: ${e.toString()}'),
-              backgroundColor: EVColors.alertFailure,
-              behavior: SnackBarBehavior.floating,
+          showDialog(
+            context: context,
+            barrierDismissible: true,  // Enable clicking outside to close
+            builder: (BuildContext context) => Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              backgroundColor: EVColors.screenBackground,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: 400,
+                  minWidth: 300,
+                  maxHeight: 250,
+                ),
+                child: Stack(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24.0,
+                        vertical: 20.0
+                      ),
+                      child: ErrorDisplay(
+                        error: error,
+                        onRetry: () {
+                          Navigator.of(context).pop();
+                          _handleLogin();
+                        },
+                      ),
+                    ),
+                    // Add close button in top-right corner
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: IconButton(
+                        icon: Icon(Icons.close, color: EVColors.textFieldLabel),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           );
         }
       }
     }
-  }
-  @override
+  }  @override
   void dispose() {
     _urlController.dispose();
     _usernameController.dispose();
