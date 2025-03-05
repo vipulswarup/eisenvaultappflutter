@@ -1,20 +1,21 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path_provider/path_provider.dart';
+import 'package:eisenvaultappflutter/services/api/angora/angora_document_service.dart';
+import 'package:eisenvaultappflutter/services/api/angora_base_service.dart';
 
 abstract class DocumentService {
   Future<dynamic> getDocumentContent(BrowseItem document);
 }
 
-class ClassicDocumentService implements DocumentService {
+class AlfrescoDocumentService implements DocumentService {
   final String baseUrl;
   final String authToken;
 
-  ClassicDocumentService(this.baseUrl, this.authToken);
+  AlfrescoDocumentService(this.baseUrl, this.authToken);
 
   @override
   Future<dynamic> getDocumentContent(BrowseItem document) async {
@@ -63,13 +64,58 @@ class ClassicDocumentService implements DocumentService {
   }
 }
 
+class AngoraDocumentServiceAdapter implements DocumentService {
+  final AngoraDocumentService _angoraService;
+  
+  AngoraDocumentServiceAdapter(this._angoraService);
+  
+  @override
+  Future<dynamic> getDocumentContent(BrowseItem document) async {
+    try {
+      // Get document content using Angora service - directly downloads now
+      final bytes = await _angoraService.downloadDocument(document.id);
+      
+      // For web platform, return the bytes directly
+      if (kIsWeb) {
+        EVLogger.debug('Returning content bytes for web platform (Angora)');
+        return bytes;
+      } 
+      
+      // For mobile and desktop platforms, save to a temporary file and return the path
+      else {
+        final tempDir = await getTemporaryDirectory();
+        final filePath = '${tempDir.path}/${document.name}';
+        
+        EVLogger.debug('Saving Angora content to file', {'path': filePath});
+        
+        final file = File(filePath);
+        await file.writeAsBytes(bytes);
+        
+        return filePath;
+      }
+    } catch (e) {
+      EVLogger.error('Error getting Angora document content', e);
+      throw Exception('Error getting document content: ${e.toString()}');
+    }
+  }
+}
 class DocumentServiceFactory {
-  static DocumentService getService(String instanceType, String baseUrl, String authToken) {
-    if (instanceType == 'Classic') {
-      return ClassicDocumentService(baseUrl, authToken);
+  static DocumentService getService(
+    String instanceType, 
+    String baseUrl, 
+    String authToken,
+    {AngoraBaseService? angoraBaseService}
+  ) {
+    if (instanceType == 'Classic' || instanceType == 'Alfresco') {
+      return AlfrescoDocumentService(baseUrl, authToken);
+    } else if (instanceType == 'Angora') {
+      if (angoraBaseService == null) {
+        throw Exception('AngoraBaseService is required for Angora document service');
+      }
+      final angoraService = AngoraDocumentService(angoraBaseService);
+      return AngoraDocumentServiceAdapter(angoraService);
     }
     
-    // Will implement Angora service later
     throw Exception('Document service not implemented for $instanceType');
   }
 }

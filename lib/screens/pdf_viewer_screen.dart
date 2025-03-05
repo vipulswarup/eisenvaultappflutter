@@ -5,10 +5,15 @@ import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:url_launcher/url_launcher.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'package:http/http.dart' as http;
 
 class PdfViewerScreen extends StatefulWidget {
   final String title;
-  final dynamic pdfContent; // Can be a File path or Uint8List
+  final dynamic pdfContent; // Can be a File path, Uint8List, or URL String
   
   const PdfViewerScreen({
     Key? key,
@@ -76,30 +81,31 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
   }
   
   Widget _buildPdfViewer() {
+    Future<Uint8List> _fetchPdfContent(String url) async {
+      final response = await http.get(Uri.parse(url));
+      return response.bodyBytes;
+    }
+
     try {
-      // For web, use memory data
       if (kIsWeb) {
-        if (widget.pdfContent is Uint8List) {
-          EVLogger.debug('Loading PDF from memory bytes (web)');
-          return SfPdfViewer.memory(
-            widget.pdfContent as Uint8List,
-            key: _pdfViewerKey,
-            controller: _pdfViewerController,
-          );
-        }
-      } 
-      // For mobile/desktop, use file path
-      else {
-        if (widget.pdfContent is String) {
-          EVLogger.debug('Loading PDF from file path (mobile/desktop)');
-          return SfPdfViewer.file(
-            File(widget.pdfContent as String),
-            key: _pdfViewerKey,
-            controller: _pdfViewerController,
-          );
-        }
+        return PdfPreview(
+          build: (format) => widget.pdfContent is Uint8List 
+            ? widget.pdfContent
+            : _fetchPdfContent(widget.pdfContent),
+          canChangeOrientation: false,
+          canDebug: false,
+        );
       }
-      
+
+      // For mobile/desktop, use file path
+      if (!kIsWeb && widget.pdfContent is String) {
+        return SfPdfViewer.file(
+          File(widget.pdfContent as String),
+          key: _pdfViewerKey,
+          controller: _pdfViewerController,
+        );
+      }
+  
       // If content type doesn't match platform type
       return const Center(
         child: Text('Error: PDF content format not supported on this platform'),
@@ -109,6 +115,29 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
       return Center(
         child: Text('Error displaying PDF: ${e.toString()}'),
       );
+    }
+  }  
+  // Launch URL in a new tab using url_launcher
+  Future<void> _launchPdfUrl(String url) async {
+    try {
+      final uri = Uri.parse(url);
+      EVLogger.debug('Attempting to launch URL: $url');
+      
+      if (await canLaunchUrl(uri)) {
+        EVLogger.debug('URL can be launched, attempting launch...');
+        final result = await launchUrl(uri, mode: LaunchMode.externalApplication);
+        EVLogger.debug('Launch result: $result');
+      } else {
+        EVLogger.error('URL cannot be launched', url);
+        setState(() {
+          _errorMessage = 'Could not open PDF URL';
+        });
+      }
+    } catch (e) {
+      EVLogger.error('Error launching URL', e);
+      setState(() {
+        _errorMessage = 'Error launching PDF: ${e.toString()}';
+      });
     }
   }
   

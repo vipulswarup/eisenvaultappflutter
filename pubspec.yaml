@@ -28,6 +28,7 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
+  url_launcher: ^6.1.0  # Use the latest version
   flutter:
     sdk: flutter
 
@@ -38,6 +39,8 @@ dependencies:
   talker_flutter: ^3.5.4
   syncfusion_flutter_pdfviewer: ^28.2.7
   path_provider: ^2.1.5
+  pdf: ^3.11.3
+  printing: ^5.14.2
 
 dev_dependencies:
   flutter_test:

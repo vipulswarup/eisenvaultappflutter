@@ -8,6 +8,8 @@ import 'package:eisenvaultappflutter/widgets/browse_item_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:eisenvaultappflutter/services/document/document_service.dart';
 import 'package:eisenvaultappflutter/screens/pdf_viewer_screen.dart';
+import 'package:eisenvaultappflutter/services/api/angora_base_service.dart';
+
 class BrowseScreen extends StatefulWidget {
   final String baseUrl;
   final String authToken;
@@ -30,63 +32,85 @@ class _BrowseScreenState extends State<BrowseScreen> {
   bool _isLoading = true;
   List<BrowseItem> _items = [];
   String? _errorMessage;
-  // Add these missing properties
   List<BrowseItem> _navigationStack = [];
   BrowseItem? _currentFolder;
+  
+  // Add AngoraBaseService for Angora instances
+  AngoraBaseService? _angoraBaseService;
 
   @override
   void initState() {
     super.initState();
+    
+    // Initialize Angora base service if needed
+    if (widget.instanceType == 'Angora') {
+      _angoraBaseService = AngoraBaseService(widget.baseUrl);
+      _angoraBaseService!.setToken(widget.authToken);
+    }
+    
     _loadDepartments();
   }
+  
+  /// Checks if a file is a PDF based on its extension
   bool _isPdfFile(String fileName) {
-  return fileName.toLowerCase().endsWith('.pdf');
-}
-
-void _handlePdfTap(BrowseItem document) async {
-  try {
-    // Show loading indicator
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Loading PDF...'),
-        duration: Duration(seconds: 1),
-      ),
-    );
-    
-    // Get document service
-    final documentService = DocumentServiceFactory.getService(
-      widget.instanceType,
-      widget.baseUrl,
-      widget.authToken
-    );
-    
-    // Get the document content
-    final pdfContent = await documentService.getDocumentContent(document);
-    
-    if (mounted) {
-      // Navigate to PDF viewer
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => PdfViewerScreen(
-            title: document.name,
-            pdfContent: pdfContent,
-          ),
-        ),
-      );
-    }
-  } catch (e) {
-    EVLogger.error('Error handling PDF tap', e);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error loading PDF: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+    return fileName.toLowerCase().endsWith('.pdf');
   }
-}  
 
+  /// Handles tapping on a PDF file
+  /// This method will use the appropriate document service based on instance type
+  void _handlePdfTap(BrowseItem document) async {
+    try {
+      // Show loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Loading PDF...'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+      
+      EVLogger.debug('Opening PDF document', {
+        'id': document.id, 
+        'name': document.name,
+        'instanceType': widget.instanceType
+      });
+      
+      // Get the appropriate document service based on instance type
+      // For Angora, we pass the AngoraBaseService initialized in initState
+      final documentService = DocumentServiceFactory.getService(
+        widget.instanceType,
+        widget.baseUrl,
+        widget.authToken,
+        angoraBaseService: _angoraBaseService
+      );
+      
+      // Get the document content (returns file path or bytes depending on platform)
+      final pdfContent = await documentService.getDocumentContent(document);
+      
+      if (mounted) {
+        // Navigate to PDF viewer
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => PdfViewerScreen(
+              title: document.name,
+              pdfContent: pdfContent,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      EVLogger.error('Error handling PDF tap', e);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading PDF: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }  
+
+  /// Loads top-level departments/folders
   Future<void> _loadDepartments() async {
     setState(() {
       _isLoading = true;
@@ -124,7 +148,7 @@ void _handlePdfTap(BrowseItem document) async {
     }
   }
 
-  // Add this missing method for folder navigation
+  /// Navigates to a specific folder and loads its contents
   void _navigateToFolder(BrowseItem folder) async {
     EVLogger.debug('Navigating to folder', {'id': folder.id, 'name': folder.name});
     
@@ -156,7 +180,7 @@ void _handlePdfTap(BrowseItem document) async {
     }
   }
 
-  // Add this missing method to load folder contents
+  /// Loads the contents of a specific folder
   Future<void> _loadFolderContents(BrowseItem folder) async {
     try {
       final browseService = BrowseServiceFactory.getService(
@@ -182,8 +206,8 @@ void _handlePdfTap(BrowseItem document) async {
     }
   }
 
+  /// Shows logout confirmation dialog
   void _handleLogout() {
-    // Show confirmation dialog
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -208,6 +232,7 @@ void _handlePdfTap(BrowseItem document) async {
     );
   }
 
+  /// Performs the actual logout
   void _performLogout() {
     // For Classic instance - clear token if needed
     if (widget.instanceType == 'Classic') {
@@ -326,7 +351,7 @@ void _handlePdfTap(BrowseItem document) async {
     );
   }
 
-  // Build breadcrumb navigation display
+  /// Builds breadcrumb navigation display
   Widget _buildBreadcrumbNavigation() {
     // Add these color constants to EVColors class if they don't exist
     final breadcrumbText = Colors.black87;
@@ -404,6 +429,7 @@ void _handlePdfTap(BrowseItem document) async {
     );
   }
 
+  /// Builds the main content area (loading indicator, error, or item list)
   Widget _buildContent() {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -430,7 +456,6 @@ void _handlePdfTap(BrowseItem document) async {
         ),
       );
     }
-
     if (_items.isEmpty) {
       return Center(
         child: Column(
@@ -481,8 +506,7 @@ void _handlePdfTap(BrowseItem document) async {
                     ),
                   );
                 }
-
-            }
+              }
             },
           );
         },
