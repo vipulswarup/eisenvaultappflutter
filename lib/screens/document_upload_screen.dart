@@ -1,13 +1,14 @@
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
-import 'package:path/path.dart' as path;
 import '../constants/colors.dart';
 import '../services/alfresco_upload_service.dart';
 import '../services/angora_upload_service.dart';
 
 class DocumentUploadScreen extends StatefulWidget {
-  final String repositoryType; // 'alfresco' or 'angora'
+  final String repositoryType;
   final String parentFolderId;
   final String baseUrl;
   final String authToken;
@@ -27,56 +28,125 @@ class DocumentUploadScreen extends StatefulWidget {
 class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
   String? _filePath;
   String? _fileName;
+  Uint8List? _fileBytes;
   bool _isUploading = false;
   String? _description;
   final _descriptionController = TextEditingController();
 
   Future<void> _pickFile() async {
-    final result = await FilePicker.platform.pickFiles();
-    
-    if (result != null) {
-      setState(() {
-        _filePath = result.files.single.path;
-        _fileName = result.files.single.name;
-      });
+    print('Pick file button clicked');
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        // Add these options for better web support
+        withData: true,  // Important for web to get the bytes
+        type: FileType.any,
+      );
+      
+      print('FilePicker result: ${result != null ? "File selected" : "No file selected"}');
+      
+      if (result != null) {
+        print('Selected file name: ${result.files.single.name}');
+        print('File size: ${result.files.single.size} bytes');
+        print('Has bytes: ${result.files.single.bytes != null}');
+        print('Has path: ${result.files.single.path != null}');
+        
+        setState(() {
+          _fileName = result.files.single.name;
+          
+          // Handle differently based on platform
+          if (kIsWeb) {
+            // On web, get bytes instead of path
+            _fileBytes = result.files.single.bytes;
+            if (_fileBytes == null) {
+              print('WARNING: bytes is null even though we are on web platform');
+            } else {
+              print('Bytes array length: ${_fileBytes!.length}');
+            }
+            _filePath = null; // Path is always null on web
+          } else {
+            // On native platforms, get the file path
+            _filePath = result.files.single.path;
+            _fileBytes = null;
+            if (_filePath == null) {
+              print('WARNING: path is null even though we are on native platform');
+            }
+          }
+        });
+      }
+    } catch (e) {
+      print('Error picking file: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error picking file: $e'))
+      );
     }
   }
 
   Future<void> _uploadFile() async {
-    if (_filePath == null) {
+    print('Upload button clicked');
+    if (_filePath == null && _fileBytes == null) {
+      print('No file selected - stopping upload');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a file first'))
       );
       return;
     }
 
+    if (_fileName == null) {
+      print('Filename is null - stopping upload');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('File name is missing'))
+      );
+      return;
+    }
+
+    print('Starting upload process for file: $_fileName');
     setState(() {
       _isUploading = true;
     });
 
     try {
+      print('Using repository type: ${widget.repositoryType}');
       Map<String, dynamic> result;
       
-      if (widget.repositoryType == 'alfresco') {
+      if (widget.repositoryType == 'alfresco' || widget.repositoryType == 'Classic') {
+        print('Creating AlfrescoUploadService with baseUrl: ${widget.baseUrl}');
         final service = AlfrescoUploadService(
           baseUrl: widget.baseUrl,
           authToken: widget.authToken,
         );
         
-        result = await service.uploadDocument(
-          parentFolderId: widget.parentFolderId,
-          filePath: _filePath!,
-          fileName: _fileName!,
-          description: _description,
-        );
+        print('Calling upload method with parentFolderId: ${widget.parentFolderId}');
+        if (kIsWeb && _fileBytes != null) {
+          print('Web platform detected, using bytes upload');
+          result = await service.uploadDocumentBytes(
+            parentFolderId: widget.parentFolderId,
+            fileBytes: _fileBytes!,
+            fileName: _fileName!,
+            description: _description,
+          );
+        } else if (_filePath != null) {
+          print('Native platform or file path available, using path upload');
+          result = await service.uploadDocument(
+            parentFolderId: widget.parentFolderId,
+            filePath: _filePath!,
+            fileName: _fileName!,
+            description: _description,
+          );
+        } else {
+          print('Invalid file data scenario');
+          throw Exception('Invalid file data');
+        }
         
+        print('Upload completed successfully. Result: $result');
       } else {
-        // Angora dummy implementation
+        // Angora implementation
         final service = AngoraUploadService();
         
+        // For Angora, we can just call a single method that handles both cases
         result = await service.uploadDocument(
           parentFolderId: widget.parentFolderId,
-          filePath: _filePath!,
+          filePath: _filePath,
+          fileBytes: _fileBytes,
           fileName: _fileName!,
           description: _description,
         );
@@ -96,6 +166,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
       );
       
     } catch (e) {
+      print('Error in _uploadFile method: $e');
       if (!mounted) return;
       
       ScaffoldMessenger.of(context).showSnackBar(
@@ -138,12 +209,12 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
               label: const Text('Select File'),
             ),
             const SizedBox(height: 16),
-            if (_filePath != null) ...[
+            if (_fileName != null) ...[
               Card(
                 child: ListTile(
                   leading: const Icon(Icons.insert_drive_file),
                   title: Text(_fileName ?? 'Unknown file'),
-                  subtitle: const Text('Selected file'),
+                  subtitle: Text(kIsWeb ? 'Selected file (Web)' : 'Selected file'),
                 ),
               ),
               const SizedBox(height: 16),
@@ -172,7 +243,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                     ),
               ),
             ],
-            if (_filePath == null) ...[
+            if (_fileName == null) ...[
               const SizedBox(height: 30),
               const Center(
                 child: Text('No file selected'),
