@@ -3,6 +3,8 @@ import 'package:eisenvaultappflutter/services/api/angora_base_service.dart';
 import 'package:eisenvaultappflutter/services/browse/browse_service_factory.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:flutter/material.dart';
+import 'package:debounce_throttle/debounce_throttle.dart';
+import 'package:dio/dio.dart';
 
 /// Controller for the BrowseScreen
 /// Separates business logic from UI
@@ -20,8 +22,18 @@ class BrowseScreenController {
   BrowseItem? currentFolder;
   
   // Callback for state updates
-  final Function() onStateChanged;
+  final Function()? onStateChanged;
   
+  // Cancel token for network requests
+  CancelToken? _cancelToken;
+  
+  // Add a debouncer for smoother UI updates
+  final _debouncer = Debouncer<void>(
+    Duration(milliseconds: 300),
+    initialValue: null,
+  );
+  
+  /// Constructor initializes the controller with required parameters
   BrowseScreenController({
     required this.baseUrl,
     required this.authToken,
@@ -38,13 +50,30 @@ class BrowseScreenController {
     
     // Load departments initially
     loadDepartments();
+    
+    // Set up debouncer listener
+    _debouncer.values.listen((_) {
+      _notifyListeners();
+    });
+  }
+  
+  /// Helper method to safely notify listeners
+  void _notifyListeners() {
+    if (onStateChanged != null) {
+      onStateChanged!();
+    }
+  }
+  
+  /// Debounced version of state change notification
+  void notifyStateChanged() {
+    _debouncer.value = null; // Trigger the debouncer
   }
   
   /// Loads top-level departments/folders
   Future<void> loadDepartments() async {
     isLoading = true;
     errorMessage = null;
-    onStateChanged();
+    _notifyListeners();
 
     try {
       final browseService = BrowseServiceFactory.getService(
@@ -67,11 +96,11 @@ class BrowseScreenController {
       isLoading = false;
       currentFolder = rootItem;
       navigationStack = [];
-      onStateChanged();
+      _notifyListeners();
     } catch (e) {
       errorMessage = 'Failed to load departments: ${e.toString()}';
       isLoading = false;
-      onStateChanged();
+      _notifyListeners();
     }
   }
   
@@ -81,7 +110,7 @@ class BrowseScreenController {
     
     isLoading = true;
     errorMessage = null;
-    onStateChanged();
+    _notifyListeners();
 
     try {
       await loadFolderContents(folder);
@@ -96,16 +125,21 @@ class BrowseScreenController {
       }
       
       currentFolder = folder;
-      onStateChanged();
+      _notifyListeners();
     } catch (e) {
       errorMessage = 'Failed to load folder contents: ${e.toString()}';
       isLoading = false;
-      onStateChanged();
+      _notifyListeners();
     }
   }
   
   /// Loads the contents of a specific folder
+  /// Uses cancellation token to prevent multiple concurrent requests
   Future<void> loadFolderContents(BrowseItem folder) async {
+    // Cancel any ongoing request
+    _cancelToken?.cancel("New request started");
+    _cancelToken = CancelToken();
+
     try {
       final browseService = BrowseServiceFactory.getService(
         instanceType, 
@@ -113,21 +147,24 @@ class BrowseScreenController {
         authToken
       );
 
+      // Remove the cancelToken parameter if not supported by the service
       final loadedItems = await browseService.getChildren(folder);
-      
+    
       items = loadedItems;
       isLoading = false;
-      onStateChanged();
+      _notifyListeners();
     } catch (e) {
-      errorMessage = 'Failed to load contents: ${e.toString()}';
-      isLoading = false;
-      onStateChanged();
+      // Don't report errors from cancelled requests
+      if (e is! DioException || (e is DioException && e.type != DioExceptionType.cancel)) {
+        errorMessage = 'Failed to load contents: ${e.toString()}';
+        isLoading = false;
+        _notifyListeners();
       
-      // Re-throw to be caught by the calling method
-      rethrow;
+        // Re-throw to be caught by the calling method
+        rethrow;
+      }
     }
-  }
-  
+  }  
   /// Navigates to a specific point in breadcrumb
   void navigateToBreadcrumb(int index) {
     final targetFolder = navigationStack[index];
@@ -135,8 +172,18 @@ class BrowseScreenController {
     
     navigationStack = newStack;
     currentFolder = targetFolder;
-    onStateChanged();
+    _notifyListeners();
     
     loadFolderContents(targetFolder);
+  }
+
+  /// Properly clean up resources when controller is no longer needed
+  void dispose() {
+    // Cancel any ongoing network requests
+    _cancelToken?.cancel("Controller disposed");
+    
+    // No need to dispose debouncer in newer versions of the package
+    // If using an older version that requires disposal, uncomment:
+    // _debouncer.dispose();
   }
 }

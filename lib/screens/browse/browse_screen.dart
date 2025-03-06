@@ -42,7 +42,11 @@ class _BrowseScreenState extends State<BrowseScreen> {
       baseUrl: widget.baseUrl,
       authToken: widget.authToken,
       instanceType: widget.instanceType,
-      onStateChanged: () => setState(() {}),
+      onStateChanged: () {
+        if (mounted) {
+          setState(() {});
+        }
+      },
     );
     
     _fileTapHandler = FileTapHandler(
@@ -178,4 +182,12 @@ Widget build(BuildContext context) {
       },
     );
   }
+
+
+@override
+void dispose() {
+  _controller.dispose(); // Make sure your controller has a dispose method
+  super.dispose();
+}
+
 }

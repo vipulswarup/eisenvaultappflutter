@@ -21,12 +21,11 @@ class FolderContentList extends StatelessWidget {
   Widget build(BuildContext context) {
     return RefreshIndicator(
       onRefresh: onRefresh,
-      child: ListView.separated(
+      child: ListView.builder(
         itemCount: items.length,
-        separatorBuilder: (context, index) => const Divider(height: 1),
+        cacheExtent: 500, // Increase cache to reduce rebuilds
         itemBuilder: (context, index) {
           final item = items[index];
-          
           return BrowseItemTile(
             item: item,
             onTap: () {
