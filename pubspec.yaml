@@ -40,6 +40,8 @@ dependencies:
   # Updated device info plugin to a compatible version
   device_info_plus: ^11.3.3  # Upgraded from 8.2.2 to resolve dependency conflicts
 
+
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

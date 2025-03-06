@@ -1,0 +1,163 @@
+import 'package:eisenvaultappflutter/constants/colors.dart';
+import 'package:eisenvaultappflutter/screens/browse/browse_screen_controller.dart';
+import 'package:eisenvaultappflutter/screens/browse/handlers/auth_handler.dart';
+import 'package:eisenvaultappflutter/screens/browse/handlers/file_tap_handler.dart';
+import 'package:eisenvaultappflutter/screens/browse/widgets/breadcrumb_navigation.dart';
+import 'package:eisenvaultappflutter/screens/browse/widgets/browse_drawer.dart';
+import 'package:eisenvaultappflutter/screens/browse/widgets/empty_folder_view.dart';
+import 'package:eisenvaultappflutter/screens/browse/widgets/error_view.dart';
+import 'package:eisenvaultappflutter/screens/browse/widgets/folder_content_list.dart';
+import 'package:eisenvaultappflutter/utils/file_type_utils.dart';
+import 'package:flutter/material.dart';
+
+class BrowseScreen extends StatefulWidget {
+  final String baseUrl;
+  final String authToken;
+  final String firstName;
+  final String instanceType;
+
+  const BrowseScreen({
+    super.key,
+    required this.baseUrl,
+    required this.authToken,
+    required this.firstName,
+    required this.instanceType,
+  });
+
+  @override
+  State<BrowseScreen> createState() => _BrowseScreenState();
+}
+
+class _BrowseScreenState extends State<BrowseScreen> {
+  late BrowseScreenController _controller;
+  late FileTapHandler _fileTapHandler;
+  late AuthHandler _authHandler;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // Initialize controllers and handlers
+    _controller = BrowseScreenController(
+      baseUrl: widget.baseUrl,
+      authToken: widget.authToken,
+      instanceType: widget.instanceType,
+      onStateChanged: () => setState(() {}),
+    );
+    
+    _fileTapHandler = FileTapHandler(
+      context: context,
+      instanceType: widget.instanceType,
+      baseUrl: widget.baseUrl,
+      authToken: widget.authToken,
+      angoraBaseService: _controller.angoraBaseService,
+    );
+    
+    _authHandler = AuthHandler(
+      context: context,
+      instanceType: widget.instanceType,
+      baseUrl: widget.baseUrl,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: EVColors.screenBackground,
+      appBar: AppBar(
+        title: const Text('Departments'),
+        backgroundColor: EVColors.appBarBackground,
+        foregroundColor: EVColors.appBarForeground,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Logout',
+            onPressed: _authHandler.showLogoutConfirmation,
+          ),
+        ],
+      ),
+      // Add a drawer with logout option
+      drawer: BrowseDrawer(
+        firstName: widget.firstName,
+        baseUrl: widget.baseUrl,
+        onLogoutTap: _authHandler.showLogoutConfirmation,
+      ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Welcome message
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              'Welcome, ${widget.firstName}!',
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          
+          // Add breadcrumb navigation if we're not at root level
+          if (_controller.currentFolder != null && _controller.currentFolder!.id != 'root')
+            BreadcrumbNavigation(
+              navigationStack: _controller.navigationStack,
+              currentFolder: _controller.currentFolder,
+              onRootTap: _controller.loadDepartments,
+              onBreadcrumbTap: _controller.navigateToBreadcrumb,
+            ),
+          
+          Expanded(
+            child: _buildContent(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Builds the main content area (loading indicator, error, or item list)
+  Widget _buildContent() {
+    if (_controller.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_controller.errorMessage != null) {
+      return ErrorView(
+        errorMessage: _controller.errorMessage!,
+        onRetry: () {
+          if (_controller.currentFolder != null) {
+            _controller.loadFolderContents(_controller.currentFolder!);
+          } else {
+            _controller.loadDepartments();
+          }
+        },
+      );
+    }
+    
+    if (_controller.items.isEmpty) {
+      return const EmptyFolderView();
+    }
+
+    return FolderContentList(
+      items: _controller.items,
+      onFolderTap: _controller.navigateToFolder,
+      onFileTap: (file) {
+        final fileType = FileTypeUtils.getFileType(file.name);
+        if (fileType != FileType.unknown) {
+          _fileTapHandler.handleFileTap(file);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Viewing "${file.name}" is not supported yet.'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      },
+      onRefresh: () {
+        return _controller.currentFolder != null
+            ? _controller.loadFolderContents(_controller.currentFolder!)
+            : _controller.loadDepartments();
+      },
+    );
+  }
+}

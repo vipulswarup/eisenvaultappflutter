@@ -2,7 +2,7 @@ import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:flutter/material.dart';
 import 'package:eisenvaultappflutter/services/auth/classic_auth_service.dart';
 import 'package:eisenvaultappflutter/services/auth/angora_auth_service.dart';
-import 'package:eisenvaultappflutter/screens/browse_screen.dart';
+import 'package:eisenvaultappflutter/screens/browse/browse_screen.dart';
 import 'package:eisenvaultappflutter/services/api/base_service.dart';
 import 'package:eisenvaultappflutter/widgets/error_display.dart';
 
