@@ -48,12 +48,29 @@ class _LoginScreenState extends State<LoginScreen> {
   
   @override
   Widget build(BuildContext context) {
+    // Get screen dimensions
+    final size = MediaQuery.of(context).size;
+    final isSmallScreen = size.height < 700;
+    
+    // Calculate adaptive logo height
+    final logoHeight = isSmallScreen 
+      ? size.height * 0.20 // 20% of screen height on small screens
+      : size.height * 0.30; // 30% of screen height on larger screens
+      
+    // Calculate padding for the entire form
+    final screenPadding = isSmallScreen 
+      ? const EdgeInsets.all(16.0)  
+      : const EdgeInsets.all(24.0);
+    
+    // Calculate spacing between form elements
+    final elementSpacing = isSmallScreen ? 12.0 : 16.0;
+
     return Scaffold(
       backgroundColor: EVColors.screenBackground,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
+            padding: screenPadding,
             child: Form(
               key: _formKey,
               child: Column(
@@ -61,9 +78,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   Image.asset(
                     'assets/images/eisenvault_logo.png',
-                    height: 360,
+                    height: logoHeight,
                   ),                  
-                  const SizedBox(height: 18),
+                  SizedBox(height: elementSpacing),
                   DropdownButtonFormField<String>(
                     value: _selectedVersion,
                     decoration: InputDecoration(
@@ -92,22 +109,22 @@ class _LoginScreenState extends State<LoginScreen> {
                       });
                     },
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: elementSpacing),
                   _buildTextField(
                     controller: _urlController,
                     label: 'Server URL',
                     hint: 'https://your-instance.eisenvault.com',
                     icon: Icons.link,
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: elementSpacing),
                   _buildTextField(
                     controller: _usernameController,
                     label: 'Username',
                     icon: Icons.person,
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: elementSpacing),
                   _buildPasswordField(),
-                  const SizedBox(height: 32),
+                  SizedBox(height: elementSpacing * 1.5),
                   _buildLoginButton(),
                 ],
               ),
@@ -124,15 +141,7 @@ class _LoginScreenState extends State<LoginScreen> {
     String? hint,
     IconData? icon,
   }) {
-
-  @override
-  void dispose() {
-    _urlController.dispose();
-    _usernameController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-   return TextFormField(
+    return TextFormField(
       controller: controller,
       autocorrect: false,
       enableSuggestions: false,
@@ -217,6 +226,7 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
+  
   void _handleLogin() async {
     if (_formKey.currentState?.validate() ?? false) {
       try {
@@ -274,7 +284,7 @@ class _LoginScreenState extends State<LoginScreen> {
         if (mounted) {
           showDialog(
             context: context,
-            barrierDismissible: true,  // Enable clicking outside to close
+            barrierDismissible: true,
             builder: (BuildContext context) => Dialog(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
@@ -301,7 +311,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         },
                       ),
                     ),
-                    // Add close button in top-right corner
                     Positioned(
                       right: 8,
                       top: 8,
@@ -318,7 +327,9 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       }
     }
-  }  @override
+  }
+  
+  @override
   void dispose() {
     _urlController.dispose();
     _usernameController.dispose();
