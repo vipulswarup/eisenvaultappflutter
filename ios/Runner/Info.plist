@@ -178,5 +178,13 @@
 	<string>This app needs access to documents for opening and sharing files</string>
 	<key>NSDownloadsFolderUsageDescription</key>
 	<string>This app needs access to downloads for saving files</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Need access to photo library for document upload</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Need access to camera for document upload</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Need access to microphone for document upload</string>
 </dict>
 </plist>
+
+

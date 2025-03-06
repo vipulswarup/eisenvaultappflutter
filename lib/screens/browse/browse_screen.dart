@@ -9,6 +9,8 @@ import 'package:eisenvaultappflutter/screens/browse/widgets/error_view.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/folder_content_list.dart';
 import 'package:eisenvaultappflutter/utils/file_type_utils.dart';
 import 'package:flutter/material.dart';
+import 'package:eisenvaultappflutter/screens/document_upload_screen.dart';
+
 
 class BrowseScreen extends StatefulWidget {
   final String baseUrl;
@@ -104,8 +106,16 @@ Widget build(BuildContext context) {
       baseUrl: widget.baseUrl,
       onLogoutTap: _authHandler.showLogoutConfirmation,
     ) : null,
+    // Add Floating Action Button for upload when inside a folder
+    floatingActionButton: _controller.currentFolder != null && _controller.currentFolder!.id != 'root' ? 
+      FloatingActionButton(
+        onPressed: () => _navigateToUploadScreen(),
+        child: const Icon(Icons.upload_file),
+        tooltip: 'Upload Document',
+        backgroundColor: EVColors.terracotta,
+      ) : null,
     body: Column(
-      // Rest of the body remains unchanged
+      // Rest of body content remains the same...
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Welcome message
@@ -136,7 +146,28 @@ Widget build(BuildContext context) {
     ),
   );
 }
-  /// Builds the main content area (loading indicator, error, or item list)
+
+// Add this method to navigate to upload screen
+void _navigateToUploadScreen() async {
+  if (_controller.currentFolder == null) return;
+  
+  final result = await Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => DocumentUploadScreen(
+        repositoryType: widget.instanceType,
+        parentFolderId: _controller.currentFolder!.id,
+        baseUrl: widget.baseUrl,
+        authToken: widget.authToken,
+      ),
+    ),
+  );
+  
+  // If upload was successful, refresh the current folder
+  if (result == true) {
+    _controller.loadFolderContents(_controller.currentFolder!);
+  }
+}  /// Builds the main content area (loading indicator, error, or item list)
   Widget _buildContent() {
     if (_controller.isLoading) {
       return const Center(child: CircularProgressIndicator());
