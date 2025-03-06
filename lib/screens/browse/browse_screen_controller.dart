@@ -184,6 +184,15 @@ class BrowseScreenController {
       // Remove the cancelToken parameter if not supported by the service
       final loadedItems = await browseService.getChildren(folder);
     
+      // Log permissions for debugging
+      if (folder.allowableOperations != null) {
+        EVLogger.debug('Folder permissions', {
+          'folder': folder.name,
+          'operations': folder.allowableOperations,
+          'canWrite': folder.canWrite
+        });
+      }
+    
       items = loadedItems;
       isLoading = false;
       _notifyListeners();
@@ -200,8 +209,7 @@ class BrowseScreenController {
     }
   }  
   /// Navigates to a specific point in breadcrumb
-  void navigateToBreadcrumb(int index) {
-    final targetFolder = navigationStack[index];
+  void navigateToBreadcrumb(int index) {    final targetFolder = navigationStack[index];
     final newStack = navigationStack.sublist(0, index);
     
     navigationStack = newStack;

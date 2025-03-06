@@ -71,6 +71,11 @@ Widget build(BuildContext context) {
   // Determine when to show back arrow vs hamburger menu
   final bool isAtDepartmentsList = _controller.currentFolder == null || _controller.currentFolder!.id == 'root';
   
+  // Check if user has write permission for the current folder
+  final bool hasWritePermission = _controller.currentFolder != null && 
+                                 _controller.currentFolder!.id != 'root' &&
+                                 _controller.currentFolder!.canWrite;
+  
   return Scaffold(
     backgroundColor: EVColors.screenBackground,
     appBar: AppBar(
@@ -107,13 +112,28 @@ Widget build(BuildContext context) {
       baseUrl: widget.baseUrl,
       onLogoutTap: _authHandler.showLogoutConfirmation,
     ) : null,
-    // Add Floating Action Button for upload when inside a folder
+    // Modified floating action button with permission check
     floatingActionButton: _controller.currentFolder != null && _controller.currentFolder!.id != 'root' ? 
       FloatingActionButton(
-        onPressed: () => _navigateToUploadScreen(),
+        onPressed: hasWritePermission 
+          ? () => _navigateToUploadScreen() 
+          : () {
+              // Show message explaining why button is disabled
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('You don\'t have permission to upload files to this folder.'),
+                  behavior: SnackBarBehavior.floating,
+                  backgroundColor: Colors.orange,
+                )
+              );
+            },
         child: const Icon(Icons.upload_file),
-        tooltip: 'Upload Document',
-        backgroundColor: EVColors.terracotta,
+        tooltip: hasWritePermission 
+          ? 'Upload Document' 
+          : 'You don\'t have permission to upload here',
+        backgroundColor: hasWritePermission 
+          ? EVColors.terracotta 
+          : Colors.grey,
       ) : null,
     body: Column(
       // Rest of body content remains the same...

@@ -1,11 +1,12 @@
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import 'dart:io';
 import '../constants/colors.dart';
 import '../services/alfresco_upload_service.dart';
 import '../services/angora_upload_service.dart';
+import '../utils/logger.dart';  // Make sure you have this import
 
 class DocumentUploadScreen extends StatefulWidget {
   final String repositoryType;
@@ -33,58 +34,67 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
   String? _description;
   final _descriptionController = TextEditingController();
 
+  // Update the _pickFile method to use file_selector
   Future<void> _pickFile() async {
-    print('Pick file button clicked');
     try {
-      final result = await FilePicker.platform.pickFiles(
-        // Add these options for better web support
-        withData: true,  // Important for web to get the bytes
-        type: FileType.any,
+      // Define accepted file types for documents
+      final XTypeGroup documentsTypeGroup = XTypeGroup(
+        label: 'Documents',
+        extensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'],
       );
       
-      print('FilePicker result: ${result != null ? "File selected" : "No file selected"}');
+      // Define accepted file types for images
+      final XTypeGroup imagesTypeGroup = XTypeGroup(
+        label: 'Images',
+        extensions: ['jpg', 'jpeg', 'png', 'gif'],
+      );
       
-      if (result != null) {
-        print('Selected file name: ${result.files.single.name}');
-        print('File size: ${result.files.single.size} bytes');
-        print('Has bytes: ${result.files.single.bytes != null}');
-        print('Has path: ${result.files.single.path != null}');
-        
+      // Open file picker dialog
+      final XFile? file = await openFile(
+        acceptedTypeGroups: [documentsTypeGroup, imagesTypeGroup],
+      );
+      
+      if (file != null) {
         setState(() {
-          _fileName = result.files.single.name;
+          _fileName = file.name;
           
           // Handle differently based on platform
           if (kIsWeb) {
-            // On web, get bytes instead of path
-            _fileBytes = result.files.single.bytes;
-            if (_fileBytes == null) {
-              print('WARNING: bytes is null even though we are on web platform');
-            } else {
-              print('Bytes array length: ${_fileBytes!.length}');
-            }
-            _filePath = null; // Path is always null on web
+            // On web, get bytes
+            file.readAsBytes().then((bytes) {
+              setState(() {
+                _fileBytes = bytes;
+                _filePath = null;
+              });
+            });
           } else {
-            // On native platforms, get the file path
-            _filePath = result.files.single.path;
+            // On native platforms, use the file path
+            _filePath = file.path;
             _fileBytes = null;
-            if (_filePath == null) {
-              print('WARNING: path is null even though we are on native platform');
-            }
           }
+        });
+        
+        EVLogger.debug('File selected', {
+          'name': file.name,
+          'path': file.path,
+          'isWeb': kIsWeb
         });
       }
     } catch (e) {
-      print('Error picking file: $e');
+      EVLogger.error('Error picking file', {'error': e.toString()});
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking file: $e'))
+        SnackBar(
+          content: Text('Error selecting file: $e'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.red,
+        )
       );
     }
   }
 
+  // The uploadFile method needs minimal changes
   Future<void> _uploadFile() async {
-    print('Upload button clicked');
     if (_filePath == null && _fileBytes == null) {
-      print('No file selected - stopping upload');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a file first'))
       );
@@ -92,32 +102,27 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
     }
 
     if (_fileName == null) {
-      print('Filename is null - stopping upload');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('File name is missing'))
       );
       return;
     }
 
-    print('Starting upload process for file: $_fileName');
     setState(() {
       _isUploading = true;
     });
 
     try {
-      print('Using repository type: ${widget.repositoryType}');
       Map<String, dynamic> result;
       
-      if (widget.repositoryType == 'alfresco' || widget.repositoryType == 'Classic') {
-        print('Creating AlfrescoUploadService with baseUrl: ${widget.baseUrl}');
+      if (widget.repositoryType == 'alfresco') {
         final service = AlfrescoUploadService(
           baseUrl: widget.baseUrl,
           authToken: widget.authToken,
         );
         
-        print('Calling upload method with parentFolderId: ${widget.parentFolderId}');
+        // Call the appropriate upload method based on platform
         if (kIsWeb && _fileBytes != null) {
-          print('Web platform detected, using bytes upload');
           result = await service.uploadDocumentBytes(
             parentFolderId: widget.parentFolderId,
             fileBytes: _fileBytes!,
@@ -125,7 +130,6 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
             description: _description,
           );
         } else if (_filePath != null) {
-          print('Native platform or file path available, using path upload');
           result = await service.uploadDocument(
             parentFolderId: widget.parentFolderId,
             filePath: _filePath!,
@@ -133,13 +137,11 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
             description: _description,
           );
         } else {
-          print('Invalid file data scenario');
           throw Exception('Invalid file data');
         }
         
-        print('Upload completed successfully. Result: $result');
       } else {
-        // Angora implementation
+        // Angora dummy implementation
         final service = AngoraUploadService();
         
         // For Angora, we can just call a single method that handles both cases
@@ -166,7 +168,6 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
       );
       
     } catch (e) {
-      print('Error in _uploadFile method: $e');
       if (!mounted) return;
       
       ScaffoldMessenger.of(context).showSnackBar(
@@ -185,6 +186,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
     }
   }
 
+  // The rest of the file remains unchanged
   @override
   Widget build(BuildContext context) {
     return Scaffold(

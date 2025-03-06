@@ -1,14 +1,14 @@
 class BrowseItem {
   final String id;
   final String name;
-  final String type; // 'folder', 'document', etc.
+  final String type;
   final String? description;
   final String? modifiedDate;
   final String? modifiedBy;
   final bool isDepartment;
   final List<String>? allowableOperations;
   final String? thumbnailUrl;
-  final String? documentLibraryId; // Add this field
+  final String? documentLibraryId;
 
   BrowseItem({
     required this.id,
@@ -20,6 +20,19 @@ class BrowseItem {
     this.isDepartment = false,
     this.allowableOperations,
     this.thumbnailUrl,
-    this.documentLibraryId, // Add to constructor
+    this.documentLibraryId,
   });
+  
+  // Add this helper method to check for write permission
+  bool get canWrite {
+    if (allowableOperations == null) return false;
+    
+    // Alfresco typically uses these permission strings
+    return allowableOperations!.any((op) => 
+      op == 'create' || 
+      op == 'update' || 
+      op == 'write' || 
+      op == 'delete' ||
+      op == 'all');
+  }
 }

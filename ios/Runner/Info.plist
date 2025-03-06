@@ -179,9 +179,11 @@
 	<key>NSDownloadsFolderUsageDescription</key>
 	<string>This app needs access to downloads for saving files</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Need access to photo library for document upload</string>
+	<string>This app needs access to the photo library for file selection.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Need access to camera for document upload</string>
+	<key>NSDocumentsDirectoryUsageDescription</key>
+	<string>This app needs access to documents for file selection.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Need access to microphone for document upload</string>
 </dict>
