@@ -1,0 +1,43 @@
+buildscript {
+    ext.kotlin_version = '1.8.0' // Compatible Kotlin version
+    repositories {
+        google()
+        mavenCentral()
+    }
+    
+    dependencies {
+        classpath 'com.android.tools.build:gradle:7.3.0' // More stable version
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        // Add other classpath dependencies if needed
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        
+        // Add Flutter repository explicitly
+        maven {
+            url "${project.rootDir.parentFile.absolutePath}/build/host/outputs/repo"
+        }
+        maven {
+            url "https://storage.googleapis.com/download.flutter.io"
+        }
+    }
+}
+
+// Set custom build directory location
+def newBuildDir = new File(rootProject.projectDir, "../../build")
+rootProject.buildDir = newBuildDir
+
+subprojects {
+    buildDir = new File(rootProject.buildDir, project.name)
+    
+    // Add project evaluation dependency for proper build order
+    project.evaluationDependsOn(':app')
+}
+
+tasks.register("clean", Delete) {
+    delete rootProject.buildDir
+}

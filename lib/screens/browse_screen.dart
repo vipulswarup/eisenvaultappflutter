@@ -202,7 +202,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
       });
       
       // Re-throw to be caught by the calling method
-      throw e;
+      rethrow;
     }
   }
 

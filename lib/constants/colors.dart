@@ -54,53 +54,71 @@ import 'package:flutter/material.dart';
 //   static const breadcrumbSeparator = Color(0xFFB58B85); // Matches textFieldHint
 // }
 
+
 class EVColors {
+  // Primary Palette Colors
+  static const cream = Color(0xFFF4F1DE);  // Light cream
+  static const terracotta = Color(0xFFE07A5F);  // Warm terracotta
+  static const navy = Color(0xFF3D405B);  // Deep navy blue
+  static const sage = Color(0xFF81B29A);  // Soft sage green
+  static const gold = Color(0xFFF2CC8F);  // Muted gold
+
   // Screen & Background Colors
-  static const screenBackground = Color(0xFFF0F7FF);  // Cool light blue-white
+  static const screenBackground = Color(0xFFF4F1DE);  // Light cream
 
   // TextField Colors
-  static const textFieldPrefixIcon = Color(0xFF94C9FF);  // Soft sky blue
-  static const textFieldFill = Color(0xFFE6F2FF);  // Light powder blue
-  static const textFieldBorder = Color(0xFFBFDFFF);  // Muted blue
-  static const textFieldErrorBorder = Color(0xFFFF9E9E);  // Soft coral
-  static const textFieldLabel = Color(0xFF6B95CC);  // Dusty blue
-  static const textFieldHint = Color(0xFFA4C2E5);  // Light periwinkle
+  static const textFieldPrefixIcon = Color(0xFFE07A5F);  // Terracotta
+  static const textFieldFill = Color(0xFFF8F6EC);  // Lighter cream
+  static const textFieldBorder = Color(0xFFF2CC8F);  // Gold
+  static const textFieldErrorBorder = Color(0xFFD85C45);  // Darker terracotta
+  static const textFieldLabel = Color(0xFF3D405B);  // Navy
+  static const textFieldHint = Color(0xFF9A9BAF);  // Muted navy
 
   // Button Colors
-  static const buttonBackground = Color(0xFF7CB9E8);  // Fresh sky blue
-  static const buttonForeground = Color(0xFFFFFFFF);  // White
-  static const buttonDisabledBackground = Color(0xFFD4E6F9);  // Light washed blue
-  static const buttonDisabledForeground = Color(0xFFA4C2E5);  // Light periwinkle
-  static const buttonBorder = Color(0xFF94C9FF);  // Soft sky blue
-  static const buttonDisabledBorder = Color(0xFFD4E6F9);  // Light washed blue
+  static const buttonBackground = Color(0xFFE07A5F);  // Terracotta
+  static const buttonForeground = Color(0xFFF4F1DE);  // Cream
+  static const buttonDisabledBackground = Color(0xFFEDC3B4);  // Light terracotta
+  static const buttonDisabledForeground = Color(0xFFB6B4A6);  // Muted cream
+  static const buttonBorder = Color(0xFFD85C45);  // Darker terracotta
+  static const buttonDisabledBorder = Color(0xFFEDC3B4);  // Light terracotta
 
   // Error Button Colors
-  static const buttonErrorBackground = Color(0xFFFFB5B5);  // Soft pink
-  static const buttonErrorForeground = Color(0xFFFFFFFF);  // White
-  static const buttonErrorBorder = Color(0xFFFF9E9E);  // Soft coral
+  static const buttonErrorBackground = Color(0xFFD85C45);  // Darker terracotta
+  static const buttonErrorForeground = Color(0xFFF4F1DE);  // Cream
+  static const buttonErrorBorder = Color(0xFFBE4B38);  // Even darker terracotta
 
   // Alert Message Colors
-  static const alertSuccess = Color(0xFFB8E8D2);  // Mint green
-  static const alertFailure = Color(0xFFFFD1D1);  // Light rose
+  static const alertSuccess = Color(0xFF9CCBB2);  // Lighter sage
+  static const alertFailure = Color(0xFFEDAF9E);  // Light terracotta
+
+  // RadioListTile Colors
+  static const radioActive = Color(0xFFE07A5F);  // Terracotta
+  static const radioInactive = Color(0xFFB6B4A6);  // Muted cream
 
   // Icon Colors
-  static const departmentIconBackground = Color(0xFFE6F2FF);  // Light powder blue
-  static const departmentIconForeground = Color(0xFF94C9FF);  // Soft sky blue
-  static const folderIconBackground = Color(0xFFF0F7FF);  // Cool light blue-white
-  static const folderIconForeground = Color(0xFF7CB9E8);  // Fresh sky blue
-  static const documentIconBackground = Color(0xFFF0F7FF);  // Cool light blue-white
-  static const documentIconForeground = Color(0xFF6B95CC);  // Dusty blue
+  static const departmentIconBackground = Color(0xFFF8F6EC);  // Lighter cream
+  static const departmentIconForeground = Color(0xFF3D405B);  // Navy
+  static const folderIconBackground = Color(0xFFF6E5C8);  // Lighter gold
+  static const folderIconForeground = Color(0xFFF2CC8F);  // Gold
+  static const documentIconBackground = Color(0xFFE6ECE9);  // Very light sage
+  static const documentIconForeground = Color(0xFF81B29A);  // Sage
 
   // AppBar Colors
-  static const appBarBackground = Color(0xFF7CB9E8);  // Fresh sky blue
-  static const appBarForeground = Color(0xFFFFFFFF);  // White
-
+  static const appBarBackground = Color(0xFF3D405B);  // Navy
+  static const appBarForeground = Color(0xFFF4F1DE);  // Cream
+  
   // List Item Colors
-  static const listItemBackground = Color(0xFFF8FBFF);  // Very light blue
-  static const listItemDivider = Color(0xFFE6F2FF);  // Light powder blue
+  static const listItemBackground = Color(0xFFF8F6EC);  // Lighter cream
+  static const listItemDivider = Color(0xFFF6E5C8);  // Lighter gold
 
   // Breadcrumb Navigation Colors
-  static const breadcrumbText = Color(0xFF6B95CC);  // Dusty blue
-  static const breadcrumbCurrentText = Color(0xFF7CB9E8);  // Fresh sky blue
-  static const breadcrumbSeparator = Color(0xFFA4C2E5);  // Light periwinkle
+  static const breadcrumbText = Color(0xFF3D405B);  // Navy
+  static const breadcrumbCurrentText = Color(0xFFE07A5F);  // Terracotta
+  static const breadcrumbSeparator = Color(0xFF9A9BAF);  // Muted navy
+  
+  // Additional Accent Colors
+  static const accentRust = Color(0xFFC85A40);  // Deeper terracotta/rust
+  static const accentMoss = Color(0xFF5F7E70);  // Darker sage/moss
+  static const accentDeepGold = Color(0xFFD9B166);  // Deeper gold
+  static const accentLavender = Color(0xFF6F71A0);  // Muted lavender derived from navy
 }

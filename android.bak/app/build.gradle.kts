@@ -6,9 +6,9 @@ plugins {
 }
 
 android {
-    namespace = "com.eisenvault.eisenvaultappflutter"
+    namespace = "com.example.eisenvaultappflutter"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -21,7 +21,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.eisenvault.eisenvaultappflutter"
+        applicationId = "com.example.eisenvaultappflutter"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

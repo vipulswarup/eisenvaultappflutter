@@ -1,4 +1,0 @@
-android {
-    compileSdkVersion 35  // Or another version you have installed
-    ndkVersion "27.0.12077973"
-}

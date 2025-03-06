@@ -18,7 +18,7 @@ packages:
     source: hosted
     version: "4.0.4"
   async:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: async
       sha256: d2872f9c19731c2e5f10444b14686eb7cc85c76274bd6c16e1816bff9a3bab63
@@ -106,7 +106,7 @@ packages:
     source: hosted
     version: "1.0.8"
   device_info_plus:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: device_info_plus
       sha256: "306b78788d1bb569edb7c55d622953c2414ca12445b41c9117963e03afc5c513"
@@ -122,7 +122,7 @@ packages:
     source: hosted
     version: "7.0.2"
   fake_async:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: fake_async
       sha256: "6a95e56b2449df2273fd8c45a662d6947ce1ebb7aafe80e550a3f68297f3cacc"
@@ -273,13 +273,13 @@ packages:
     source: hosted
     version: "1.16.0"
   mime:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: mime
-      sha256: "801fd0b26f14a4a58ccb09d5892c3fbdeff209594300a542492cf13fba9d247a"
+      sha256: "41a20518f0cb1256669420fdba0cd90d21561e560ac240f26ef8322e45bb7ed6"
       url: "https://pub.dev"
     source: hosted
-    version: "1.0.6"
+    version: "2.0.0"
   path:
     dependency: transitive
     description:
@@ -409,21 +409,21 @@ packages:
     source: hosted
     version: "3.0.2"
   share_plus:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: share_plus
-      sha256: "3ef39599b00059db0990ca2e30fca0a29d8b37aae924d60063f8e0184cf20900"
+      sha256: fce43200aa03ea87b91ce4c3ac79f0cecd52e2a7a56c7a4185023c271fbfa6da
       url: "https://pub.dev"
     source: hosted
-    version: "7.2.2"
+    version: "10.1.4"
   share_plus_platform_interface:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: share_plus_platform_interface
-      sha256: "251eb156a8b5fa9ce033747d73535bf53911071f8d3b6f4f0b578505ce0d4496"
+      sha256: cc012a23fc2d479854e6c80150696c4a5f5bb62cb89af4de1c505cf78d0a5d0b
       url: "https://pub.dev"
     source: hosted
-    version: "3.4.0"
+    version: "5.0.2"
   sky_engine:
     dependency: transitive
     description: flutter
@@ -534,29 +534,29 @@ packages:
     source: hosted
     version: "28.2.9"
   talker:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: talker
-      sha256: "1e4351253560219859a8e757f5b8dbd266d5c289a50dd90d12da4f3041184392"
+      sha256: "5ab7d974ad92042b3e2382441c41ec4c6e5b3fa2b4b024d8ccbfc4bc2244b7bb"
       url: "https://pub.dev"
     source: hosted
-    version: "3.2.0"
+    version: "4.6.14"
   talker_flutter:
     dependency: "direct main"
     description:
       name: talker_flutter
-      sha256: "4ebc616d1b5fce7bbb394ec6950a0469308bd9444b68e24f738b3b278f6bb649"
+      sha256: "0cc816260b226c0ff930909c9f22984316b652b140f5eabb97ae9813ee0de135"
       url: "https://pub.dev"
     source: hosted
-    version: "3.6.0"
+    version: "4.6.14"
   talker_logger:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: talker_logger
-      sha256: "3f8d051e5821c4aa3c27efe8204829dde128724cbd0294ae3cee76b097cf2cbb"
+      sha256: "16ff0cfdf011f65b37957c9ff7ef7043dd9f1c8af3ccb4a44ac4a448defb9eb5"
       url: "https://pub.dev"
     source: hosted
-    version: "3.1.0"
+    version: "4.6.14"
   term_glyph:
     dependency: transitive
     description:
