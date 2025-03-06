@@ -30,7 +30,7 @@ class BreadcrumbNavigation extends StatelessWidget {
           InkWell(
             onTap: onRootTap,
             child: const Text(
-              'Root',
+              'Departments',
               style: TextStyle(
                 color: Colors.black87,
                 fontWeight: FontWeight.w500,

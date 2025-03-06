@@ -59,61 +59,79 @@ class _BrowseScreenState extends State<BrowseScreen> {
       baseUrl: widget.baseUrl,
     );
   }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: EVColors.screenBackground,
-      appBar: AppBar(
-        title: const Text('Departments'),
-        backgroundColor: EVColors.appBarBackground,
-        foregroundColor: EVColors.appBarForeground,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Logout',
-            onPressed: _authHandler.showLogoutConfirmation,
-          ),
-        ],
-      ),
-      // Add a drawer with logout option
-      drawer: BrowseDrawer(
-        firstName: widget.firstName,
-        baseUrl: widget.baseUrl,
-        onLogoutTap: _authHandler.showLogoutConfirmation,
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Welcome message
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              'Welcome, ${widget.firstName}!',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+@override
+Widget build(BuildContext context) {
+  // Determine when to show back arrow vs hamburger menu
+  final bool isAtDepartmentsList = _controller.currentFolder == null || _controller.currentFolder!.id == 'root';
+  
+  return Scaffold(
+    backgroundColor: EVColors.screenBackground,
+    appBar: AppBar(
+      // Show hamburger icon at departments list, back arrow inside folders
+      leading: isAtDepartmentsList
+          ? null  // Use default drawer hamburger icon
+          : IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () {
+                if (_controller.navigationStack.isEmpty) {
+                  // If at department root, go back to departments list
+                  _controller.loadDepartments();
+                } else {
+                  // If in subfolder, go back one level by navigating to parent folder
+                  int parentIndex = _controller.navigationStack.length - 1;
+                  _controller.navigateToBreadcrumb(parentIndex);
+                }
+              },
+            ),
+      title: const Text('Departments'),
+      backgroundColor: EVColors.appBarBackground,
+      foregroundColor: EVColors.appBarForeground,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.logout),
+          tooltip: 'Logout',
+          onPressed: _authHandler.showLogoutConfirmation,
+        ),
+      ],
+    ),
+    // Keep the drawer to be shown with hamburger menu when appropriate
+    drawer: isAtDepartmentsList ? BrowseDrawer(
+      firstName: widget.firstName,
+      baseUrl: widget.baseUrl,
+      onLogoutTap: _authHandler.showLogoutConfirmation,
+    ) : null,
+    body: Column(
+      // Rest of the body remains unchanged
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Welcome message
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Text(
+            'Welcome, ${widget.firstName}!',
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          
-          // Add breadcrumb navigation if we're not at root level
-          if (_controller.currentFolder != null && _controller.currentFolder!.id != 'root')
-            BreadcrumbNavigation(
-              navigationStack: _controller.navigationStack,
-              currentFolder: _controller.currentFolder,
-              onRootTap: _controller.loadDepartments,
-              onBreadcrumbTap: _controller.navigateToBreadcrumb,
-            ),
-          
-          Expanded(
-            child: _buildContent(),
+        ),
+        
+        // Add breadcrumb navigation if we're not at root level
+        if (_controller.currentFolder != null && _controller.currentFolder!.id != 'root')
+          BreadcrumbNavigation(
+            navigationStack: _controller.navigationStack,
+            currentFolder: _controller.currentFolder,
+            onRootTap: _controller.loadDepartments,
+            onBreadcrumbTap: _controller.navigateToBreadcrumb,
           ),
-        ],
-      ),
-    );
-  }
-
+        
+        Expanded(
+          child: _buildContent(),
+        ),
+      ],
+    ),
+  );
+}
   /// Builds the main content area (loading indicator, error, or item list)
   Widget _buildContent() {
     if (_controller.isLoading) {
