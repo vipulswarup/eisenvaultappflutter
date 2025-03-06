@@ -6,6 +6,8 @@ import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:open_file/open_file.dart';
+
 
 class GenericFilePreviewScreen extends StatelessWidget {
   final String title;
@@ -113,23 +115,36 @@ class GenericFilePreviewScreen extends StatelessWidget {
   Future<void> _openWithExternalApp(BuildContext context) async {
     try {
       if (kIsWeb) {
-        // For web, we can't directly open files with external apps
-        // We could implement a download function here
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Download functionality for web is not yet implemented')),
         );
         return;
       }
-      
+    
+      String filePath;
       if (fileContent is String) {
-        final filePath = fileContent as String;
-        final fileUri = Uri.file(filePath);
-        
-        if (await canLaunchUrl(fileUri)) {
-          await launchUrl(fileUri);
-        } else {
-          throw Exception('Could not launch $fileUri');
-        }
+        filePath = fileContent as String;
+      } else if (fileContent is Uint8List) {
+        // Handle bytes case - save to temp file first
+        final bytes = fileContent as Uint8List;
+        final tempDir = await getTemporaryDirectory();
+        // Create a filename without special characters that could cause issues
+        final safeFileName = title.replaceAll(RegExp(r'[^\w\s\.]'), '_');
+        final file = File('${tempDir.path}/$safeFileName');
+        await file.writeAsBytes(bytes);
+        filePath = file.path;
+      } else {
+        throw Exception('Unsupported file content type');
+      }
+    
+      // Use open_file package for better file handling
+      final result = await OpenFile.open(filePath);
+    
+      if (result.type != ResultType.done) {
+        EVLogger.error('Error opening file with external app', result.message);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error opening file: ${result.message}')),
+        );
       }
     } catch (e) {
       EVLogger.error('Error opening file with external app', e);
@@ -137,9 +152,7 @@ class GenericFilePreviewScreen extends StatelessWidget {
         SnackBar(content: Text('Error opening file: ${e.toString()}')),
       );
     }
-  }
-
-  Future<void> _shareFile(BuildContext context) async {
+  }  Future<void> _shareFile(BuildContext context) async {
     try {
       if (kIsWeb) {
         ScaffoldMessenger.of(context).showSnackBar(
