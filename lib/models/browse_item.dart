@@ -8,6 +8,7 @@ class BrowseItem {
   final bool isDepartment;
   final List<String>? allowableOperations;
   final String? thumbnailUrl;
+  final String? documentLibraryId; // Add this field
 
   BrowseItem({
     required this.id,
@@ -19,5 +20,6 @@ class BrowseItem {
     this.isDepartment = false,
     this.allowableOperations,
     this.thumbnailUrl,
+    this.documentLibraryId, // Add to constructor
   });
 }

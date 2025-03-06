@@ -2,9 +2,11 @@ import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/services/api/angora_base_service.dart';
 import 'package:eisenvaultappflutter/services/browse/browse_service_factory.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
-import 'package:flutter/material.dart';
 import 'package:debounce_throttle/debounce_throttle.dart';
 import 'package:dio/dio.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
 
 /// Controller for the BrowseScreen
 /// Separates business logic from UI
@@ -91,8 +93,22 @@ class BrowseScreenController {
       );
 
       final loadedItems = await browseService.getChildren(rootItem);
+    
+      items = [];
+      for (var department in loadedItems) {
+        final docLibId = await _fetchDocumentLibraryId(department.id);
       
-      items = loadedItems;
+        items.add(
+          BrowseItem(
+            id: department.id,
+            name: department.name,
+            type: 'folder',
+            isDepartment: true,
+            documentLibraryId: docLibId,
+          )
+        );
+      }
+    
       isLoading = false;
       currentFolder = rootItem;
       navigationStack = [];
@@ -102,6 +118,24 @@ class BrowseScreenController {
       isLoading = false;
       _notifyListeners();
     }
+  }
+
+  Future<String> _fetchDocumentLibraryId(String siteId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/-default-/public/alfresco/versions/1/sites/$siteId/containers'),
+      headers: {'Authorization': authToken},
+    );
+  
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      for (var entry in data['list']['entries']) {
+        if (entry['entry']['folderId'] == 'documentLibrary') {
+          return entry['entry']['id'];
+        }
+      }
+    }
+  
+    throw Exception('Document library not found for site $siteId');
   }
   
   /// Navigates to a specific folder and loads its contents

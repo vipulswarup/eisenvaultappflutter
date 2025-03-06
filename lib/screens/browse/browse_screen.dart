@@ -10,6 +10,7 @@ import 'package:eisenvaultappflutter/screens/browse/widgets/folder_content_list.
 import 'package:eisenvaultappflutter/utils/file_type_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:eisenvaultappflutter/screens/document_upload_screen.dart';
+import 'package:eisenvaultappflutter/utils/logger.dart';
 
 
 class BrowseScreen extends StatefulWidget {
@@ -146,17 +147,48 @@ Widget build(BuildContext context) {
     ),
   );
 }
-
 // Add this method to navigate to upload screen
 void _navigateToUploadScreen() async {
   if (_controller.currentFolder == null) return;
+  
+  // Get the correct parent folder ID
+  String parentFolderId;
+  
+  // If we're at the department level (site level), we need to get the documentLibrary ID
+  if (_controller.currentFolder!.isDepartment) {
+    EVLogger.debug('Attempting upload at department level', {
+      'folder': _controller.currentFolder!.name
+    });
+    
+    if (_controller.currentFolder!.documentLibraryId != null) {
+      // Use the documentLibrary ID we stored earlier
+      parentFolderId = _controller.currentFolder!.documentLibraryId!;
+      
+      EVLogger.debug('Using documentLibrary ID for upload', {
+        'parentFolderId': parentFolderId
+      });
+    } else {
+      // If we don't have the documentLibrary ID for some reason, show an error
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cannot upload at this level. Please navigate to a subfolder.'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.red,
+        )
+      );
+      return;
+    }
+  } else {
+    // We're in a regular folder, use the current folder ID
+    parentFolderId = _controller.currentFolder!.id;
+  }
   
   final result = await Navigator.push(
     context,
     MaterialPageRoute(
       builder: (context) => DocumentUploadScreen(
         repositoryType: widget.instanceType,
-        parentFolderId: _controller.currentFolder!.id,
+        parentFolderId: parentFolderId, // Use our resolved parentFolderId
         baseUrl: widget.baseUrl,
         authToken: widget.authToken,
       ),
