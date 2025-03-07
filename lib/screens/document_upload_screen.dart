@@ -37,16 +37,31 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
   // Update the _pickFile method to use file_selector
   Future<void> _pickFile() async {
     try {
-      // Define accepted file types for documents
+      // Define accepted file types for documents with proper UTIs for Apple platforms
       final XTypeGroup documentsTypeGroup = XTypeGroup(
         label: 'Documents',
         extensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'],
+        uniformTypeIdentifiers: [
+          'com.adobe.pdf',
+          'org.openxmlformats.wordprocessingml.document',
+          'com.microsoft.word.doc',
+          'org.openxmlformats.spreadsheetml.sheet',
+          'com.microsoft.excel.xls',
+          'org.openxmlformats.presentationml.presentation',
+          'com.microsoft.powerpoint.ppt',
+          'public.plain-text',
+        ],
       );
       
-      // Define accepted file types for images
+      // Define accepted file types for images with proper UTIs
       final XTypeGroup imagesTypeGroup = XTypeGroup(
         label: 'Images',
         extensions: ['jpg', 'jpeg', 'png', 'gif'],
+        uniformTypeIdentifiers: [
+          'public.jpeg',
+          'public.png',
+          'com.compuserve.gif',
+        ],
       );
       
       // Open file picker dialog
@@ -54,6 +69,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
         acceptedTypeGroups: [documentsTypeGroup, imagesTypeGroup],
       );
       
+      // Rest of the method remains the same...
       if (file != null) {
         setState(() {
           _fileName = file.name;
