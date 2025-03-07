@@ -137,36 +137,64 @@ class AlfrescoUploadService {
     
     EVLogger.debug('Request fields', {'fields': request.fields});
     
+    // New Debug: Add detailed request information
+    EVLogger.debug('Request details', {
+      'method': request.method,
+      'url': request.url.toString(),
+      'fields count': request.fields.length,
+      'files count': request.files.length,
+    });
+
+    // New Debug: Log before making API call
+    EVLogger.debug('About to make API call', {
+      'url': url,
+      'fileName': fileName,
+      'parentFolderId': parentFolderId,
+      'fileBytes size': fileBytes.length,
+      'token prefix': _baseService.getToken()?.substring(0, 10) // Just show prefix for security
+    });
+    
     try {
       EVLogger.debug('Sending multipart upload request', {'files': request.files.length});
       
-      // Send request with timeout
-      final streamedResponse = await request.send().timeout(
-        const Duration(seconds: 30),
-        onTimeout: () {
-          EVLogger.error('Request timed out');
-          throw TimeoutException('Request timed out');
-        }
-      );
-      
-      EVLogger.debug('Response received', {
-        'status': streamedResponse.statusCode.toString(),
-        'headers': streamedResponse.headers
-      });
-      
-      // Read response body
-      final responseBody = await streamedResponse.stream.bytesToString();
-
-      // Process response
-      if (streamedResponse.statusCode == 201) {
-        EVLogger.debug('Upload successful', {'response': responseBody});
-        return jsonDecode(responseBody);
-      } else {
-        EVLogger.error('Upload failed', {
+      // New Debug: Enhanced error catching for HTTP request
+      try {
+        EVLogger.debug('Sending request', {'url': request.url.toString()});
+        
+        // Send request with timeout
+        final streamedResponse = await request.send().timeout(
+          const Duration(seconds: 30),
+          onTimeout: () {
+            EVLogger.error('Request timed out');
+            throw TimeoutException('Request timed out');
+          }
+        );
+        
+        EVLogger.debug('Response received', {
           'status': streamedResponse.statusCode.toString(),
-          'response': responseBody
+          'headers': streamedResponse.headers
         });
-        throw Exception('Failed to upload document: ${streamedResponse.statusCode} - $responseBody');
+        
+        // Read response body
+        final responseBody = await streamedResponse.stream.bytesToString();
+
+        // Process response
+        if (streamedResponse.statusCode == 201) {
+          EVLogger.debug('Upload successful', {'response': responseBody});
+          return jsonDecode(responseBody);
+        } else {
+          EVLogger.error('Upload failed', {
+            'status': streamedResponse.statusCode.toString(),
+            'response': responseBody
+          });
+          throw Exception('Failed to upload document: ${streamedResponse.statusCode} - $responseBody');
+        }
+      } catch (httpError) {
+        EVLogger.error('HTTP request failed', {
+          'error': httpError.toString(), 
+          'stack': httpError is Error ? httpError.stackTrace.toString() : 'No stack'
+        });
+        rethrow;
       }
     } catch (e) {
       EVLogger.error('Error during file upload', {'error': e.toString()});

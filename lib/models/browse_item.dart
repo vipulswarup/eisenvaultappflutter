@@ -9,6 +9,7 @@ class BrowseItem {
   final List<String>? allowableOperations;
   final String? thumbnailUrl;
   final String? documentLibraryId;
+  //final bool canWrite;
 
   BrowseItem({
     required this.id,
@@ -21,6 +22,7 @@ class BrowseItem {
     this.allowableOperations,
     this.thumbnailUrl,
     this.documentLibraryId,
+    //this.canWrite = false,
   });
   
   // Add this helper method to check for write permission

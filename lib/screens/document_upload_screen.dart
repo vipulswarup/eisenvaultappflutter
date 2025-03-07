@@ -113,9 +113,19 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
     });
 
     try {
+      // New Debug: Log which upload path is being taken
+      EVLogger.debug('Upload path detection', {
+        'kIsWeb': kIsWeb,
+        'has_fileBytes': _fileBytes != null,
+        'has_filePath': _filePath != null,
+        'fileName': _fileName,
+        'path chosen': kIsWeb && _fileBytes != null ? 'web path' : 'native path',
+        'Repository type ':widget.repositoryType
+      });
+      
       Map<String, dynamic> result;
       
-      if (widget.repositoryType == 'alfresco') {
+      if (widget.repositoryType.toLowerCase() == 'alfresco' || widget.repositoryType.toLowerCase() == 'classic') {
         final service = AlfrescoUploadService(
           baseUrl: widget.baseUrl,
           authToken: widget.authToken,
