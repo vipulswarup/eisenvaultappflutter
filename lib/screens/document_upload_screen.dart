@@ -2,11 +2,10 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:file_selector/file_selector.dart';
-import 'dart:io';
 import '../constants/colors.dart';
 import '../services/alfresco_upload_service.dart';
 import '../services/angora_upload_service.dart';
-import '../utils/logger.dart';  // Make sure you have this import
+import '../utils/logger.dart';  // For logging
 
 class DocumentUploadScreen extends StatefulWidget {
   final String repositoryType;
@@ -34,7 +33,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
   String? _description;
   final _descriptionController = TextEditingController();
 
-  // Update the _pickFile method to use file_selector
+  // File picker method using file_selector package
   Future<void> _pickFile() async {
     try {
       // Define accepted file types for documents with proper UTIs for Apple platforms
@@ -69,7 +68,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
         acceptedTypeGroups: [documentsTypeGroup, imagesTypeGroup],
       );
       
-      // Rest of the method remains the same...
+      // Process the selected file
       if (file != null) {
         setState(() {
           _fileName = file.name;
@@ -108,8 +107,9 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
     }
   }
 
-  // The uploadFile method needs minimal changes
+  // Handle file upload based on repository type
   Future<void> _uploadFile() async {
+    // Validate that a file was selected
     if (_filePath == null && _fileBytes == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a file first'))
@@ -117,6 +117,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
       return;
     }
 
+    // Validate that file name is present
     if (_fileName == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('File name is missing'))
@@ -129,19 +130,21 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
     });
 
     try {
-      // New Debug: Log which upload path is being taken
+      // Log upload details for debugging
       EVLogger.debug('Upload path detection', {
         'kIsWeb': kIsWeb,
         'has_fileBytes': _fileBytes != null,
         'has_filePath': _filePath != null,
         'fileName': _fileName,
         'path chosen': kIsWeb && _fileBytes != null ? 'web path' : 'native path',
-        'Repository type ':widget.repositoryType
+        'Repository type': widget.repositoryType
       });
       
       Map<String, dynamic> result;
       
+      // Handle upload based on repository type
       if (widget.repositoryType.toLowerCase() == 'alfresco' || widget.repositoryType.toLowerCase() == 'classic') {
+        // Alfresco upload handling
         final service = AlfrescoUploadService(
           baseUrl: widget.baseUrl,
           authToken: widget.authToken,
@@ -167,18 +170,34 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
         }
         
       } else {
-        // Angora dummy implementation
-        final service = AngoraUploadService();
-        
-        // For Angora, we can just call a single method that handles both cases
-        result = await service.uploadDocument(
-          parentFolderId: widget.parentFolderId,
-          filePath: _filePath,
-          fileBytes: _fileBytes,
-          fileName: _fileName!,
-          description: _description,
-        );
-      }
+          // Angora upload handling
+          final service = AngoraUploadService(
+            baseUrl: widget.baseUrl,
+            authToken: widget.authToken,
+          );
+          
+          // Handle the upload differently based on available data
+          if (kIsWeb && _fileBytes != null) {
+            // For web with bytes available
+            result = await service.uploadDocumentBytes(
+              parentFolderId: widget.parentFolderId,
+              fileBytes: _fileBytes!,
+              fileName: _fileName!,
+              description: _description,
+            );
+          } else if (_filePath != null) {
+            // For native platforms with file path
+            result = await service.uploadDocument(
+              parentFolderId: widget.parentFolderId,
+              filePath: _filePath!,
+              fileName: _fileName!,
+              description: _description,
+            );
+          } else {
+            throw Exception('Invalid file data');
+          }
+        }
+
       
       // On successful upload, go back to the previous screen with a success message
       if (!mounted) return;
@@ -212,7 +231,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
     }
   }
 
-  // The rest of the file remains unchanged
+  // UI for the document upload screen
   @override
   Widget build(BuildContext context) {
     return Scaffold(

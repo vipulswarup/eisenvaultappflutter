@@ -1,0 +1,25 @@
+var headers = {
+  'Content-Type': 'multipart/form-data',
+  'Authorization': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJFaXNlblZhdWx0Iiwic3ViamVjdCI6eyJpZCI6IjY0ZjhmZjMzOGQ1ZjhiYTljNWQxYjg2MSIsImN1c3RvbWVyX2hvc3RuYW1lIjoiYmlub2QuYW5nb3Jhc3RhZ2UuaW4iLCJmaXJzdG5hbWUiOiJWaXB1bCIsImxhc3RuYW1lIjoiU3dhcnVwIiwiZW1haWwiOiJ2aXB1bEBiaW5vZC5pbiIsImpvYl90aXRsZSI6IlJhbmR5IiwiaXNfcm9vdCI6ZmFsc2UsImF2YXRhciI6IiIsInNpZ25hdHVyZSI6IiIsIm1vYmlsZV9kaWFsX2NvZGUiOm51bGwsImlzX3R3b19mYWN0b3JfZW5hYmxlZCI6ZmFsc2UsInR3b19mYWN0b3JfcHJvZmlsZV9sb2NrZWQiOmZhbHNlLCJtb2JpbGUiOm51bGwsImxhbmRsaW5lIjpudWxsLCJwZXJtaXNzaW9ucyI6W119LCJpYXQiOjE3NDEzNDA5NTkzODIsImV4cCI6MTc0MTQyNzM1OX0.yuBLWFVqS2QBjlAIDqpS5G4ciTbQ_X8BKhLXiRF3WGM',
+  'Accept-Language': 'en',
+  'x-portal': 'web',
+  'x-start-byte': '0',
+  'x-file-size': '208683',
+  'x-relative-path': '',
+  'x-file-id': '62e39ec182af2c2ea044bef9_10900314_2001.pdf_208683_1467565706000',
+  'x-parent-id': '62e39ec182af2c2ea044bef9',
+  'x-resumable': 'true',
+  'x-file-name': '10900314_2001.pdf'
+};
+var request = http.MultipartRequest('POST', Uri.parse('https://acme.eisenvault.cloud/api/uploads'));
+request.files.add(await http.MultipartFile.fromPath('file', '/Users/soubhikchatterjee/Desktop/10900314_2001.pdf'));
+request.headers.addAll(headers);
+
+http.StreamedResponse response = await request.send();
+
+if (response.statusCode == 200) {
+  print(await response.stream.bytesToString());
+}
+else {
+  print(response.reasonPhrase);
+}

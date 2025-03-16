@@ -95,103 +95,123 @@ Future<void> loadDepartments() async {
   
     items = [];
     for (var department in loadedItems) {
-      final docLibId = await _fetchDocumentLibraryId(department.id);
-      // For Alfresco/Classic, use a simpler approach
-      List<String> siteOperations = [];
-      
-      if (instanceType.toLowerCase() == 'alfresco' || instanceType.toLowerCase() == 'classic') {
+      // Different handling based on repository type
+      if (instanceType.toLowerCase() == 'angora') {
+        // For Angora, no document library concept - the department ID is the folder ID
+        // We just need to add the department as is
+        BrowseItem item = BrowseItem(
+          id: department.id,
+          name: department.name,
+          type: 'folder',
+          isDepartment: true,
+          // For Angora, we use the department ID as the document library ID
+          documentLibraryId: department.id,
+          // In Angora, we assume write permissions unless explicitly denied
+          allowableOperations: ['create', 'update', 'delete'],
+        );
+        
+        EVLogger.debug('Angora Department Added', {
+          'id': item.id,
+          'name': item.name,
+          'documentLibraryId': item.documentLibraryId,
+          'allowableOperations': item.allowableOperations
+        });
+        
+        items.add(item);
+      } else {
+        // Existing Alfresco/Classic logic
         try {
-          // Try directly checking permissions on the documentLibrary node
-          final nodeResponse = await http.get(
-            Uri.parse('$baseUrl/api/-default-/public/alfresco/versions/1/nodes/$docLibId?include=allowableOperations'),
-            headers: {'Authorization': authToken},
-          );
+          final docLibId = await _fetchDocumentLibraryId(department.id);
           
-          EVLogger.debug('Document library node response', {
-            'statusCode': nodeResponse.statusCode,
-            'docLibId': docLibId,
-            'response': nodeResponse.body
-          });
-          if (nodeResponse.statusCode == 200) {
-            final nodeData = json.decode(nodeResponse.body);
+          // For Alfresco/Classic, check permissions on the documentLibrary node
+          List<String> siteOperations = [];
+          
+          try {
+            // Try directly checking permissions on the documentLibrary node
+            final nodeResponse = await http.get(
+              Uri.parse('$baseUrl/api/-default-/public/alfresco/versions/1/nodes/$docLibId?include=allowableOperations'),
+              headers: {'Authorization': authToken},
+            );
             
-            EVLogger.debug('Document library node response structure', {
-              'hasEntry': nodeData.containsKey('entry'),
-              'entryKeys': nodeData['entry']?.keys.toList() ?? []
+            EVLogger.debug('Document library node response', {
+              'statusCode': nodeResponse.statusCode,
+              'docLibId': docLibId,
+              'response': nodeResponse.body
             });
-            
-            // Check if allowableOperations exists and print its exact type
-            if (nodeData['entry'].containsKey('allowableOperations')) {
-              final operations = nodeData['entry']['allowableOperations'];
+            if (nodeResponse.statusCode == 200) {
+              final nodeData = json.decode(nodeResponse.body);
               
-              EVLogger.debug('Operations data details', {
-                'type': operations.runtimeType.toString(),
-                'isNull': operations == null,
-                'value': operations
+              EVLogger.debug('Document library node response structure', {
+                'hasEntry': nodeData.containsKey('entry'),
+                'entryKeys': nodeData['entry']?.keys.toList() ?? []
               });
               
-              // Be extra careful with type conversion
-              List<String> ops = [];
-              if (operations is List) {
-                // Convert each element to string explicitly
-                for (var op in operations) {
-                  ops.add(op.toString());
-                }
+              // Check if allowableOperations exists and print its exact type
+              if (nodeData['entry'].containsKey('allowableOperations')) {
+                final operations = nodeData['entry']['allowableOperations'];
                 
-                EVLogger.debug('Converted operations', {
-                  'operations': ops,
-                  'count': ops.length
+                EVLogger.debug('Operations data details', {
+                  'type': operations.runtimeType.toString(),
+                  'isNull': operations == null,
+                  'value': operations
                 });
                 
-                siteOperations = ops;
+                // Be extra careful with type conversion
+                List<String> ops = [];
+                if (operations is List) {
+                  // Convert each element to string explicitly
+                  for (var op in operations) {
+                    ops.add(op.toString());
+                  }
+                  
+                  EVLogger.debug('Converted operations', {
+                    'operations': ops,
+                    'count': ops.length
+                  });
+                  
+                  siteOperations = ops;
+                } else {
+                  EVLogger.error('Operations is not a list', {
+                    'operations': operations
+                  });
+                }
               } else {
-                EVLogger.error('Operations is not a list', {
-                  'operations': operations
+                EVLogger.debug('No allowableOperations found in response', {
+                  'availableKeys': nodeData['entry'].keys.toList()
                 });
               }
             } else {
-              EVLogger.debug('No allowableOperations found in response', {
-                'availableKeys': nodeData['entry'].keys.toList()
+              EVLogger.error('Failed to get node details', {
+                'status': nodeResponse.statusCode
               });
             }
-          } else {
-            EVLogger.error('Failed to get node details', {
-              'status': nodeResponse.statusCode
-            });
+          } catch (e) {
+            EVLogger.error('Error checking node permissions', {'error': e.toString()});
+            siteOperations = ['create']; // Fallback permissions
           }
+
+          // Create BrowseItem with the operations we determined
+          BrowseItem item = BrowseItem(
+            id: department.id,
+            name: department.name,
+            type: 'folder',
+            isDepartment: true,
+            documentLibraryId: docLibId,
+            allowableOperations: siteOperations,
+          );
+          
+          items.add(item);
         } catch (e) {
-          EVLogger.error('Error checking node permissions', {'error': e.toString()});
-          
-          // Another fallback: if the error is related to permissions, just enable uploads
-          // at the site level for better usability
-          siteOperations = ['create'];
-          
-          EVLogger.debug('Using error fallback permissions', {
-            'operations': siteOperations
+          EVLogger.error('Error fetching document library', {
+            'siteId': department.id,
+            'error': e.toString()
           });
+          // Skip this department if we can't find its document library
+          continue;
         }
       }
-
-      // Create BrowseItem with the operations we determined
-      BrowseItem item = BrowseItem(
-        id: department.id,
-        name: department.name,
-        type: 'folder',
-        isDepartment: true,
-        documentLibraryId: docLibId,
-        allowableOperations: siteOperations,
-      );
-      
-      EVLogger.debug('Browse Item Created', {
-        'id': item.id,
-        'name': item.name,
-        'documentLibraryId': item.documentLibraryId,
-        'allowableOperations': item.allowableOperations,
-        'canWrite': item.canWrite
-      });
-      
-      items.add(item);
     }
+    
     isLoading = false;
     currentFolder = rootItem;
     navigationStack = [];
@@ -202,24 +222,30 @@ Future<void> loadDepartments() async {
     _notifyListeners();
   }
 }
-  Future<String> _fetchDocumentLibraryId(String siteId) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/api/-default-/public/alfresco/versions/1/sites/$siteId/containers'),
-      headers: {'Authorization': authToken},
-    );
+
+Future<String> _fetchDocumentLibraryId(String siteId) async {
+  // Only call this method for Alfresco/Classic repositories
+  if (instanceType.toLowerCase() == 'angora') {
+    return siteId; // For Angora, just return the site ID itself
+  }
   
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      
-      for (var entry in data['list']['entries']) {
-        if (entry['entry']['folderId'] == 'documentLibrary') {
-          return entry['entry']['id'];
-        }
+  final response = await http.get(
+    Uri.parse('$baseUrl/api/-default-/public/alfresco/versions/1/sites/$siteId/containers'),
+    headers: {'Authorization': authToken},
+  );
+
+  if (response.statusCode == 200) {
+    final data = json.decode(response.body);
+    
+    for (var entry in data['list']['entries']) {
+      if (entry['entry']['folderId'] == 'documentLibrary') {
+        return entry['entry']['id'];
       }
     }
-  
-    throw Exception('Document library not found for site $siteId');
   }
+
+  throw Exception('Document library not found for site $siteId');
+}
   
   /// Navigates to a specific folder and loads its contents
   Future<void> navigateToFolder(BrowseItem folder) async {

@@ -174,41 +174,40 @@ void _navigateToUploadScreen() async {
   // Get the correct parent folder ID
   String parentFolderId;
   
-  // If we're at the department level (site level), we need to get the documentLibrary ID
-  if (_controller.currentFolder!.isDepartment) {
-    EVLogger.debug('Attempting upload at department level', {
-      'folder': _controller.currentFolder!.name
-    });
-    
-    if (_controller.currentFolder!.documentLibraryId != null) {
-      // Use the documentLibrary ID we stored earlier
-      parentFolderId = _controller.currentFolder!.documentLibraryId!;
-      
-      EVLogger.debug('Using documentLibrary ID for upload', {
-        'parentFolderId': parentFolderId
-      });
-    } else {
-      // If we don't have the documentLibrary ID for some reason, show an error
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Cannot upload at this level. Please navigate to a subfolder.'),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.red,
-        )
-      );
-      return;
-    }
-  } else {
-    // We're in a regular folder, use the current folder ID
+  if (_controller.instanceType.toLowerCase() == 'angora') {
+    // For Angora, we use the current folder ID directly
     parentFolderId = _controller.currentFolder!.id;
+    
+    EVLogger.debug('Angora upload: Using folder ID directly', {
+      'parentFolderId': parentFolderId
+    });
+  } else {
+    // For Alfresco/Classic, handle documentLibrary ID
+    if (_controller.currentFolder!.isDepartment) {
+      if (_controller.currentFolder!.documentLibraryId != null) {
+        parentFolderId = _controller.currentFolder!.documentLibraryId!;
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cannot upload at this level. Please navigate to a subfolder.'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.red,
+          )
+        );
+        return;
+      }
+    } else {
+      parentFolderId = _controller.currentFolder!.id;
+    }
   }
   
+  // Rest of the method remains the same...
   final result = await Navigator.push(
     context,
     MaterialPageRoute(
       builder: (context) => DocumentUploadScreen(
         repositoryType: widget.instanceType,
-        parentFolderId: parentFolderId, // Use our resolved parentFolderId
+        parentFolderId: parentFolderId,
         baseUrl: widget.baseUrl,
         authToken: widget.authToken,
       ),
