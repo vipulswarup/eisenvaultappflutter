@@ -1,0 +1,172 @@
+paths:
+  /departments:
+    post:
+      summary: Create a new department
+      description: Creates a new department in the system
+      tags:
+        - Departments
+      parameters:
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: x-portal
+          required: true
+          schema:
+            type: string
+          description: The portal from which the request is made
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  description: Name of the department
+                parent_id:
+                  type: string
+                  description: ID of the parent folder/department
+                description:
+                  type: string
+                  description: Description of the department
+      responses:
+        '201':
+          description: Department created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      _id:
+                        type: string
+                      name:
+                        type: string
+                      path:
+                        type: string
+                      isDepartment:
+                        type: boolean
+                        example: true
+                      isFolder:
+                        type: boolean
+                        example: false
+                      collaborators:
+                        type: array
+                        items:
+                          type: object
+                      createdBy:
+                        type: object
+                      editedBy:
+                        type: object
+                  notifications:
+                    type: string
+                    example: "created_successfully"
+        '400':
+          description: Bad request, validation error
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+        '403':
+          description: Forbidden, user doesn't have permission to create departments
+        '409':
+          description: Conflict, department with the same name already exists in the same location
+
+  /folders:
+    post:
+      summary: Create a new folder
+      description: Creates a new folder in the system
+      tags:
+        - Folders
+      parameters:
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: x-portal
+          required: true
+          schema:
+            type: string
+          description: The portal from which the request is made
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  description: Name of the folder
+                parent_id:
+                  type: string
+                  description: ID of the parent folder/department
+                description:
+                  type: string
+                  description: Description of the folder
+      responses:
+        '201':
+          description: Folder created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      _id:
+                        type: string
+                      name:
+                        type: string
+                      path:
+                        type: string
+                      isDepartment:
+                        type: boolean
+                        example: false
+                      isFolder:
+                        type: boolean
+                        example: true
+                      collaborators:
+                        type: array
+                        items:
+                          type: object
+                      createdBy:
+                        type: object
+                      editedBy:
+                        type: object
+                  notifications:
+                    type: string
+                    example: "created_successfully"
+        '400':
+          description: Bad request, validation error
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+        '403':
+          description: Forbidden, user doesn't have permission to create folders
+        '409':
+          description: Conflict, folder with the same name already exists in the same location

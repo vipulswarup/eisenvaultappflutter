@@ -1,12 +1,14 @@
 import 'dart:typed_data';
 import 'package:eisenvaultappflutter/utils/logger.dart';
-import 'package:eisenvaultappflutter/services/upload/upload_constants.dart'; // Add this import
+import 'package:eisenvaultappflutter/services/upload/upload_constants.dart';
+
 /// Utility functions for Angora uploads
 class AngoraUploadUtils {
   /// Generate a unique file ID in Angora format
-  static String generateFileId(String parentId, String fileName) {
+  /// Format: parentId_fileName_fileSize_timestamp
+  static String generateFileId(String parentId, String fileName, int fileSize) {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    return '${parentId}_${fileName}_$timestamp';
+    return '${parentId}_${fileName}_${fileSize}_$timestamp';
   }
   
   /// Determine appropriate chunk size based on file size

@@ -18,15 +18,24 @@ class AngoraChunkUploader {
     try {
       final url = _baseService.buildUrl('uploads/$fileId/status');
       
+      // Create headers with required fields from API docs
+      final headers = _baseService.createHeaders();
+      
       final response = await http.get(
         Uri.parse(url),
-        headers: _baseService.createHeaders(serviceName: 'service-upload'),
+        headers: headers,
       ).timeout(const Duration(seconds: 10));
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        // According to API docs, the uploaded bytes are in data.uploaded_bytes
         return data['data']?['uploaded_bytes'] as int? ?? 0;
       }
+      
+      EVLogger.info('Failed to get upload status', {
+        'statusCode': response.statusCode,
+        'response': response.body,
+      });
       
       return 0;
     } catch (e) {
@@ -55,10 +64,10 @@ class AngoraChunkUploader {
     final request = http.MultipartRequest('POST', Uri.parse(url));
     
     // Add headers
-    final headers = _baseService.createHeaders(serviceName: 'service-upload');
+    final headers = _baseService.createHeaders();
     headers.remove('Content-Type'); // Will be set by multipart
     
-    // Add Angora upload-specific headers
+    // Add Angora upload-specific headers as per API docs
     headers['x-file-id'] = fileId;
     headers['x-file-name'] = fileName;
     headers['x-start-byte'] = startByte.toString();
@@ -66,6 +75,7 @@ class AngoraChunkUploader {
     headers['x-resumable'] = 'true';
     headers['x-relative-path'] = '';
     headers['x-parent-id'] = parentFolderId;
+    headers['x-portal'] = 'mobile'; // Indicate this is from the mobile app
     
     request.headers.addAll(headers);
     
@@ -79,9 +89,9 @@ class AngoraChunkUploader {
       )
     );
     
-    // Add description if provided
+    // Add description as comment if provided
     if (description != null && description.isNotEmpty) {
-      request.fields['description'] = description;
+      request.fields['comment'] = description;
     }
     
     EVLogger.debug('Uploading chunk', {
@@ -102,7 +112,7 @@ class AngoraChunkUploader {
     // Read response
     final responseBody = await streamedResponse.stream.bytesToString();
     
-    // Check response status
+    // Check response status - API returns 201 for successful uploads
     if (streamedResponse.statusCode == 200 || streamedResponse.statusCode == 201) {
       EVLogger.debug('Chunk upload successful', {
         'statusCode': streamedResponse.statusCode,
@@ -119,6 +129,5 @@ class AngoraChunkUploader {
       });
       
       throw Exception('Chunk upload failed: ${streamedResponse.statusCode}');
-    }
-  }
+    }  }
 }

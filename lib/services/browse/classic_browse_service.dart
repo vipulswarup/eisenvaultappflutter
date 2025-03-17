@@ -12,20 +12,23 @@ class ClassicBrowseService implements BrowseService {
   static const String sitesNodeId = 'sites';
 
   ClassicBrowseService(this.baseUrl, this.authToken);
-
   @override
-  Future<List<BrowseItem>> getChildren(BrowseItem parent) async {
+  Future<List<BrowseItem>> getChildren(
+    BrowseItem parent, {
+    int skipCount = 0,
+    int maxItems = 25,
+  }) async {
     try {
       // If we're at the root level, get Sites folder contents instead
       if (parent.id == 'root') {
         EVLogger.debug('Fetching Sites folder contents instead of root');
-        return _getSitesFolderContents();
+        return _getSitesFolderContents(skipCount: skipCount, maxItems: maxItems);
       }
       
       // If this is a department/site, we need to get its documentLibrary
       if (parent.isDepartment) {
         EVLogger.debug('Fetching document library for site', {'siteId': parent.id});
-        return _getSiteDocumentLibraryContents(parent.id);
+        return _getSiteDocumentLibraryContents(parent.id, skipCount: skipCount, maxItems: maxItems);
       }
       
       // Otherwise, get children of the specified folder
@@ -33,7 +36,7 @@ class ClassicBrowseService implements BrowseService {
       EVLogger.debug('Fetching contents of folder', {'nodeId': nodeId});
       
       final url = Uri.parse(
-        '$baseUrl/api/-default-/public/alfresco/versions/1/nodes/$nodeId/children?include=path,properties,allowableOperations'
+        '$baseUrl/api/-default-/public/alfresco/versions/1/nodes/$nodeId/children?include=path,properties,allowableOperations&skipCount=$skipCount&maxItems=$maxItems'
       );
 
       final response = await http.get(
@@ -72,12 +75,12 @@ class ClassicBrowseService implements BrowseService {
   }
 
   /// Fetches the contents of the "Sites" folder specifically
-  Future<List<BrowseItem>> _getSitesFolderContents() async {
+  Future<List<BrowseItem>> _getSitesFolderContents({int skipCount = 0, int maxItems = 25}) async {
     try {
-      EVLogger.debug('Fetching Sites folder contents');
+      EVLogger.debug('Fetching Sites folder contents', {'skipCount': skipCount, 'maxItems': maxItems});
       
       final url = Uri.parse(
-        '$baseUrl/api/-default-/public/alfresco/versions/1/sites?skipCount=0&maxItems=100'
+        '$baseUrl/api/-default-/public/alfresco/versions/1/sites?skipCount=$skipCount&maxItems=$maxItems'
       );
 
       final response = await http.get(
@@ -123,7 +126,11 @@ class ClassicBrowseService implements BrowseService {
   }
   
   /// Fetches the Document Library contents for a specific site
-  Future<List<BrowseItem>> _getSiteDocumentLibraryContents(String siteId) async {
+  Future<List<BrowseItem>> _getSiteDocumentLibraryContents(
+    String siteId, {
+    int skipCount = 0,
+    int maxItems = 25,
+  }) async {
     try {
       EVLogger.debug('Fetching document library for site', {'siteId': siteId});
       
@@ -153,7 +160,7 @@ class ClassicBrowseService implements BrowseService {
       
       // Now fetch the contents of the document library
       final urlContents = Uri.parse(
-        '$baseUrl/api/-default-/public/alfresco/versions/1/nodes/$docLibId/children?include=path,properties,allowableOperations'
+        '$baseUrl/api/-default-/public/alfresco/versions/1/nodes/$docLibId/children?include=path,properties,allowableOperations&skipCount=$skipCount&maxItems=$maxItems'
       );
       
       final contentsResponse = await http.get(
@@ -190,7 +197,6 @@ class ClassicBrowseService implements BrowseService {
       throw Exception('Failed to get document library contents: ${e.toString()}');
     }
   }
-
   /// Maps an Alfresco API response item to a BrowseItem object
   BrowseItem _mapAlfrescoBrowseItem(Map<String, dynamic> entry) {
     return BrowseItem(

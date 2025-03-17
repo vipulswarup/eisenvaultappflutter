@@ -2,11 +2,13 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:mime/mime.dart';
+import 'dart:convert';
 import 'package:eisenvaultappflutter/services/api/angora_base_service.dart';
 import 'package:eisenvaultappflutter/services/upload/angora_chunk_uploader.dart';
 import 'package:eisenvaultappflutter/services/upload/angora_upload_utils.dart';
 import 'package:eisenvaultappflutter/services/upload/upload_constants.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
+import 'package:http/http.dart' as http;
 
 /// Service for uploading files to Angora repository.
 /// Implements chunking and resumable upload logic following Angora API.
@@ -54,9 +56,6 @@ class AngoraUploadService {
       return {'success': true, 'id': 'dummy-${DateTime.now().millisecondsSinceEpoch}'};
     }
     
-    // Generate a unique file ID
-    final fileId = AngoraUploadUtils.generateFileId(parentFolderId, fileName);
-    
     try {
       // Get file bytes if path provided
       Uint8List bytes;
@@ -66,6 +65,13 @@ class AngoraUploadService {
       } else {
         bytes = fileBytes!;
       }
+      
+      // Generate a unique file ID with the correct format (including file size)
+      final fileId = AngoraUploadUtils.generateFileId(
+        parentFolderId, 
+        fileName, 
+        bytes.length
+      );
       
       // Determine MIME type
       final mimeType = lookupMimeType(fileName) ?? 'application/octet-stream';
@@ -84,10 +90,15 @@ class AngoraUploadService {
       );
     } catch (e) {
       EVLogger.error('Upload failed', {
-        'fileId': fileId,
-        'error': e.toString()
+        'error': e.toString(),
+        'parentFolderId': parentFolderId,
+        'fileName': fileName,
       });
-      _updateProgress(fileId, 0, 0, UploadStatus.failed);
+      
+      // We don't have fileId here since it failed before creation
+      // but we can still notify of failure
+      final dummyFileId = 'failed-${DateTime.now().millisecondsSinceEpoch}';
+      _updateProgress(dummyFileId, 0, 0, UploadStatus.failed);
       rethrow;
     }
   }
@@ -189,9 +200,64 @@ class AngoraUploadService {
       }
     }
     
-    // All chunks uploaded successfully
+    // All chunks uploaded successfully to the server
+    // Now we need to wait for server-side processing to complete
+    if (finalResponse != null && finalResponse.containsKey('data')) {
+      final documentId = finalResponse['data']['id'] as String?;
+      
+      if (documentId != null) {
+        // Wait for server processing to complete
+        await _waitForServerProcessing(documentId);
+      }
+    }
+    
+    // All chunks uploaded and server processing complete
     _updateProgress(fileId, fileBytes.length, fileBytes.length, UploadStatus.success);
     return finalResponse ?? {'success': true, 'id': fileId};
+  }
+
+  /// Wait for server-side processing to complete
+  Future<void> _waitForServerProcessing(String documentId) async {
+    const maxAttempts = 10;
+    const pollingInterval = Duration(seconds: 2);
+    
+    for (int attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        final url = _baseService!.buildUrl('uploads/$documentId');
+        final response = await http.get(
+          Uri.parse(url),
+          headers: _baseService!.createHeaders(),
+        ).timeout(const Duration(seconds: 10));
+        
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          
+          // Check if processing is complete
+          final isLocalComplete = data['data']['is_local_upload_complete'] ?? false;
+          final isCloudComplete = data['data']['is_original_cloud_upload_complete'] ?? false;
+          
+          if (isLocalComplete && isCloudComplete) {
+            EVLogger.info('Server processing complete for document', {'id': documentId});
+            return;
+          }
+        }
+        
+        // Wait before checking again
+        await Future.delayed(pollingInterval);
+      } catch (e) {
+        EVLogger.error('Error checking document processing status', {
+          'documentId': documentId,
+          'error': e.toString(),
+        });
+        
+        // Continue to next attempt
+        await Future.delayed(pollingInterval);
+      }
+    }
+    
+    // If we get here, we've reached max attempts but processing might still be ongoing
+    EVLogger.info('Reached maximum polling attempts for document processing', 
+      {'id': documentId, 'note': 'Processing may still be ongoing on the server'});
   }
   
   /// Update progress and notify listeners if callback is provided

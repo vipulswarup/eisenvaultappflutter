@@ -1,0 +1,328 @@
+openapi: 3.0.0
+info:
+  title: Angora Upload Service API
+  description: API for uploading files, checking upload status, and managing uploads
+  version: 1.0.0
+servers:
+  - url: https://api.example.com
+paths:
+  /uploads:
+    post:
+      summary: Upload a new file
+      description: Upload a new file to the system with support for resumable uploads
+      tags:
+        - Uploads
+      parameters:
+        - in: header
+          name: x-file-id
+          required: true
+          schema:
+            type: string
+          description: Unique identifier for the file
+        - in: header
+          name: x-file-name
+          required: true
+          schema:
+            type: string
+          description: Name of the file being uploaded
+        - in: header
+          name: x-file-size
+          required: true
+          schema:
+            type: integer
+          description: Size of the file in bytes
+        - in: header
+          name: x-start-byte
+          required: false
+          schema:
+            type: integer
+            default: 0
+          description: Starting byte position for resumable uploads
+        - in: header
+          name: x-relative-path
+          required: false
+          schema:
+            type: string
+          description: Relative path for the file in cloud storage
+        - in: header
+          name: x-resumable
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Whether the upload is resumable
+        - in: header
+          name: x-parent-id
+          required: true
+          schema:
+            type: string
+          description: ID of the parent folder/department
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: x-portal
+          required: true
+          schema:
+            type: string
+          description: The portal from which the request is made
+        - in: header
+          name: x-device-id
+          required: false
+          schema:
+            type: string
+          description: Device ID (required for desktop portal)
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The file to upload
+                comment:
+                  type: string
+                  description: Version comment (for versioned files)
+      responses:
+        '201':
+          description: File upload initiated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    description: Upload document information
+        '400':
+          description: Bad request, validation error
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+        '403':
+          description: Forbidden, user doesn't have permission to upload files
+        '415':
+          description: Unsupported Media Type, content type should be multipart/form-data
+
+  /uploads/{id}/status:
+    get:
+      summary: Get upload status
+      description: Get the current upload status of a file by the file id
+      tags:
+        - Uploads
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: The file ID to check status for
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      responses:
+        '200':
+          description: Upload status retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: integer
+                    description: Number of bytes uploaded so far
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+
+  /uploads/{id}/version:
+    put:
+      summary: Upload a new version of an existing file
+      description: Upload a new version of an existing file with support for versioning
+      tags:
+        - Uploads
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: The file ID to update with a new version
+        - in: header
+          name: x-file-id
+          required: true
+          schema:
+            type: string
+          description: Unique identifier for the file
+        - in: header
+          name: x-file-name
+          required: true
+          schema:
+            type: string
+          description: Name of the file being uploaded
+        - in: header
+          name: x-file-size
+          required: true
+          schema:
+            type: integer
+          description: Size of the file in bytes
+        - in: header
+          name: x-start-byte
+          required: false
+          schema:
+            type: integer
+            default: 0
+          description: Starting byte position for resumable uploads
+        - in: header
+          name: x-relative-path
+          required: false
+          schema:
+            type: string
+          description: Relative path for the file in cloud storage
+        - in: header
+          name: x-resumable
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Whether the upload is resumable
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: x-portal
+          required: true
+          schema:
+            type: string
+          description: The portal from which the request is made
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The file to upload as a new version
+                comment:
+                  type: string
+                  description: Version comment
+      responses:
+        '201':
+          description: New version upload initiated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    description: Upload document information
+        '400':
+          description: Bad request, validation error
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+        '403':
+          description: Forbidden, user doesn't have permission to edit this document
+        '404':
+          description: Not found, file not found
+        '415':
+          description: Unsupported Media Type, content type should be multipart/form-data
+
+  /uploads/customer/{customerHostname}:
+    delete:
+      summary: Delete customer folder
+      description: Deletes an entire customer folder from cloud storage
+      tags:
+        - Uploads
+      parameters:
+        - in: path
+          name: customerHostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer whose folder should be deleted
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      responses:
+        '200':
+          description: Customer folder deleted successfully
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+        '403':
+          description: Forbidden, user doesn't have permission to delete folders
+
+  /uploads/{originalInternalName}:
+    delete:
+      summary: Delete uploaded file
+      description: Deletes an uploaded file from cloud storage
+      tags:
+        - Uploads
+      parameters:
+        - in: path
+          name: originalInternalName
+          required: true
+          schema:
+            type: string
+          description: The internal name of the file to delete
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      responses:
+        '200':
+          description: File deleted successfully
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+        '403':
+          description: Forbidden, user doesn't have permission to delete documents
+        '404':
+          description: Not found, file not found

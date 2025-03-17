@@ -236,7 +236,7 @@ void _navigateToUploadScreen() async {
         },
       );
     }
-    
+  
     if (_controller.items.isEmpty) {
       return const EmptyFolderView();
     }
@@ -262,9 +262,11 @@ void _navigateToUploadScreen() async {
             ? _controller.loadFolderContents(_controller.currentFolder!)
             : _controller.loadDepartments();
       },
+      onLoadMore: _controller.loadMoreItems,
+      hasMoreItems: _controller.hasMoreItems,
+      isLoadingMore: _controller.isLoadingMore,
     );
   }
-
 
 @override
 void dispose() {

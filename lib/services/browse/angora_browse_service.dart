@@ -11,25 +11,35 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
   }
 
   @override
-  Future<List<BrowseItem>> getChildren(BrowseItem parent) async {
+  Future<List<BrowseItem>> getChildren(
+    BrowseItem parent, {
+    int skipCount = 0,
+    int maxItems = 25,
+  }) async {
     try {
       final String url;
       
       // If we're at the root level, get all departments
       if (parent.id == 'root') {
         EVLogger.debug('Fetching all departments');
-        url = buildUrl('departments?slim=true');
+        url = buildUrl('departments?slim=true&skip=$skipCount&limit=$maxItems');
       } else {
         // Otherwise, get children of the specified folder/department
         final id = parent.id;
-        EVLogger.debug('Fetching contents', {'id': id, 'isDepartment': parent.isDepartment, 'type': parent.type});
+        EVLogger.debug('Fetching contents', {
+          'id': id, 
+          'isDepartment': parent.isDepartment, 
+          'type': parent.type,
+          'skip': skipCount,
+          'limit': maxItems
+        });
         
         // Use the appropriate endpoint based on item type
         if (parent.isDepartment) {
-          url = buildUrl('departments/$id/children');
+          url = buildUrl('departments/$id/children?skip=$skipCount&limit=$maxItems');
         } else {
           // Use folders endpoint for regular folders, not files
-          url = buildUrl('folders/$id/children');
+          url = buildUrl('folders/$id/children?skip=$skipCount&limit=$maxItems');
         }
       }
       

@@ -157,7 +157,7 @@ class AngoraUploadService {
       final responseBody = await streamedResponse.stream.bytesToString();
 
       // Process response
-      if (streamedResponse.statusCode == 200) {
+      if (streamedResponse.statusCode == 200 || streamedResponse.statusCode == 201) {
         EVLogger.debug('Angora upload successful', {'response': responseBody});
         return jsonDecode(responseBody);
       } else {
