@@ -107,10 +107,7 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
       'name': item['raw_file_name'],
       'is_department': item['is_department'],
       'is_folder': item['is_folder'],
-      'file_type': item['file_type'],
-      'content_type': item['content_type'],
-      'mime_type': item['mime_type'],
-      'extension': item['extension']
+      'permissions': item['permissions'],
     });
     
     // Improved folder detection logic
@@ -136,9 +133,13 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
       isFolder = true;
     }
     
-    EVLogger.debug('Item type determined', {
+    // Extract permissions
+    List<String>? operations = _getOperationsFromPermissions(item);
+    
+    // For debugging, log the extracted operations
+    EVLogger.debug('Item permissions determined', {
       'name': item['raw_file_name'],
-      'isFolder': isFolder
+      'operations': operations,
     });
     
     return BrowseItem(
@@ -150,8 +151,8 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
       // Format dates appropriately
       modifiedDate: item['updated_at'] ?? item['created_at'] ?? '',
       modifiedBy: item['updated_by_name'] ?? item['created_by_name'] ?? '',
-      // Include additional properties that might be useful
-      allowableOperations: _getOperationsFromPermissions(item),
+      // Include permissions
+      allowableOperations: operations,
     );
   }
 
@@ -162,10 +163,50 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
     // Map Angora permissions to operations
     var permissions = item['permissions'];
     if (permissions != null) {
+      // Standard permissions
       if (permissions['can_edit'] == true) operations.add('update');
       if (permissions['can_delete'] == true) operations.add('delete');
       if (permissions['can_view'] == true) operations.add('read');
+      
+      // Add create permission for folders
+      if (permissions['can_create_document'] == true || 
+          permissions['can_create_folder'] == true ||
+          permissions['create_document'] == true ||
+          permissions['create_folder'] == true) {
+        operations.add('create');
+      }
+      
+      // For departments, check department-specific permissions
+      if (item['is_department'] == true) {
+        if (permissions['manage_department_permissions'] == true) {
+          operations.add('create');
+          operations.add('update');
+          operations.add('delete');
+        }
+      }
+      
+      // For folders, check folder-specific permissions
+      if (item['is_folder'] == true && !item['is_department'] == true) {
+        if (permissions['manage_folder_permissions'] == true) {
+          operations.add('create');
+          operations.add('update');
+          operations.add('delete');
+        }
+      }
     }
+    
+    // If no specific permissions found but it's a folder, default to allowing create
+    // This is a fallback for cases where permissions might not be explicitly set
+    if (operations.isEmpty && (item['is_folder'] == true || item['is_department'] == true)) {
+      operations.add('create');
+    }
+    
+    // Log the permissions for debugging
+    EVLogger.debug('Extracted permissions', {
+      'itemName': item['raw_file_name'] ?? item['name'],
+      'permissions': permissions,
+      'operations': operations
+    });
     
     return operations.isEmpty ? null : operations;
   }
