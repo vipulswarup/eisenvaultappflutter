@@ -1,0 +1,103 @@
+paths:
+  /departments/{nodeId}/children:
+    get:
+      summary: Get department children
+      description: Retrieve children of a department
+      tags:
+        - Departments
+      parameters:
+        - in: path
+          name: nodeId
+          required: true
+          schema:
+            type: string
+          description: The ID of the department
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+        - in: query
+          name: only_folders
+          required: false
+          schema:
+            type: boolean
+          description: Filter to only show folders
+        - in: query
+          name: name
+          required: false
+          schema:
+            type: string
+          description: Filter by name (partial match)
+        - in: query
+          name: sort
+          required: false
+          schema:
+            type: string
+          description: Sort order in JSON format
+        - in: query
+          name: slim
+          required: false
+          schema:
+            type: boolean
+          description: Return only essential fields
+        - in: query
+          name: descendants
+          required: false
+          schema:
+            type: boolean
+          description: Include all descendants (for offline sync)
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      responses:
+        '200':
+          description: Children retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        _id:
+                          type: string
+                        rawFileName:
+                          type: string
+                        description:
+                          type: string
+                        parentPath:
+                          type: string
+                        materializePath:
+                          type: string
+                        isFolder:
+                          type: boolean
+                        isFile:
+                          type: boolean
+                        isDepartment:
+                          type: boolean
+                  count:
+                    type: integer
+        '401':
+          description: Unauthorized, invalid or missing authentication token

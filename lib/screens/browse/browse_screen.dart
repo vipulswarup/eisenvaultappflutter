@@ -66,159 +66,162 @@ class _BrowseScreenState extends State<BrowseScreen> {
       baseUrl: widget.baseUrl,
     );
   }
-@override
-Widget build(BuildContext context) {
-  // Determine when to show back arrow vs hamburger menu
-  final bool isAtDepartmentsList = _controller.currentFolder == null || _controller.currentFolder!.id == 'root';
-  
-  // Check if user has write permission for the current folder
-  final bool hasWritePermission = _controller.currentFolder != null && 
-                                 _controller.currentFolder!.id != 'root' &&
-                                 _controller.currentFolder!.canWrite;
-  
-  return Scaffold(
-    backgroundColor: EVColors.screenBackground,
-    appBar: AppBar(
-      // Show hamburger icon at departments list, back arrow inside folders
-      leading: isAtDepartmentsList
-          ? null  // Use default drawer hamburger icon
-          : IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () {
-                if (_controller.navigationStack.isEmpty) {
-                  // If at department root, go back to departments list
-                  _controller.loadDepartments();
-                } else {
-                  // If in subfolder, go back one level by navigating to parent folder
-                  int parentIndex = _controller.navigationStack.length - 1;
-                  _controller.navigateToBreadcrumb(parentIndex);
-                }
-              },
-            ),
-      title: const Text('Departments'),
-      backgroundColor: EVColors.appBarBackground,
-      foregroundColor: EVColors.appBarForeground,
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.logout),
-          tooltip: 'Logout',
-          onPressed: _authHandler.showLogoutConfirmation,
-        ),
-      ],
-    ),
-    // Keep the drawer to be shown with hamburger menu when appropriate
-    drawer: isAtDepartmentsList ? BrowseDrawer(
-      firstName: widget.firstName,
-      baseUrl: widget.baseUrl,
-      onLogoutTap: _authHandler.showLogoutConfirmation,
-    ) : null,
-    // Modified floating action button with permission check
-    floatingActionButton: _controller.currentFolder != null && _controller.currentFolder!.id != 'root' ? 
-      FloatingActionButton(
-        onPressed: hasWritePermission 
-          ? () => _navigateToUploadScreen() 
-          : () {
-              // Show message explaining why button is disabled
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('You don\'t have permission to upload files to this folder.'),
-                  behavior: SnackBarBehavior.floating,
-                  backgroundColor: Colors.orange,
-                )
-              );
-            },
-        child: const Icon(Icons.upload_file),
-        tooltip: hasWritePermission 
-          ? 'Upload Document' 
-          : 'You don\'t have permission to upload here',
-        backgroundColor: hasWritePermission 
-          ? EVColors.terracotta 
-          : Colors.grey,
-      ) : null,
-    body: Column(
-      // Rest of body content remains the same...
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Welcome message
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Text(
-            'Welcome, ${widget.firstName}!',
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-        
-        // Add breadcrumb navigation if we're not at root level
-        if (_controller.currentFolder != null && _controller.currentFolder!.id != 'root')
-          BreadcrumbNavigation(
-            navigationStack: _controller.navigationStack,
-            currentFolder: _controller.currentFolder,
-            onRootTap: _controller.loadDepartments,
-            onBreadcrumbTap: _controller.navigateToBreadcrumb,
-          ),
-        
-        Expanded(
-          child: _buildContent(),
-        ),
-      ],
-    ),
-  );
-}
-// Add this method to navigate to upload screen
-void _navigateToUploadScreen() async {
-  if (_controller.currentFolder == null) return;
-  
-  // Get the correct parent folder ID
-  String parentFolderId;
-  
-  if (_controller.instanceType.toLowerCase() == 'angora') {
-    // For Angora, we use the current folder ID directly
-    parentFolderId = _controller.currentFolder!.id;
+
+  @override
+  Widget build(BuildContext context) {
+    // Determine when to show back arrow vs hamburger menu
+    final bool isAtDepartmentsList = _controller.currentFolder == null || _controller.currentFolder!.id == 'root';
     
-    EVLogger.debug('Angora upload: Using folder ID directly', {
-      'parentFolderId': parentFolderId
-    });
-  } else {
-    // For Alfresco/Classic, handle documentLibrary ID
-    if (_controller.currentFolder!.isDepartment) {
-      if (_controller.currentFolder!.documentLibraryId != null) {
-        parentFolderId = _controller.currentFolder!.documentLibraryId!;
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Cannot upload at this level. Please navigate to a subfolder.'),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.red,
-          )
-        );
-        return;
-      }
-    } else {
+    // Check if user has write permission for the current folder
+    final bool hasWritePermission = _controller.currentFolder != null && 
+                                   _controller.currentFolder!.id != 'root' &&
+                                   _controller.currentFolder!.canWrite;
+    
+    return Scaffold(
+      backgroundColor: EVColors.screenBackground,
+      appBar: AppBar(
+        // Show hamburger icon at departments list, back arrow inside folders
+        leading: isAtDepartmentsList
+            ? null  // Use default drawer hamburger icon
+            : IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  if (_controller.navigationStack.isEmpty) {
+                    // If at department root, go back to departments list
+                    _controller.loadDepartments();
+                  } else {
+                    // If in subfolder, go back one level by navigating to parent folder
+                    int parentIndex = _controller.navigationStack.length - 1;
+                    _controller.navigateToBreadcrumb(parentIndex);
+                  }
+                },
+              ),
+        title: const Text('Departments'),
+        backgroundColor: EVColors.appBarBackground,
+        foregroundColor: EVColors.appBarForeground,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Logout',
+            onPressed: _authHandler.showLogoutConfirmation,
+          ),
+        ],
+      ),
+      // Keep the drawer to be shown with hamburger menu when appropriate
+      drawer: isAtDepartmentsList ? BrowseDrawer(
+        firstName: widget.firstName,
+        baseUrl: widget.baseUrl,
+        onLogoutTap: _authHandler.showLogoutConfirmation,
+      ) : null,
+      // Modified floating action button with permission check
+      floatingActionButton: _controller.currentFolder != null && _controller.currentFolder!.id != 'root' ? 
+        FloatingActionButton(
+          onPressed: hasWritePermission 
+            ? () => _navigateToUploadScreen() 
+            : () {
+                // Show message explaining why button is disabled
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('You don\'t have permission to upload files to this folder.'),
+                    behavior: SnackBarBehavior.floating,
+                    backgroundColor: Colors.orange,
+                  )
+                );
+              },
+          child: const Icon(Icons.upload_file),
+          tooltip: hasWritePermission 
+            ? 'Upload Document' 
+            : 'You don\'t have permission to upload here',
+          backgroundColor: hasWritePermission 
+            ? EVColors.terracotta 
+            : Colors.grey,
+        ) : null,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Welcome message
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              'Welcome, ${widget.firstName}!',
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          
+          // Add breadcrumb navigation if we're not at root level
+          if (_controller.currentFolder != null && _controller.currentFolder!.id != 'root')
+            BreadcrumbNavigation(
+              navigationStack: _controller.navigationStack,
+              currentFolder: _controller.currentFolder,
+              onRootTap: _controller.loadDepartments,
+              onBreadcrumbTap: _controller.navigateToBreadcrumb,
+            ),
+          
+          Expanded(
+            child: _buildContent(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Add this method to navigate to upload screen
+  void _navigateToUploadScreen() async {
+    if (_controller.currentFolder == null) return;
+    
+    // Get the correct parent folder ID
+    String parentFolderId;
+    
+    if (_controller.instanceType.toLowerCase() == 'angora') {
+      // For Angora, we use the current folder ID directly
       parentFolderId = _controller.currentFolder!.id;
+      
+      EVLogger.debug('Angora upload: Using folder ID directly', {
+        'parentFolderId': parentFolderId
+      });
+    } else {
+      // For Alfresco/Classic, handle documentLibrary ID
+      if (_controller.currentFolder!.isDepartment) {
+        if (_controller.currentFolder!.documentLibraryId != null) {
+          parentFolderId = _controller.currentFolder!.documentLibraryId!;
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Cannot upload at this level. Please navigate to a subfolder.'),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: Colors.red,
+            )
+          );
+          return;
+        }
+      } else {
+        parentFolderId = _controller.currentFolder!.id;
+      }
+    }
+    
+    // Rest of the method remains the same...
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DocumentUploadScreen(
+          repositoryType: widget.instanceType,
+          parentFolderId: parentFolderId,
+          baseUrl: widget.baseUrl,
+          authToken: widget.authToken,
+        ),
+      ),
+    );
+    
+    // If upload was successful, refresh the current folder
+    if (result == true) {
+      _controller.loadFolderContents(_controller.currentFolder!);
     }
   }
-  
-  // Rest of the method remains the same...
-  final result = await Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => DocumentUploadScreen(
-        repositoryType: widget.instanceType,
-        parentFolderId: parentFolderId,
-        baseUrl: widget.baseUrl,
-        authToken: widget.authToken,
-      ),
-    ),
-  );
-  
-  // If upload was successful, refresh the current folder
-  if (result == true) {
-    _controller.loadFolderContents(_controller.currentFolder!);
-  }
-}  /// Builds the main content area (loading indicator, error, or item list)
+
+  /// Builds the main content area (loading indicator, error, or item list)
   Widget _buildContent() {
     if (_controller.isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -236,7 +239,7 @@ void _navigateToUploadScreen() async {
         },
       );
     }
-  
+    
     if (_controller.items.isEmpty) {
       return const EmptyFolderView();
     }
@@ -263,15 +266,14 @@ void _navigateToUploadScreen() async {
             : _controller.loadDepartments();
       },
       onLoadMore: _controller.loadMoreItems,
-      hasMoreItems: _controller.hasMoreItems,
       isLoadingMore: _controller.isLoadingMore,
+      hasMoreItems: _controller.hasMoreItems,
     );
   }
 
-@override
-void dispose() {
-  _controller.dispose(); // Make sure your controller has a dispose method
-  super.dispose();
-}
-
+  @override
+  void dispose() {
+    _controller.dispose(); // Make sure your controller has a dispose method
+    super.dispose();
+  }
 }

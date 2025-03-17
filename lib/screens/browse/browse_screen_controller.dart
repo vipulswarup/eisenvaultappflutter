@@ -77,38 +77,44 @@ class BrowseScreenController {
     _debouncer.value = null; // Trigger the debouncer
   }
 
-  /// Load more items when scrolling to the bottom of the list
+  /// Load more items when scrolling to the end of the list
   Future<void> loadMoreItems() async {
-    // Don't load more if already loading, no more items, or no current folder
     if (!_hasMoreItems || _isLoadingMore || currentFolder == null) return;
     
     _isLoadingMore = true;
     onStateChanged?.call();
     
     try {
-      // Calculate skip count for pagination
       final nextPage = _currentPage + 1;
       final skipCount = nextPage * _itemsPerPage;
       
-      // Get browse service for the current instance type
+      EVLogger.debug('Fetching contents', {
+        'id': currentFolder!.id,
+        'isDepartment': currentFolder!.isDepartment,
+        'type': currentFolder!.type,
+        'skip': skipCount,
+        'limit': _itemsPerPage
+      });
+      
+      // Get the browse service
       final browseService = BrowseServiceFactory.getService(
         instanceType, 
         baseUrl, 
         authToken
       );
       
-      // Load the next page of items
+      // Fetch more items with pagination parameters
       final moreItems = await browseService.getChildren(
         currentFolder!,
         skipCount: skipCount,
         maxItems: _itemsPerPage,
       );
       
-      // If we got fewer items than requested, there are no more
       if (moreItems.isEmpty) {
         _hasMoreItems = false;
       } else {
         _currentPage = nextPage;
+        // Add the new items to the existing list
         items.addAll(moreItems);
       }
     } catch (e) {
@@ -120,7 +126,57 @@ class BrowseScreenController {
     }
   }
 
-  // Getters for pagination state
+  /// Loads folder contents with pagination reset
+  Future<void> loadFolderContents(BrowseItem folder) async {
+    // Cancel any ongoing request
+    _cancelToken?.cancel("New request started");
+    _cancelToken = CancelToken();
+
+    currentFolder = folder;
+    isLoading = true;
+    errorMessage = null;
+    _currentPage = 0;
+    _hasMoreItems = true;
+    items.clear();
+    onStateChanged?.call();
+    
+    try {
+      final browseService = BrowseServiceFactory.getService(
+        instanceType, 
+        baseUrl, 
+        authToken
+      );
+
+      // Fetch initial items with pagination parameters
+      final loadedItems = await browseService.getChildren(
+        folder,
+        skipCount: 0,
+        maxItems: _itemsPerPage,
+      );
+      
+      items = loadedItems;
+      
+      // If we got fewer items than requested, there are no more
+      if (loadedItems.length < _itemsPerPage) {
+        _hasMoreItems = false;
+      }
+      
+      isLoading = false;
+      onStateChanged?.call();
+    } catch (e) {
+      // Don't report errors from cancelled requests
+      if (e is! DioException || (e is DioException && e.type != DioExceptionType.cancel)) {
+        errorMessage = 'Failed to load contents: ${e.toString()}';
+        isLoading = false;
+        onStateChanged?.call();
+      
+        // Re-throw to be caught by the calling method
+        rethrow;
+      }
+    }
+  }
+
+  // Add getters for pagination state
   bool get isLoadingMore => _isLoadingMore;
   bool get hasMoreItems => _hasMoreItems;
 
@@ -128,11 +184,8 @@ class BrowseScreenController {
   Future<void> loadDepartments() async {
     isLoading = true;
     errorMessage = null;
-    
-    // Reset pagination state
     _currentPage = 0;
     _hasMoreItems = true;
-    
     _notifyListeners();
 
     try {
@@ -150,7 +203,6 @@ class BrowseScreenController {
         isDepartment: instanceType == 'Angora',
       );
 
-      // Load first page of departments
       final loadedItems = await browseService.getChildren(
         rootItem,
         skipCount: 0,
@@ -276,7 +328,7 @@ class BrowseScreenController {
         }
       }
       
-      // Check if we have fewer items than requested (no more to load)
+      // If we got fewer items than requested, there are no more
       if (loadedItems.length < _itemsPerPage) {
         _hasMoreItems = false;
       }
@@ -292,7 +344,6 @@ class BrowseScreenController {
     }
   }
 
-  /// Helper method to fetch document library ID for a site (Alfresco/Classic only)
   Future<String> _fetchDocumentLibraryId(String siteId) async {
     // Only call this method for Alfresco/Classic repositories
     if (instanceType.toLowerCase() == 'angora') {
@@ -345,62 +396,6 @@ class BrowseScreenController {
       _notifyListeners();
     }
   }
-  
-  /// Loads the contents of a specific folder
-  /// Uses cancellation token to prevent multiple concurrent requests
-  Future<void> loadFolderContents(BrowseItem folder) async {
-    // Cancel any ongoing request
-    _cancelToken?.cancel("New request started");
-    _cancelToken = CancelToken();
-
-    // Reset pagination state
-    _currentPage = 0;
-    _hasMoreItems = true;
-
-    try {
-      final browseService = BrowseServiceFactory.getService(
-        instanceType, 
-        baseUrl, 
-        authToken
-      );
-
-      // Load first page of folder contents with pagination
-      final loadedItems = await browseService.getChildren(
-        folder,
-        skipCount: 0,
-        maxItems: _itemsPerPage,
-      );
-    
-      // Log permissions for debugging
-      if (folder.allowableOperations != null) {
-        EVLogger.debug('Folder permissions', {
-          'folder': folder.name,
-          'operations': folder.allowableOperations,
-          'canWrite': folder.canWrite
-        });
-      }
-    
-      items = loadedItems;
-      
-      // If we got fewer items than requested, there are no more
-      if (loadedItems.length < _itemsPerPage) {
-        _hasMoreItems = false;
-      }
-      
-      isLoading = false;
-      _notifyListeners();
-    } catch (e) {
-      // Don't report errors from cancelled requests
-      if (e is! DioException || (e is DioException && e.type != DioExceptionType.cancel)) {
-        errorMessage = 'Failed to load contents: ${e.toString()}';
-        isLoading = false;
-        _notifyListeners();
-      
-        // Re-throw to be caught by the calling method
-        rethrow;
-      }
-    }
-  }  
   
   /// Navigates to a specific point in breadcrumb
   void navigateToBreadcrumb(int index) {    

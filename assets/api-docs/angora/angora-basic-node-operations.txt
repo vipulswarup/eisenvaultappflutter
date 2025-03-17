@@ -1,0 +1,80 @@
+openapi: 3.0.0
+info:
+  title: Angora File Service API - Node Operations
+  description: API for managing files, folders, and departments in the Angora DMS
+  version: 1.0.0
+servers:
+  - url: https://api.example.com
+paths:
+  /nodes/{id}:
+    get:
+      summary: Get node details
+      description: Retrieve details of a specific node (file, folder, or department)
+      tags:
+        - Nodes
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: The ID of the node to retrieve
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      responses:
+        '200':
+          description: Node details retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      _id:
+                        type: string
+                      rawFileName:
+                        type: string
+                      description:
+                        type: string
+                      parentPath:
+                        type: string
+                      materializePath:
+                        type: string
+                      isFolder:
+                        type: boolean
+                      isFile:
+                        type: boolean
+                      isDepartment:
+                        type: boolean
+                      createdBy:
+                        type: object
+                      editedBy:
+                        type: object
+                      parent:
+                        type: object
+                      previewable:
+                        type: boolean
+                      previewLink:
+                        type: string
+                      downloadLink:
+                        type: string
+                      dataEntry:
+                        type: array
+                        items:
+                          type: object
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+        '404':
+          description: Not found, node not found

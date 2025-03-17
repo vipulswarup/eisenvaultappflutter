@@ -1,0 +1,913 @@
+paths:
+  /files/{id}:
+    get:
+      summary: Get file details
+      description: Retrieve details of a specific file
+      tags:
+        - Files
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: The ID of the file
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      responses:
+        '200':
+          description: File details retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+        '403':
+          description: Forbidden, user doesn't have permission to view document
+        '404':
+          description: Not found, file not found
+    put:
+      summary: Update file metadata
+      description: Update metadata of a specific file
+      tags:
+        - Files
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: The ID of the file
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '200':
+          description: File updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+        '403':
+          description: Forbidden, user doesn't have permission to edit document metadata
+        '404':
+          description: Not found, file not found
+
+  /files/{id}/download:
+    get:
+      summary: Download file
+      description: Get file details with download link
+      tags:
+        - Files
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: The ID of the file
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      responses:
+        '200':
+          description: File download details retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      downloadLink:
+                        type: string
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+        '403':
+          description: Forbidden, user doesn't have permission to download document
+        '404':
+          description: Not found, file not found
+
+  /files/{id}/download-stream:
+    get:
+      summary: Download file as stream
+      description: Download contents of a file as a stream
+      tags:
+        - Files
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: The ID of the file
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      responses:
+        '200':
+          description: File stream
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+        '403':
+          description: Forbidden, user doesn't have permission to download document
+        '404':
+          description: Not found, file not found
+
+
+paths:
+  /files/{id}/versions:
+    get:
+      summary: Get file versions
+      description: Retrieve all versions of a specific file
+      tags:
+        - Files
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: The ID of the file
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      responses:
+        '200':
+          description: File versions retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        _id:
+                          type: string
+                        versionNumber:
+                          type: integer
+                        comment:
+                          type: string
+                        createdAt:
+                          type: string
+                          format: date-time
+                        createdBy:
+                          type: object
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+        '403':
+          description: Forbidden, user doesn't have permission to view older document versions
+        '404':
+          description: Not found, file not found
+
+  /files/{id}/versions/{versionId}:
+    delete:
+      summary: Delete file version
+      description: Delete a specific version of a file
+      tags:
+        - Files
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: The ID of the file
+        - in: path
+          name: versionId
+          required: true
+          schema:
+            type: string
+          description: The ID of the version to delete
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      responses:
+        '200':
+          description: File version deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+        '403':
+          description: Forbidden, user doesn't have permission to delete older document versions
+        '404':
+          description: Not found, file or version not found
+
+  /files/{id}/restore/{versionId}:
+    put:
+      summary: Restore file version
+      description: Restore a file to a previous version
+      tags:
+        - Files
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: The ID of the file
+        - in: path
+          name: versionId
+          required: true
+          schema:
+            type: string
+          description: The ID of the version to restore
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                comment:
+                  type: string
+                  description: Comment for the restored version
+      responses:
+        '200':
+          description: File restored successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notifications:
+                    type: string
+                    example: "file_restored_successfully"
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+        '403':
+          description: Forbidden, user doesn't have permission to restore older document versions
+        '404':
+          description: Not found, file or version not found
+        '409':
+          description: Conflict, file already exists on the specified path
+
+paths:
+  /files/{fileId}/metadata:
+    get:
+      summary: Get file metadata
+      description: Retrieve metadata for a specific file
+      tags:
+        - Files
+      parameters:
+        - in: path
+          name: fileId
+          required: true
+          schema:
+            type: string
+          description: The ID of the file
+        - in: query
+          name: ids
+          required: false
+          schema:
+            type: string
+          description: Comma-separated list of metadata IDs to filter
+        - in: query
+          name: document_category_id
+          required: false
+          schema:
+            type: string
+          description: Document category ID to filter metadata
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      responses:
+        '200':
+          description: File metadata retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+        '403':
+          description: Forbidden, user doesn't have permission to view document
+        '404':
+          description: Not found, file not found
+    post:
+      summary: Add/Update file metadata
+      description: Add or update metadata for a specific file
+      tags:
+        - Files
+      parameters:
+        - in: path
+          name: fileId
+          required: true
+          schema:
+            type: string
+          description: The ID of the file
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - document_category_id
+              properties:
+                document_category_id:
+                  type: string
+                  description: ID of the document category
+                metadata:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      value:
+                        type: string
+      responses:
+        '200':
+          description: Metadata added/updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+        '400':
+          description: Bad request, validation error
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+        '403':
+          description: Forbidden, user doesn't have permission to edit document content
+        '404':
+          description: Not found, file not found
+
+  /files/{fileId}/document-category:
+    put:
+      summary: Update document category
+      description: Update the document category for a specific file
+      tags:
+        - Files
+      parameters:
+        - in: path
+          name: fileId
+          required: true
+          schema:
+            type: string
+          description: The ID of the file
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - document_category_id
+              properties:
+                document_category_id:
+                  type: string
+                  description: ID of the document category
+      responses:
+        '200':
+          description: Document category updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+        '403':
+          description: Forbidden, user doesn't have permission to edit document content
+        '404':
+          description: Not found, file or document category not found
+
+  /files/{id}/attachments/{attachmentId}:
+    get:
+      summary: Get file attachment
+      description: Retrieve a specific attachment for a file
+      tags:
+        - Files
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: The ID of the file
+        - in: path
+          name: attachmentId
+          required: true
+          schema:
+            type: string
+          description: The ID of the attachment
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      responses:
+        '200':
+          description: File attachment retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+        '403':
+          description: Forbidden, user doesn't have permission to view document
+        '404':
+          description: Not found, file or attachment not found
+paths:
+  /files/{id}/members:
+    get:
+      summary: Get file members
+      description: Retrieve members of a specific file
+      tags:
+        - Files
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: The ID of the file
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      responses:
+        '200':
+          description: File members retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        user:
+                          type: object
+                        role:
+                          type: object
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+        '403':
+          description: Forbidden, user doesn't have permission
+        '404':
+          description: Not found, file not found
+    post:
+      summary: Add members to file
+      description: Add one or more members to a specific file
+      tags:
+        - Files
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: The ID of the file
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                members:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - id
+                      - type
+                    properties:
+                      id:
+                        type: string
+                        description: User or group ID
+                      type:
+                        type: string
+                        enum: [user, group]
+                        description: Type of member (user or group)
+                      role:
+                        type: string
+                        description: Role ID to assign
+      responses:
+        '200':
+          description: Members added successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+        '403':
+          description: Forbidden, user doesn't have permission to manage document permissions
+        '404':
+          description: Not found, file not found
+    delete:
+      summary: Remove members from file
+      description: Remove one or more members from a specific file
+      tags:
+        - Files
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: The ID of the file
+        - in: query
+          name: ids
+          required: true
+          schema:
+            type: string
+          description: Comma-separated list of member IDs to remove
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      responses:
+        '200':
+          description: Members removed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+        '403':
+          description: Forbidden, user doesn't have permission to manage document permissions
+        '404':
+          description: Not found, file not found
+
+  /nodes/logs/{logBatchId}:
+    get:
+      summary: Get node logs
+      description: Retrieve logs for a specific batch
+      tags:
+        - Nodes
+      parameters:
+        - in: path
+          name: logBatchId
+          required: true
+          schema:
+            type: string
+          description: The ID of the log batch
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      responses:
+        '200':
+          description: Node logs retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+paths:
+  /nodes/copy:
+    post:
+      summary: Copy nodes
+      description: Copy one or more files/folders to a target folder
+      tags:
+        - Nodes
+      parameters:
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - source_ids
+                - target_id
+              properties:
+                source_ids:
+                  type: string
+                  description: Comma-separated list of source node IDs to copy
+                target_id:
+                  type: string
+                  description: ID of the target folder
+      responses:
+        '200':
+          description: Nodes copied successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+        '403':
+          description: Forbidden, user doesn't have permission
+        '404':
+          description: Not found, source or target node not found
+
+  /nodes/move:
+    post:
+      summary: Move nodes
+      description: Move one or more files/folders to a target folder
+      tags:
+        - Nodes
+      parameters:
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - source_ids
+                - target_id
+              properties:
+                source_ids:
+                  type: string
+                  description: Comma-separated list of source node IDs to move
+                target_id:
+                  type: string
+                  description: ID of the target folder
+      responses:
+        '200':
+          description: Nodes moved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+        '403':
+          description: Forbidden, user doesn't have permission
+        '404':
+          description: Not found, source or target node not found
+
+  /files:
+    delete:
+      summary: Delete files
+      description: Delete one or more files
+      tags:
+        - Files
+      parameters:
+        - in: query
+          name: ids
+          required: true
+          schema:
+            type: string
+          description: Comma-separated list of file IDs to delete
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      responses:
+        '200':
+          description: Files deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+        '403':
+          description: Forbidden, user doesn't have permission to delete documents
+        '404':
+          description: Not found, one or more files not found

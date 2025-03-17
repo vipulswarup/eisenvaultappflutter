@@ -12,6 +12,7 @@ class ClassicBrowseService implements BrowseService {
   static const String sitesNodeId = 'sites';
 
   ClassicBrowseService(this.baseUrl, this.authToken);
+
   @override
   Future<List<BrowseItem>> getChildren(
     BrowseItem parent, {
@@ -33,7 +34,11 @@ class ClassicBrowseService implements BrowseService {
       
       // Otherwise, get children of the specified folder
       final nodeId = parent.id;
-      EVLogger.debug('Fetching contents of folder', {'nodeId': nodeId});
+      EVLogger.debug('Fetching contents of folder', {
+        'nodeId': nodeId,
+        'skipCount': skipCount,
+        'maxItems': maxItems
+      });
       
       final url = Uri.parse(
         '$baseUrl/api/-default-/public/alfresco/versions/1/nodes/$nodeId/children?include=path,properties,allowableOperations&skipCount=$skipCount&maxItems=$maxItems'
@@ -75,9 +80,15 @@ class ClassicBrowseService implements BrowseService {
   }
 
   /// Fetches the contents of the "Sites" folder specifically
-  Future<List<BrowseItem>> _getSitesFolderContents({int skipCount = 0, int maxItems = 25}) async {
+  Future<List<BrowseItem>> _getSitesFolderContents({
+    int skipCount = 0,
+    int maxItems = 25,
+  }) async {
     try {
-      EVLogger.debug('Fetching Sites folder contents', {'skipCount': skipCount, 'maxItems': maxItems});
+      EVLogger.debug('Fetching Sites folder contents', {
+        'skipCount': skipCount,
+        'maxItems': maxItems
+      });
       
       final url = Uri.parse(
         '$baseUrl/api/-default-/public/alfresco/versions/1/sites?skipCount=$skipCount&maxItems=$maxItems'
@@ -132,7 +143,11 @@ class ClassicBrowseService implements BrowseService {
     int maxItems = 25,
   }) async {
     try {
-      EVLogger.debug('Fetching document library for site', {'siteId': siteId});
+      EVLogger.debug('Fetching document library for site', {
+        'siteId': siteId,
+        'skipCount': skipCount,
+        'maxItems': maxItems
+      });
       
       // First, we need to get the documentLibrary container node ID for this site
       final urlDocLib = Uri.parse(
@@ -197,6 +212,7 @@ class ClassicBrowseService implements BrowseService {
       throw Exception('Failed to get document library contents: ${e.toString()}');
     }
   }
+
   /// Maps an Alfresco API response item to a BrowseItem object
   BrowseItem _mapAlfrescoBrowseItem(Map<String, dynamic> entry) {
     return BrowseItem(

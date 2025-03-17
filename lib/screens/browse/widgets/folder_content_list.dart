@@ -2,15 +2,15 @@ import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/widgets/browse_item_tile.dart';
 import 'package:flutter/material.dart';
 
-/// Widget that displays a list of folder contents with infinite scrolling
+/// Widget that displays a list of folder contents
 class FolderContentList extends StatefulWidget {
   final List<BrowseItem> items;
   final Function(BrowseItem) onFolderTap;
   final Function(BrowseItem) onFileTap;
   final Future<void> Function() onRefresh;
   final Future<void> Function()? onLoadMore;
-  final bool hasMoreItems;
   final bool isLoadingMore;
+  final bool hasMoreItems;
 
   const FolderContentList({
     Key? key,
@@ -19,8 +19,8 @@ class FolderContentList extends StatefulWidget {
     required this.onFileTap,
     required this.onRefresh,
     this.onLoadMore,
-    this.hasMoreItems = false,
     this.isLoadingMore = false,
+    this.hasMoreItems = false,
   }) : super(key: key);
 
   @override
@@ -44,9 +44,13 @@ class _FolderContentListState extends State<FolderContentList> {
   }
 
   void _scrollListener() {
-    if (widget.hasMoreItems && !widget.isLoadingMore && 
-        _scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
-      widget.onLoadMore?.call();
+    if (widget.onLoadMore == null || !widget.hasMoreItems || widget.isLoadingMore) {
+      return;
+    }
+
+    if (_scrollController.position.pixels >= 
+        _scrollController.position.maxScrollExtent - 200) {
+      widget.onLoadMore!();
     }
   }
 
@@ -54,34 +58,40 @@ class _FolderContentListState extends State<FolderContentList> {
   Widget build(BuildContext context) {
     return RefreshIndicator(
       onRefresh: widget.onRefresh,
-      child: ListView.builder(
-        controller: _scrollController,
-        itemCount: widget.items.length + (widget.hasMoreItems ? 1 : 0),
-        cacheExtent: 500, // Increase cache to reduce rebuilds
-        itemBuilder: (context, index) {
-          // Show loading indicator at the bottom
-          if (index == widget.items.length) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(16.0),
-                child: CircularProgressIndicator(),
-              ),
-            );
-          }
-          
-          final item = widget.items[index];
-          return BrowseItemTile(
-            item: item,
-            onTap: () {
-              // If the item is a folder or department, navigate to it
-              if (item.type == 'folder' || item.isDepartment) {
-                widget.onFolderTap(item);
-              } else {
-                widget.onFileTap(item);
-              }
-            },
-          );
-        },
+      child: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              controller: _scrollController,
+              itemCount: widget.items.length + (widget.hasMoreItems ? 1 : 0),
+              cacheExtent: 500, // Increase cache to reduce rebuilds
+              itemBuilder: (context, index) {
+                // Show loading indicator at the end
+                if (index == widget.items.length) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                }
+
+                final item = widget.items[index];
+                return BrowseItemTile(
+                  item: item,
+                  onTap: () {
+                    // If the item is a folder or department, navigate to it
+                    if (item.type == 'folder' || item.isDepartment) {
+                      widget.onFolderTap(item);
+                    } else {
+                      widget.onFileTap(item);
+                    }
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
