@@ -24,59 +24,88 @@ class AlfrescoUploadService {
     _baseService.setToken(token);
   }
 
-  /// Upload a document from a file path (for native platforms)
+  /// Unified upload method - handles both file paths and bytes
   Future<Map<String, dynamic>> uploadDocument({
+    required String parentFolderId,
+    String? filePath,
+    Uint8List? fileBytes,
+    required String fileName,
+    String? description,
+  }) async {
+    // Validate inputs
+    if ((filePath == null && fileBytes == null) ||
+        (filePath != null && fileBytes != null)) {
+      throw ArgumentError('Exactly one of filePath or fileBytes must be provided');
+    }
+    
+    EVLogger.debug('Upload document', {
+      'parentFolderId': parentFolderId,
+      'fileName': fileName,
+      'hasPath': filePath != null,
+      'hasBytes': fileBytes != null
+    });
+    
+    // Get file bytes if path provided
+    Uint8List bytes;
+    if (filePath != null) {
+      final file = File(filePath);
+      bytes = await file.readAsBytes();
+      final mimeType = lookupMimeType(filePath) ?? 'application/octet-stream';
+      
+      EVLogger.debug('File read from disk', {
+        'size': '${bytes.length} bytes', 
+        'mimeType': mimeType
+      });
+      
+      return _uploadFileData(
+        parentFolderId: parentFolderId,
+        fileBytes: bytes,
+        fileName: fileName,
+        mimeType: mimeType,
+        description: description,
+      );
+    } else {
+      bytes = fileBytes!;
+      final mimeType = lookupMimeType(fileName) ?? 'application/octet-stream';
+      
+      return _uploadFileData(
+        parentFolderId: parentFolderId,
+        fileBytes: bytes,
+        fileName: fileName,
+        mimeType: mimeType,
+        description: description,
+      );
+    }
+  }
+  
+  /// Upload a document from a file path (for native platforms)
+  /// Kept for backward compatibility
+  Future<Map<String, dynamic>> uploadDocumentPath({
     required String parentFolderId,
     required String filePath,
     required String fileName,
     String? description,
   }) async {
-    EVLogger.debug('Upload document from path', {
-      'parentFolderId': parentFolderId,
-      'filePath': filePath,
-      'fileName': fileName
-    });
-    
-    // Read file from disk
-    final file = File(filePath);
-    final fileBytes = await file.readAsBytes();
-    final mimeType = lookupMimeType(filePath) ?? 'application/octet-stream';
-    
-    EVLogger.debug('File read from disk', {
-      'size': '${fileBytes.length} bytes', 
-      'mimeType': mimeType
-    });
-    
-    return _uploadFileData(
+    return uploadDocument(
       parentFolderId: parentFolderId,
-      fileBytes: fileBytes,
+      filePath: filePath,
       fileName: fileName,
-      mimeType: mimeType,
       description: description,
     );
   }
   
   /// Upload a document from bytes (for web platforms)
+  /// Kept for backward compatibility
   Future<Map<String, dynamic>> uploadDocumentBytes({
     required String parentFolderId,
     required Uint8List fileBytes,
     required String fileName,
     String? description,
   }) async {
-    EVLogger.debug('Upload document from bytes', {
-      'parentFolderId': parentFolderId,
-      'fileName': fileName,
-      'size': '${fileBytes.length} bytes'
-    });
-    
-    // Determine MIME type from filename
-    final mimeType = lookupMimeType(fileName) ?? 'application/octet-stream';
-    
-    return _uploadFileData(
+    return uploadDocument(
       parentFolderId: parentFolderId,
       fileBytes: fileBytes,
       fileName: fileName,
-      mimeType: mimeType,
       description: description,
     );
   }

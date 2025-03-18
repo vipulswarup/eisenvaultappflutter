@@ -11,6 +11,9 @@ class UploadConstants {
   
   /// Default timeout for upload operations in seconds
   static const int uploadTimeoutSeconds = 30;
+  
+  /// Default maximum concurrent uploads
+  static const int maxConcurrentUploads = 2;
 }
 
 /// Possible states of a file upload

@@ -34,7 +34,6 @@ class AngoraUploadService {
       _chunkUploader = null;
     }
   }
-
   /// Main upload method - handles both file paths and bytes
   Future<Map<String, dynamic>> uploadDocument({
     required String parentFolderId,
@@ -102,7 +101,6 @@ class AngoraUploadService {
       rethrow;
     }
   }
-  
   /// Handle the chunked upload process
   Future<Map<String, dynamic>> _uploadFileInChunks({
     required String parentFolderId,
