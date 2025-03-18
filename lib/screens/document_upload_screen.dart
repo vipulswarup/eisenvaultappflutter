@@ -8,6 +8,7 @@ import '../services/upload/angora_upload_service.dart';
 import '../services/upload/batch_upload_manager.dart';
 import '../services/upload/upload_constants.dart';
 import '../utils/logger.dart';
+import '../widgets/failed_upload_list.dart';
 
 class DocumentUploadScreen extends StatefulWidget {
   final String repositoryType;
@@ -36,6 +37,10 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
   
   // Batch upload progress tracking
   BatchUploadProgress? _batchProgress;
+  
+  // Add these properties to track upload results
+  List<UploadFileItem> _failedFiles = [];
+  bool _showFailedFiles = false;
   
   // File picker method using file_selector package
   Future<void> _pickFiles() async {
@@ -97,6 +102,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
         
         setState(() {
           _selectedFiles = newFiles;
+          _showFailedFiles = false; // Hide failed files when new files are selected
         });
         
         EVLogger.debug('Files selected', {
@@ -163,7 +169,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
         String? filePath,
         Uint8List? fileBytes,
         String? description,
-        Function(UploadProgress)? onProgressUpdate, // Add this parameter
+        Function(UploadProgress)? onProgressUpdate,
       }) async {
         if (widget.repositoryType.toLowerCase() == 'alfresco' || 
             widget.repositoryType.toLowerCase() == 'classic') {
@@ -223,20 +229,28 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
         );
       } else if (result.isFullyFailed) {
         // All uploads failed
+        setState(() {
+          _failedFiles = result.failed;
+          _showFailedFiles = true;
+        });
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to upload ${result.failureCount} files'),
+            content: Text('Failed to upload ${result.failureCount} files. See details below.'),
             behavior: SnackBarBehavior.floating,
             backgroundColor: Colors.red,
           )
         );
       } else {
         // Mixed results
-        Navigator.pop(context, true); // Return partial success
+        setState(() {
+          _failedFiles = result.failed;
+          _showFailedFiles = true;
+        });
         
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Uploaded ${result.successCount} files, ${result.failureCount} failed'),
+            content: Text('Uploaded ${result.successCount} files, ${result.failureCount} failed. See details below.'),
             behavior: SnackBarBehavior.floating,
             backgroundColor: Colors.orange,
           )
@@ -260,6 +274,50 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
         });
       }
     }
+  }
+
+  // New method to retry failed uploads
+  Future<void> _retryFailedUploads() async {
+    if (_failedFiles.isEmpty) return;
+    
+    setState(() {
+      _isUploading = true;
+      _showFailedFiles = false;
+      _selectedFiles = _failedFiles;
+      _failedFiles = [];
+      _batchProgress = BatchUploadProgress(
+        totalFiles: _selectedFiles.length,
+        completedFiles: 0,
+        successfulFiles: 0,
+        failedFiles: 0,
+        status: BatchUploadStatus.notStarted,
+      );
+    });
+    
+    // Call the upload method again with the failed files
+    await _uploadFiles();
+  }
+  
+  // Method to retry a single failed file
+  Future<void> _retryFile(UploadFileItem file) async {
+    setState(() {
+      _isUploading = true;
+      _selectedFiles = [file];
+      _failedFiles.removeWhere((f) => f.name == file.name && f.id == file.id);
+      if (_failedFiles.isEmpty) {
+        _showFailedFiles = false;
+      }
+      _batchProgress = BatchUploadProgress(
+        totalFiles: 1,
+        completedFiles: 0,
+        successfulFiles: 0,
+        failedFiles: 0,
+        status: BatchUploadStatus.notStarted,
+      );
+    });
+    
+    // Upload the single file
+    await _uploadFiles();
   }
 
   // UI for the document upload screen
@@ -287,7 +345,18 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
               label: const Text('Select Files'),
             ),
             const SizedBox(height: 16),
-            if (_selectedFiles.isNotEmpty) ...[
+            
+            // Show either selected files or failed files based on state
+            if (_showFailedFiles && _failedFiles.isNotEmpty) ...[
+              Expanded(
+                child: FailedUploadList(
+                  failedFiles: _failedFiles,
+                  isUploading: _isUploading,
+                  onRetryFile: _retryFile,
+                  onRetryAll: _retryFailedUploads,
+                ),
+              ),
+            ] else if (_selectedFiles.isNotEmpty) ...[
               Text(
                 'Selected Files (${_selectedFiles.length}):',
                 style: const TextStyle(fontWeight: FontWeight.bold),
@@ -328,28 +397,32 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                 },
                 maxLines: 3,
               ),
-              const SizedBox(height: 24),
-              if (_batchProgress != null && _isUploading) ...[
-                LinearProgressIndicator(
-                  value: _batchProgress!.totalFiles > 0 
-                      ? _batchProgress!.completedFiles / _batchProgress!.totalFiles 
-                      : 0,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Uploading ${_batchProgress!.completedFiles} of ${_batchProgress!.totalFiles} files...',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  'Success: ${_batchProgress!.successfulFiles}, Failed: ${_batchProgress!.failedFiles}',
-                ),
-                const SizedBox(height: 16),
-              ],
+            ],
+            
+            const SizedBox(height: 24),
+            if (_batchProgress != null && _isUploading) ...[
+              LinearProgressIndicator(
+                value: _batchProgress!.totalFiles > 0 
+                    ? _batchProgress!.completedFiles / _batchProgress!.totalFiles 
+                    : 0,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Uploading ${_batchProgress!.completedFiles} of ${_batchProgress!.totalFiles} files...',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              Text(
+                'Success: ${_batchProgress!.successfulFiles}, Failed: ${_batchProgress!.failedFiles}',
+              ),
+              const SizedBox(height: 16),
+            ],
+            
+            if (!_showFailedFiles) ...[
               Center(
                 child: _isUploading 
                   ? const CircularProgressIndicator() 
                   : ElevatedButton.icon(
-                      onPressed: _uploadFiles,
+                      onPressed: _selectedFiles.isEmpty ? null : _uploadFiles,
                       icon: const Icon(Icons.cloud_upload),
                       label: const Text('Upload All Files'),
                       style: ElevatedButton.styleFrom(
@@ -358,7 +431,8 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                     ),
               ),
             ],
-            if (_selectedFiles.isEmpty) ...[
+            
+            if (_selectedFiles.isEmpty && !_showFailedFiles) ...[
               const SizedBox(height: 30),
               const Center(
                 child: Text('No files selected'),

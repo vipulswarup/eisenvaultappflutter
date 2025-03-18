@@ -3,6 +3,121 @@ import 'dart:typed_data';
 import 'package:eisenvaultappflutter/services/upload/upload_constants.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 
+/// Represents a file to be uploaded
+class UploadFileItem {
+  final String name;
+  final String? path;
+  final Uint8List? bytes;
+  String? id; // Added for tracking
+  String? errorMessage; // Add this to store error details
+  
+  UploadFileItem({
+    required this.name,
+    this.path,
+    this.bytes,
+    this.id,
+    this.errorMessage,
+  });
+  
+  // Create a copy of this item with an error message
+  UploadFileItem copyWithError(String error) {
+    return UploadFileItem(
+      name: name,
+      path: path,
+      bytes: bytes,
+      id: id,
+      errorMessage: error,
+    );
+  }
+}
+
+/// Progress information for a batch upload
+class BatchUploadProgress {
+  final int totalFiles;
+  final int completedFiles;
+  final int successfulFiles;
+  final int failedFiles;
+  final int totalBytes;
+  final int uploadedBytes;
+  final String status;
+  
+  BatchUploadProgress({
+    required this.totalFiles,
+    required this.completedFiles,
+    required this.successfulFiles,
+    required this.failedFiles,
+    this.totalBytes = 0,
+    this.uploadedBytes = 0,
+    required this.status,
+  });
+  
+  double get percentComplete => 
+      totalFiles > 0 ? (completedFiles / totalFiles * 100) : 0;
+      
+  double get bytesPercentComplete =>
+      totalBytes > 0 ? (uploadedBytes / totalBytes * 100) : 0;
+}
+
+/// Progress information for a single file upload
+class FileUploadProgress {
+  final String fileId;
+  final String fileName;
+  final String status;
+  final int uploadedBytes;
+  final int totalBytes;
+  final int index;
+  
+  FileUploadProgress({
+    required this.fileId,
+    required this.fileName,
+    required this.status,
+    required this.uploadedBytes,
+    required this.totalBytes,
+    required this.index,
+  });
+  
+  double get percentComplete => 
+      totalBytes > 0 ? (uploadedBytes / totalBytes * 100) : 0;
+}
+
+/// Result of a batch upload operation
+class BatchUploadResult {
+  final List<UploadFileItem> successful;
+  final List<UploadFileItem> failed;
+  final int totalCount;
+  final int successCount;
+  final int failureCount;
+  
+  BatchUploadResult({
+    required this.successful,
+    required this.failed,
+    required this.totalCount,
+    required this.successCount,
+    required this.failureCount,
+  });
+  
+  bool get isFullySuccessful => failureCount == 0 && successCount > 0;
+  bool get isPartiallySuccessful => failureCount > 0 && successCount > 0;
+  bool get isFullyFailed => successCount == 0 && failureCount > 0;
+}
+
+/// Status constants for batch uploads
+class BatchUploadStatus {
+  static const String notStarted = 'not_started';
+  static const String inProgress = 'in_progress';
+  static const String completed = 'completed';
+  static const String completedWithErrors = 'completed_with_errors';
+  static const String failed = 'failed';
+}
+
+/// Status constants for file uploads
+class FileUploadStatus {
+  static const String waiting = 'waiting';
+  static const String inProgress = 'inprogress';
+  static const String success = 'success';
+  static const String failed = 'failed';
+}
+
 /// Manages batch uploads with progress tracking
 class BatchUploadManager {
   /// Callback for overall batch progress
@@ -144,8 +259,9 @@ class BatchUploadManager {
           
           return true;
         } catch (e) {
-          // Mark as failed
-          failed.add(file);
+          // Mark as failed with error details
+          final fileWithError = file.copyWithError(e.toString());
+          failed.add(fileWithError);
           _updateFileProgress(file.id!, FileUploadStatus.failed);
           
           EVLogger.error('Upload failed', {
@@ -219,106 +335,4 @@ class BatchUploadManager {
       onFileProgressUpdate?.call(_fileProgressMap[fileId]!);
     }
   }
-}
-
-/// Represents a file to be uploaded
-class UploadFileItem {
-  final String name;
-  final String? path;
-  final Uint8List? bytes;
-  String? id; // Added for tracking
-  
-  UploadFileItem({
-    required this.name,
-    this.path,
-    this.bytes,
-    this.id,
-  });
-}
-
-/// Progress information for a batch upload
-class BatchUploadProgress {
-  final int totalFiles;
-  final int completedFiles;
-  final int successfulFiles;
-  final int failedFiles;
-  final int totalBytes;
-  final int uploadedBytes;
-  final String status;
-  
-  BatchUploadProgress({
-    required this.totalFiles,
-    required this.completedFiles,
-    required this.successfulFiles,
-    required this.failedFiles,
-    this.totalBytes = 0,
-    this.uploadedBytes = 0,
-    required this.status,
-  });
-  
-  double get percentComplete => 
-      totalFiles > 0 ? (completedFiles / totalFiles * 100) : 0;
-      
-  double get bytesPercentComplete =>
-      totalBytes > 0 ? (uploadedBytes / totalBytes * 100) : 0;
-}
-
-/// Progress information for a single file upload
-class FileUploadProgress {
-  final String fileId;
-  final String fileName;
-  final String status;
-  final int uploadedBytes;
-  final int totalBytes;
-  final int index;
-  
-  FileUploadProgress({
-    required this.fileId,
-    required this.fileName,
-    required this.status,
-    required this.uploadedBytes,
-    required this.totalBytes,
-    required this.index,
-  });
-  
-  double get percentComplete => 
-      totalBytes > 0 ? (uploadedBytes / totalBytes * 100) : 0;
-}
-
-/// Result of a batch upload operation
-class BatchUploadResult {
-  final List<UploadFileItem> successful;
-  final List<UploadFileItem> failed;
-  final int totalCount;
-  final int successCount;
-  final int failureCount;
-  
-  BatchUploadResult({
-    required this.successful,
-    required this.failed,
-    required this.totalCount,
-    required this.successCount,
-    required this.failureCount,
-  });
-  
-  bool get isFullySuccessful => failureCount == 0 && successCount > 0;
-  bool get isPartiallySuccessful => failureCount > 0 && successCount > 0;
-  bool get isFullyFailed => successCount == 0 && failureCount > 0;
-}
-
-/// Status constants for batch uploads
-class BatchUploadStatus {
-  static const String notStarted = 'not_started';
-  static const String inProgress = 'in_progress';
-  static const String completed = 'completed';
-  static const String completedWithErrors = 'completed_with_errors';
-  static const String failed = 'failed';
-}
-
-/// Status constants for file uploads
-class FileUploadStatus {
-  static const String waiting = 'waiting';
-  static const String inProgress = 'inprogress';
-  static const String success = 'success';
-  static const String failed = 'failed';
 }
