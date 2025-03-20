@@ -5,11 +5,15 @@ import 'package:flutter/material.dart';
 class BrowseItemTile extends StatelessWidget {
   final BrowseItem item;
   final VoidCallback onTap;
+  final VoidCallback? onDeleteTap;
+  final bool showDeleteOption;
 
   const BrowseItemTile({
     Key? key,
     required this.item,
     required this.onTap,
+    this.onDeleteTap,
+    this.showDeleteOption = false,
   }) : super(key: key);
 
   @override
@@ -29,9 +33,26 @@ class BrowseItemTile extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      trailing: const Icon(Icons.chevron_right),
+      trailing: _buildTrailingWidget(),
       onTap: onTap,
     );
+  }
+
+  Widget _buildTrailingWidget() {
+    if (showDeleteOption && item.canDelete && onDeleteTap != null) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: Icon(Icons.delete, color: Colors.red),
+            onPressed: onDeleteTap,
+            tooltip: 'Delete',
+          ),
+          Icon(Icons.chevron_right),
+        ],
+      );
+    }
+    return const Icon(Icons.chevron_right);
   }
 
   Widget _buildLeadingIcon() {

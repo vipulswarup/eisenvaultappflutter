@@ -418,4 +418,11 @@ class BrowseScreenController {
     // If using an older version that requires disposal, uncomment:
     // _debouncer.dispose();
   }
+
+  // Add this method to ensure permissions are loaded
+  Future<void> _loadItemPermissions(List<BrowseItem> items) async {
+    // This would be implemented if needed, but for now we're relying on
+    // the allowableOperations that should be returned with each item
+    // from the API
+  }
 }

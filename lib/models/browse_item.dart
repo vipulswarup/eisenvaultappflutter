@@ -37,4 +37,14 @@ class BrowseItem {
       op == 'delete' ||
       op == 'all');
   }
+  
+  // Add this helper method to check for delete permission
+  bool get canDelete {
+    if (allowableOperations == null) return false;
+    
+    // Alfresco typically uses these permission strings
+    return allowableOperations!.any((op) => 
+      op == 'delete' || 
+      op == 'all');
+  }
 }

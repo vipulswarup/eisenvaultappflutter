@@ -7,20 +7,24 @@ class FolderContentList extends StatefulWidget {
   final List<BrowseItem> items;
   final Function(BrowseItem) onFolderTap;
   final Function(BrowseItem) onFileTap;
+  final Function(BrowseItem)? onDeleteTap;
   final Future<void> Function() onRefresh;
   final Future<void> Function()? onLoadMore;
   final bool isLoadingMore;
   final bool hasMoreItems;
+  final bool showDeleteOption;
 
   const FolderContentList({
     Key? key,
     required this.items,
     required this.onFolderTap,
     required this.onFileTap,
+    this.onDeleteTap,
     required this.onRefresh,
     this.onLoadMore,
     this.isLoadingMore = false,
     this.hasMoreItems = false,
+    this.showDeleteOption = false,
   }) : super(key: key);
 
   @override
@@ -87,6 +91,8 @@ class _FolderContentListState extends State<FolderContentList> {
                       widget.onFileTap(item);
                     }
                   },
+                  onDeleteTap: widget.onDeleteTap != null ? () => widget.onDeleteTap!(item) : null,
+                  showDeleteOption: widget.showDeleteOption,
                 );
               },
             ),

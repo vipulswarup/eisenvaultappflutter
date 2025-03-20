@@ -11,6 +11,8 @@ import 'package:eisenvaultappflutter/utils/file_type_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:eisenvaultappflutter/screens/document_upload_screen.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
+import 'package:eisenvaultappflutter/screens/browse/handlers/delete_handler.dart';
+import 'package:eisenvaultappflutter/services/delete_service.dart';
 
 
 class BrowseScreen extends StatefulWidget {
@@ -27,6 +29,7 @@ class BrowseScreen extends StatefulWidget {
     required this.instanceType,
   });
 
+
   @override
   State<BrowseScreen> createState() => _BrowseScreenState();
 }
@@ -35,10 +38,18 @@ class _BrowseScreenState extends State<BrowseScreen> {
   late BrowseScreenController _controller;
   late FileTapHandler _fileTapHandler;
   late AuthHandler _authHandler;
+  late DeleteHandler _deleteHandler;
+  late DeleteService _deleteService;
 
   @override
   void initState() {
     super.initState();
+    // Initialize delete service directly with auth token
+    _deleteService = DeleteService(
+      authToken: widget.authToken,
+      baseUrl: widget.baseUrl,
+      customerHostname: 'default-hostname', // You may need to get this from somewhere else
+    );
     
     // Initialize controllers and handlers
     _controller = BrowseScreenController(
@@ -64,6 +75,22 @@ class _BrowseScreenState extends State<BrowseScreen> {
       context: context,
       instanceType: widget.instanceType,
       baseUrl: widget.baseUrl,
+    );
+    
+    _deleteHandler = DeleteHandler(
+      context: context,
+      instanceType: widget.instanceType,
+      baseUrl: widget.baseUrl,
+      authToken: widget.authToken,
+      deleteService: _deleteService,
+      onDeleteSuccess: () {
+        // Refresh the current folder after successful deletion
+        if (_controller.currentFolder != null) {
+          _controller.loadFolderContents(_controller.currentFolder!);
+        } else {
+          _controller.loadDepartments();
+        }
+      },
     );
   }
 
@@ -260,6 +287,8 @@ class _BrowseScreenState extends State<BrowseScreen> {
           );
         }
       },
+      onDeleteTap: (item) => _deleteHandler.showDeleteConfirmation(item),
+      showDeleteOption: true, // Enable delete option
       onRefresh: () {
         return _controller.currentFolder != null
             ? _controller.loadFolderContents(_controller.currentFolder!)

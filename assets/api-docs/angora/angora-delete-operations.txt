@@ -1,0 +1,551 @@
+openapi: 3.0.0
+info:
+  title: Angora File Service API - Delete Operations
+  description: API for deleting files, folders, versions, and trash in the Angora DMS
+  version: 1.0.0
+servers:
+  - url: https://api.example.com
+paths:
+  /files/{id}/versions/{versionId}:
+    delete:
+      summary: Delete file version
+      description: Delete a specific version of a file
+      tags:
+        - Files
+        - Versions
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: The ID of the file
+        - in: path
+          name: versionId
+          required: true
+          schema:
+            type: string
+          description: The ID of the version to delete
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      responses:
+        '200':
+          description: File version deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notifications:
+                    type: string
+                    example: "deleted_successfully"
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+        '403':
+          description: Forbidden, user doesn't have permission to delete older document versions
+        '404':
+          description: Not found, file or version not found
+
+
+openapi: 3.0.0
+info:
+  title: Angora File Service API - Delete Operations
+  description: API for deleting files, folders, and departments in the Angora DMS
+  version: 1.0.0
+servers:
+  - url: https://api.example.com
+paths:
+  /departments:
+    delete:
+      summary: Delete departments
+      description: Delete one or more departments
+      tags:
+        - Departments
+      parameters:
+        - in: query
+          name: ids
+          required: true
+          schema:
+            type: string
+          description: Comma-separated list of department IDs to delete
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: x-portal
+          required: true
+          schema:
+            type: string
+          description: The portal from which the request is made
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      responses:
+        '200':
+          description: Deletion process queued successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notifications:
+                    type: string
+                    example: "your_delete_action_has_been_queued_for_processing"
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+        '404':
+          description: Not found, one or more departments not found
+
+  /folders:
+    delete:
+      summary: Delete folders
+      description: Delete one or more folders
+      tags:
+        - Folders
+      parameters:
+        - in: query
+          name: ids
+          required: true
+          schema:
+            type: string
+          description: Comma-separated list of folder IDs to delete
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: x-portal
+          required: true
+          schema:
+            type: string
+          description: The portal from which the request is made
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      responses:
+        '200':
+          description: Deletion process queued successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notifications:
+                    type: string
+                    example: "your_delete_action_has_been_queued_for_processing"
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+        '404':
+          description: Not found, one or more folders not found
+
+  /files:
+    delete:
+      summary: Delete files
+      description: Delete one or more files
+      tags:
+        - Files
+      parameters:
+        - in: query
+          name: ids
+          required: true
+          schema:
+            type: string
+          description: Comma-separated list of file IDs to delete
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: x-portal
+          required: true
+          schema:
+            type: string
+          description: The portal from which the request is made
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      responses:
+        '200':
+          description: Deletion process queued successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notifications:
+                    type: string
+                    example: "your_delete_action_has_been_queued_for_processing"
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+        '404':
+          description: Not found, one or more files not found
+
+
+openapi: 3.0.0
+info:
+  title: Angora File Service API - Delete Operations
+  description: API for deleting items from trash in the Angora DMS
+  version: 1.0.0
+servers:
+  - url: https://api.example.com
+paths:
+  /trashes:
+    delete:
+      summary: Delete trash items
+      description: Permanently delete selected items from trash
+      tags:
+        - Trash
+      parameters:
+        - in: query
+          name: ids
+          required: true
+          schema:
+            type: string
+          description: Comma-separated list of trash IDs to delete
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: x-portal
+          required: true
+          schema:
+            type: string
+          description: The portal from which the request is made
+        - in: header
+          name: x-locale
+          required: false
+          schema:
+            type: string
+          description: The locale for internationalization
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      responses:
+        '200':
+          description: Deletion process queued successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notifications:
+                    type: string
+                    example: "your_delete_action_has_been_queued_for_processing"
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+        '404':
+          description: Not found, one or more trash items not found
+
+openapi: 3.0.0
+info:
+  title: Angora Upload Service API - Delete Operations
+  description: API for deleting uploaded files in the Angora DMS
+  version: 1.0.0
+servers:
+  - url: https://api.example.com
+paths:
+  /uploads/{originalInternalName}:
+    delete:
+      summary: Delete uploaded file
+      description: Delete an uploaded file from cloud storage
+      tags:
+        - Uploads
+      parameters:
+        - in: path
+          name: originalInternalName
+          required: true
+          schema:
+            type: string
+          description: The internal name of the file to delete
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      responses:
+        '200':
+          description: File deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notifications:
+                    type: string
+                    example: "deleted_successfully"
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+        '403':
+          description: Forbidden, user doesn't have permission to delete documents
+        '404':
+          description: Not found, file not found
+
+openapi: 3.0.0
+info:
+  title: Angora Upload Service API - Delete Operations
+  description: API for deleting customer folders in the Angora DMS
+  version: 1.0.0
+servers:
+  - url: https://api.example.com
+paths:
+  /uploads/customer/{customerHostname}:
+    delete:
+      summary: Delete customer folder
+      description: Delete an entire customer folder from cloud storage
+      tags:
+        - Uploads
+        - Customers
+      parameters:
+        - in: path
+          name: customerHostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer whose folder should be deleted
+        - in: header
+          name: x-customer-hostname
+          required: true
+          schema:
+            type: string
+          description: The hostname of the customer
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token for authentication
+      responses:
+        '200':
+          description: Customer folder deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notifications:
+                    type: string
+                    example: "deleted_successfully"
+        '401':
+          description: Unauthorized, invalid or missing authentication token
+        '403':
+          description: Forbidden, user doesn't have permission to delete folders
+
+openapi: 3.0.0
+info:
+  title: Angora File Service API - Background Jobs
+  description: Background jobs for handling node deletion in the Angora DMS
+  version: 1.0.0
+components:
+  schemas:
+    DeleteNodeJob:
+      type: object
+      required:
+        - customerHostname
+        - message
+        - locale
+        - portal
+      properties:
+        customerHostname:
+          type: string
+          description: The hostname of the customer
+        message:
+          type: object
+          properties:
+            isDepartment:
+              type: boolean
+              description: Whether the node is a department
+            isFolder:
+              type: boolean
+              description: Whether the node is a folder
+            isFile:
+              type: boolean
+              description: Whether the node is a file
+            query:
+              type: object
+              description: Query to find nodes to delete
+            nodeIds:
+              type: array
+              items:
+                type: string
+              description: IDs of nodes to delete
+            deletedBy:
+              type: object
+              description: User who initiated the deletion
+        locale:
+          type: string
+          description: The locale for internationalization
+        portal:
+          type: string
+          description: The portal from which the request was made
+openapi: 3.0.0
+info:
+  title: Angora File Service API - Background Jobs
+  description: Background jobs for handling trash deletion in the Angora DMS
+  version: 1.0.0
+components:
+  schemas:
+    DeleteTrashFilesJob:
+      type: object
+      required:
+        - customerHostname
+        - message
+        - locale
+        - portal
+      properties:
+        customerHostname:
+          type: string
+          description: The hostname of the customer
+        message:
+          type: object
+          properties:
+            trashIds:
+              type: string
+              description: Comma-separated list of trash IDs to delete
+            deletedBy:
+              type: object
+              description: User who initiated the deletion
+        locale:
+          type: string
+          description: The locale for internationalization
+        portal:
+          type: string
+          description: The portal from which the request was made
+
+openapi: 3.0.0
+info:
+  title: Angora File Worker Service API - Background Jobs
+  description: Background jobs for handling cloud object deletion in the Angora DMS
+  version: 1.0.0
+components:
+  schemas:
+    DeleteCloudFileJob:
+      type: object
+      description: Array of cloud file paths to delete
+      type: array
+      items:
+        type: string
+        description: Cloud relative path of a file to delete
+
+
+openapi: 3.0.0
+info:
+  title: Angora Base Service API - Event Listeners
+  description: Event listeners for handling node deletion completion notifications in the Angora DMS
+  version: 1.0.0
+components:
+  schemas:
+    NodeDeleteCompleteEvent:
+      type: object
+      required:
+        - customerHostname
+        - message
+        - portal
+        - locale
+      properties:
+        customerHostname:
+          type: string
+          description: The hostname of the customer
+        message:
+          type: object
+          properties:
+            content:
+              type: string
+              description: Notification message content
+            author:
+              type: object
+              description: User who initiated the deletion
+            metadata:
+              type: object
+              properties:
+                logBatchId:
+                  type: string
+                  description: ID of the log batch for tracking
+                failedDeletionCount:
+                  type: integer
+                  description: Count of items that failed to delete
+        portal:
+          type: string
+          description: The portal from which the request was made
+        locale:
+          type: string
+          description: The locale for internationalization
+
+
+openapi: 3.0.0
+info:
+  title: Angora Base Service API - Event Listeners
+  description: Event listeners for handling trash deletion completion notifications in the Angora DMS
+  version: 1.0.0
+components:
+  schemas:
+    DeleteTrashFilesCompleteEvent:
+      type: object
+      required:
+        - customerHostname
+        - message
+        - portal
+        - locale
+      properties:
+        customerHostname:
+          type: string
+          description: The hostname of the customer
+        message:
+          type: object
+          properties:
+            content:
+              type: string
+              description: Notification message content
+            author:
+              type: object
+              description: User who initiated the deletion
+            metadata:
+              type: object
+              properties:
+                logBatchId:
+                  type: string
+                  description: ID of the log batch for tracking
+        portal:
+          type: string
+          description: The portal from which the request was made
+        locale:
+          type: string
+          description: The locale for internationalization

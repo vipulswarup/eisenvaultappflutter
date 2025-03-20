@@ -4,9 +4,16 @@ import 'dart:convert';
 final talker = Talker();
 
 class EVLogger {
+  /// Flag to control whether sensitive data should be sanitized
+  /// Set this to false when you need to see full authorization keys for debugging
+  static bool sanitizeSensitiveData = false;
+
   /// Sanitizes sensitive data in logs
   static dynamic _sanitizeData(dynamic data) {
     if (data == null) return null;
+    
+    // If sanitization is disabled, return the data as is
+    if (!sanitizeSensitiveData) return data;
     
     // If data is a string, check if it's JSON and sanitize if needed
     if (data is String) {
@@ -80,13 +87,20 @@ class EVLogger {
     talker.info('$message ${sanitizedData ?? ''}');
   }
 
+  static void warning(String message, [dynamic data]) {
+    final sanitizedData = _sanitizeData(data);
+    talker.warning('$message ${sanitizedData ?? ''}');
+  }
+
   static void error(String message, [dynamic error, StackTrace? stackTrace]) {
     // For errors, we should also sanitize the error message if it contains sensitive data
     var sanitizedError = error;
-    if (error is String) {
-      sanitizedError = _sanitizeData(error);
-    } else if (error is Map) {
-      sanitizedError = _sanitizeData(error);
+    if (sanitizeSensitiveData) {
+      if (error is String) {
+        sanitizedError = _sanitizeData(error);
+      } else if (error is Map) {
+        sanitizedError = _sanitizeData(error);
+      }
     }
     
     talker.error(message, sanitizedError, stackTrace);
