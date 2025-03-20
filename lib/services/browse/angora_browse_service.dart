@@ -74,6 +74,13 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
 
       final data = json.decode(response.body);
       
+      // Log the full API response structure
+      EVLogger.debug('Full API response structure', {
+        'status': data['status'],
+        'dataKeys': data['data'] != null ? (data['data'] is List ? 'List' : Map<String, dynamic>.from(data['data']).keys.toList()) : null,
+        'firstItem': data['data'] is List && data['data'].isNotEmpty ? Map<String, dynamic>.from(data['data'][0]).keys.toList() : null,
+      });
+      
       // Check if we got a valid response
       if (data['status'] != 200 || data['data'] == null) {
         EVLogger.error('Invalid API response', {'response': data});
@@ -165,10 +172,9 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
     if (permissions != null) {
       // Standard permissions
       if (permissions['can_edit'] == true) operations.add('update');
-      if (permissions['can_delete'] == true) operations.add('delete');
       if (permissions['can_view'] == true) operations.add('read');
       
-      // Add create permission for folders
+      // Add create permission
       if (permissions['can_create_document'] == true || 
           permissions['can_create_folder'] == true ||
           permissions['create_document'] == true ||
@@ -176,20 +182,25 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
         operations.add('create');
       }
       
-      // For departments, check department-specific permissions
+      // Add delete permission based on item type
       if (item['is_department'] == true) {
-        if (permissions['manage_department_permissions'] == true) {
-          operations.add('create');
-          operations.add('update');
+        // For departments
+        if (permissions['delete_department'] == true || 
+            permissions['can_delete'] == true ||
+            permissions['manage_department_permissions'] == true) {
           operations.add('delete');
         }
-      }
-      
-      // For folders, check folder-specific permissions
-      if (item['is_folder'] == true && !item['is_department'] == true) {
-        if (permissions['manage_folder_permissions'] == true) {
-          operations.add('create');
-          operations.add('update');
+      } else if (item['is_folder'] == true) {
+        // For folders
+        if (permissions['delete_folder'] == true || 
+            permissions['can_delete'] == true ||
+            permissions['manage_folder_permissions'] == true) {
+          operations.add('delete');
+        }
+      } else {
+        // For files/documents
+        if (permissions['delete_document'] == true || 
+            permissions['can_delete'] == true) {
           operations.add('delete');
         }
       }
@@ -201,13 +212,113 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
       operations.add('create');
     }
     
-    // Log the permissions for debugging
+    // Add more detailed logging to help diagnose permission issues
     EVLogger.debug('Extracted permissions', {
       'itemName': item['raw_file_name'] ?? item['name'],
-      'permissions': permissions,
-      'operations': operations
+      'itemType': item['is_department'] ? 'department' : (item['is_folder'] ? 'folder' : 'document'),
+      'rawPermissions': permissions,
+      'mappedOperations': operations,
+      'canDelete': operations.contains('delete')
     });
     
     return operations.isEmpty ? null : operations;
+  }
+
+  // Add a cache for node permissions
+  final Map<String, List<String>> _permissionsCache = {};
+
+  // Add a method to fetch permissions for a specific node
+  Future<Map<String, dynamic>> getNodePermissions(String nodeId) async {
+    try {
+      final url = buildUrl('nodes/$nodeId/permissions');
+      EVLogger.debug('Fetching node permissions', {'url': url, 'nodeId': nodeId});
+      
+      final headers = createHeaders(serviceName: 'service-file');
+      EVLogger.debug('Request headers', {'headers': headers});
+      
+      final response = await http.get(
+        Uri.parse(url),
+        headers: headers,
+      );
+      
+      if (response.statusCode != 200) {
+        EVLogger.error('Failed to fetch node permissions', {
+          'statusCode': response.statusCode,
+          'body': response.body
+        });
+        throw Exception('Failed to fetch node permissions: ${response.statusCode}');
+      }
+      
+      final data = json.decode(response.body);
+      
+      // Log the full permissions response
+      EVLogger.debug('Node permissions response', {
+        'nodeId': nodeId,
+        'status': data['status'],
+        'data': data['data'],
+      });
+      
+      if (data['status'] != 200 || data['data'] == null) {
+        EVLogger.error('Invalid permissions API response', {'response': data});
+        throw Exception('Invalid permissions API response format');
+      }
+      
+      return data['data'];
+    } catch (e) {
+      EVLogger.error('Failed to get node permissions', e);
+      throw Exception('Failed to get node permissions: ${e.toString()}');
+    }
+  }
+
+  // Add a method to extract operations from detailed permissions
+  List<String>? _getOperationsFromDetailedPermissions(Map<String, dynamic> permissions) {
+    final List<String> operations = [];
+    
+    // Map detailed permissions to operations
+    if (permissions['view_document'] == true) operations.add('read');
+    if (permissions['edit_document_content'] == true) operations.add('update');
+    if (permissions['create_document'] == true || permissions['create_folder'] == true) {
+      operations.add('create');
+    }
+    
+    // Add delete operations based on permission type
+    if (permissions['delete_department'] == true) operations.add('delete');
+    if (permissions['delete_folder'] == true) operations.add('delete');
+    if (permissions['delete_document'] == true) operations.add('delete');
+    
+    // Log the extracted operations
+    EVLogger.debug('Extracted operations from detailed permissions', {
+      'permissions': permissions,
+      'operations': operations,
+    });
+    
+    return operations.isEmpty ? null : operations;
+  }
+
+  // Add a method to check if an item has a specific permission
+  Future<bool> hasPermission(String nodeId, String permission) async {
+    try {
+      // Check cache first
+      if (_permissionsCache.containsKey(nodeId)) {
+        final operations = _permissionsCache[nodeId];
+        return operations != null && operations.contains(permission);
+      }
+      
+      // Fetch permissions if not in cache
+      final permissions = await getNodePermissions(nodeId);
+      final operations = _getOperationsFromDetailedPermissions(permissions);
+      
+      // Cache the operations
+      _permissionsCache[nodeId] = operations ?? [];
+      
+      return operations != null && operations.contains(permission);
+    } catch (e) {
+      EVLogger.error('Failed to check permission', {
+        'nodeId': nodeId,
+        'permission': permission,
+        'error': e.toString()
+      });
+      return false;
+    }
   }
 }

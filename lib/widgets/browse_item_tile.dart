@@ -1,6 +1,8 @@
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
+import 'package:eisenvaultappflutter/utils/Logger.dart'; // Add this import
 import 'package:flutter/material.dart';
+
 
 class BrowseItemTile extends StatelessWidget {
   final BrowseItem item;
@@ -39,6 +41,15 @@ class BrowseItemTile extends StatelessWidget {
   }
 
   Widget _buildTrailingWidget() {
+    // Add debug logging
+    EVLogger.debug('Delete button visibility check', {
+      'itemName': item.name,
+      'showDeleteOption': showDeleteOption,
+      'canDelete': item.canDelete,
+      'hasDeleteCallback': onDeleteTap != null,
+      'allowableOperations': item.allowableOperations
+    });
+    
     if (showDeleteOption && item.canDelete && onDeleteTap != null) {
       return Row(
         mainAxisSize: MainAxisSize.min,
