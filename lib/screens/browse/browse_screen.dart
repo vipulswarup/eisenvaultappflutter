@@ -168,17 +168,16 @@ class _BrowseScreenState extends State<BrowseScreen> {
     );
   }
 
-  // Add this method to navigate to upload screen
   void _navigateToUploadScreen() async {
     if (_controller.currentFolder == null) return;
-    
+  
     // Get the correct parent folder ID
     String parentFolderId;
-    
+  
     if (_controller.instanceType.toLowerCase() == 'angora') {
       // For Angora, we use the current folder ID directly
       parentFolderId = _controller.currentFolder!.id;
-      
+    
       EVLogger.debug('Angora upload: Using folder ID directly', {
         'parentFolderId': parentFolderId
       });
@@ -201,8 +200,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
         parentFolderId = _controller.currentFolder!.id;
       }
     }
-    
-    // Rest of the method remains the same...
+  
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
@@ -214,13 +212,15 @@ class _BrowseScreenState extends State<BrowseScreen> {
         ),
       ),
     );
-    
+  
     // If upload was successful, refresh the current folder
     if (result == true) {
-      _controller.loadFolderContents(_controller.currentFolder!);
+      // Just refresh the current folder without modifying the navigation stack
+      if (_controller.currentFolder != null) {
+        _controller.loadFolderContents(_controller.currentFolder!);
+      }
     }
   }
-
   /// Builds the main content area (loading indicator, error, or item list)
   Widget _buildContent() {
     if (_controller.isLoading) {

@@ -15,12 +15,16 @@ class BreadcrumbNavigation extends StatelessWidget {
     required this.onRootTap,
     required this.onBreadcrumbTap,
   }) : super(key: key);
-
   @override
   Widget build(BuildContext context) {
     final breadcrumbText = Colors.black87;
     final breadcrumbSeparator = Colors.grey;
     final breadcrumbCurrentText = Colors.blue;
+
+    // Check if the current folder is the same as the last item in the navigation stack
+    final bool isDuplicateFolder = currentFolder != null && 
+                                  navigationStack.isNotEmpty && 
+                                  navigationStack.last.id == currentFolder!.id;
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -57,7 +61,8 @@ class BreadcrumbNavigation extends StatelessWidget {
               ),
             ),
           ],
-          if (currentFolder != null && currentFolder!.id != 'root') ...[
+          // Only show the current folder if it's not a duplicate of the last navigation stack item
+          if (currentFolder != null && currentFolder!.id != 'root' && !isDuplicateFolder) ...[
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Icon(
