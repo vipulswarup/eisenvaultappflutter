@@ -1,12 +1,13 @@
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:file_selector/file_selector.dart';
 import '../constants/colors.dart';
-import '../services/alfresco_upload_service.dart';
-import '../services/upload/angora_upload_service.dart';
+// Add this import for the model classes
+import '../models/upload/batch_upload_models.dart';
+// Add this import for BatchUploadManager
 import '../services/upload/batch_upload_manager.dart';
-import '../services/upload/upload_constants.dart';
+import '../services/upload/upload_service_factory.dart';
+
 import '../utils/logger.dart';
 import '../widgets/failed_upload_list.dart';
 
@@ -32,8 +33,10 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
   // List of files to upload
   List<UploadFileItem> _selectedFiles = [];
   bool _isUploading = false;
-  String? _description;
-  final _descriptionController = TextEditingController();
+  // Remove this line:
+  // String? _description;
+  // Remove this line:
+  // final _descriptionController = TextEditingController();
   
   // Batch upload progress tracking
   BatchUploadProgress? _batchProgress;
@@ -144,7 +147,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
     });
 
     try {
-      // Create batch upload manager
+      // Create batch upload manager with progress callbacks
       final batchManager = BatchUploadManager(
         onBatchProgressUpdate: (progress) {
           if (mounted) {
@@ -162,55 +165,20 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
         },
       );
       
-      // Create the appropriate upload service based on repository type
-      Future<Map<String, dynamic>> uploadFunction({
-        required String parentFolderId,
-        required String fileName,
-        String? filePath,
-        Uint8List? fileBytes,
-        String? description,
-        Function(UploadProgress)? onProgressUpdate,
-      }) async {
-        if (widget.repositoryType.toLowerCase() == 'alfresco' || 
-            widget.repositoryType.toLowerCase() == 'classic') {
-          // Alfresco upload
-          final service = AlfrescoUploadService(
-            baseUrl: widget.baseUrl,
-            authToken: widget.authToken,
-          );
-          
-          return service.uploadDocument(
-            parentFolderId: parentFolderId,
-            filePath: filePath,
-            fileBytes: fileBytes,
-            fileName: fileName,
-            description: description,
-          );
-        } else {
-          // Angora upload
-          final service = AngoraUploadService(
-            baseUrl: widget.baseUrl,
-            authToken: widget.authToken,
-            onProgressUpdate: onProgressUpdate, // Pass the progress update callback
-          );
-          
-          return service.uploadDocument(
-            parentFolderId: parentFolderId,
-            filePath: filePath,
-            fileBytes: fileBytes,
-            fileName: fileName,
-            description: description,
-          );
-        }
-      }
+      // Create the appropriate upload service using the factory
+      final uploadService = UploadServiceFactory.getService(
+        instanceType: widget.repositoryType,
+        baseUrl: widget.baseUrl,
+        authToken: widget.authToken,
+      );
       
-      // Start batch upload
+      // Start batch upload using the common interface
       final result = await batchManager.uploadBatch(
         files: _selectedFiles,
-        uploadFunction: uploadFunction,
+        uploadService: uploadService,
         parentFolderId: widget.parentFolderId,
-        description: _description,
-        maxConcurrent: UploadConstants.maxConcurrentUploads,
+        // Remove this line:
+        // description: _description,
       );
       
       // Handle result
@@ -385,18 +353,19 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                   },
                 ),
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _descriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Description (optional - applies to all files)',
-                  border: OutlineInputBorder(),
-                ),
-                onChanged: (value) {
-                  _description = value;
-                },
-                maxLines: 3,
-              ),
+              // Remove the TextField for description:
+              // const SizedBox(height: 16),
+              // TextField(
+              //   controller: _descriptionController,
+              //   decoration: const InputDecoration(
+              //     labelText: 'Description (optional - applies to all files)',
+              //     border: OutlineInputBorder(),
+              //   ),
+              //   onChanged: (value) {
+              //     _description = value;
+              //   },
+              //   maxLines: 3,
+              // ),
             ],
             
             const SizedBox(height: 24),
@@ -446,7 +415,8 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
   
   @override
   void dispose() {
-    _descriptionController.dispose();
+    // Remove this line:
+    // _descriptionController.dispose();
     super.dispose();
   }
 }

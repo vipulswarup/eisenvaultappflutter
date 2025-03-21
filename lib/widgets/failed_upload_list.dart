@@ -1,10 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:eisenvaultappflutter/services/upload/batch_upload_manager.dart';
+import 'package:eisenvaultappflutter/models/upload/batch_upload_models.dart';
+import 'package:eisenvaultappflutter/utils/logger.dart';
 
+/// Displays a list of files that failed to upload
+/// 
+/// This widget renders a list of failed uploads with
+/// error details and retry options.
 class FailedUploadList extends StatelessWidget {
+  /// List of files that failed to upload
   final List<UploadFileItem> failedFiles;
+  
+  /// Whether uploads are currently in progress
   final bool isUploading;
+  
+  /// Callback for retrying a single file
   final Function(UploadFileItem) onRetryFile;
+  
+  /// Callback for retrying all failed files
   final VoidCallback onRetryAll;
   
   const FailedUploadList({
@@ -17,6 +29,12 @@ class FailedUploadList extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
+    // Log failed files for debugging
+    EVLogger.debug('Rendering failed uploads list', {
+      'failedCount': failedFiles.length,
+      'files': failedFiles.map((f) => f.name).toList()
+    });
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -68,6 +86,15 @@ class FailedUploadList extends StatelessWidget {
                             style: const TextStyle(color: Colors.red),
                           ),
                           const SizedBox(height: 8),
+                          // Show file ID for debugging purposes
+                          if (file.id != null)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8.0),
+                              child: Text(
+                                'File ID: ${file.id}',
+                                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                              ),
+                            ),
                           Align(
                             alignment: Alignment.centerRight,
                             child: ElevatedButton.icon(
