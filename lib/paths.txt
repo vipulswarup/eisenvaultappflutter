@@ -5,6 +5,8 @@
 @utils/logger.dart
 @utils/html_stub.dart
 @models/browse_item.dart
+@models/upload/batch_upload_models.dart
+@models/upload/upload_progress.dart
 @screens/document_upload_screen.dart
 @screens/generic_file_preview_screen.dart
 @screens/pdf_viewer_screen.dart
@@ -36,10 +38,15 @@
 @services/browse/browse_service.dart
 @services/browse/browse_service_factory.dart
 @services/upload/batch_upload_manager.dart
+@services/upload/angora/angora_upload_service.dart
 @services/upload/angora_upload_utils.dart
 @services/upload/angora_upload_service.dart
+@services/upload/classic/alfresco_upload_service.dart
 @services/upload/angora_chunk_uploader.dart
 @services/upload/upload_constants.dart
+@services/upload/base/upload_service.dart
+@services/upload/base/upload_utils.dart
+@services/upload/upload_service_factory.dart
 @widgets/error_display.dart
 @widgets/file_upload_progress_list.dart
 @widgets/failed_upload_list.dart

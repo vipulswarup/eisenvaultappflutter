@@ -1,4 +1,4 @@
-import 'package:eisenvaultappflutter/models/upload/upload_progress.dart';
+import 'package:eisenvaultappflutter/models/upload/batch_upload_models.dart';
 import 'package:eisenvaultappflutter/services/upload/angora/angora_upload_service.dart';
 import 'package:eisenvaultappflutter/services/upload/base/upload_service.dart';
 import 'package:eisenvaultappflutter/services/upload/classic/alfresco_upload_service.dart';

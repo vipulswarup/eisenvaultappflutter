@@ -1,7 +1,5 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:eisenvaultappflutter/models/upload/batch_upload_models.dart';
-import 'package:eisenvaultappflutter/models/upload/upload_progress.dart';
 import 'package:eisenvaultappflutter/services/upload/base/upload_service.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 
@@ -260,3 +258,4 @@ class BatchUploadManager {
     _fileProgressMap.clear();
   }
 }
+

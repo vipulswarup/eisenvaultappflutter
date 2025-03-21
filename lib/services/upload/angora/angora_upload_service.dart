@@ -5,7 +5,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:mime/mime.dart';
-import 'package:eisenvaultappflutter/models/upload/upload_progress.dart'; // This import includes UploadStatus
+import 'package:eisenvaultappflutter/models/upload/batch_upload_models.dart';
 import 'package:eisenvaultappflutter/services/api/angora_base_service.dart';
 import 'package:eisenvaultappflutter/services/upload/base/upload_service.dart';
 import 'package:eisenvaultappflutter/services/upload/base/upload_utils.dart';
