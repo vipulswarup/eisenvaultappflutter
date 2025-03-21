@@ -12,7 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:eisenvaultappflutter/screens/document_upload_screen.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/delete_handler.dart';
-import 'package:eisenvaultappflutter/services/delete_service.dart';
+import 'package:eisenvaultappflutter/services/delete/delete_service.dart';
 
 
 class BrowseScreen extends StatefulWidget {
@@ -46,8 +46,9 @@ class _BrowseScreenState extends State<BrowseScreen> {
     super.initState();
     // Initialize delete service directly with auth token
     _deleteService = DeleteService(
-      authToken: widget.authToken,
+      repositoryType: widget.instanceType,
       baseUrl: widget.baseUrl,
+      authToken: widget.authToken,
       customerHostname: 'default-hostname', // You may need to get this from somewhere else
     );
     
@@ -79,7 +80,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
     
     _deleteHandler = DeleteHandler(
       context: context,
-      instanceType: widget.instanceType,
+      repositoryType: widget.instanceType,
       baseUrl: widget.baseUrl,
       authToken: widget.authToken,
       deleteService: _deleteService,

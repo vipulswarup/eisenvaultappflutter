@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
-import 'package:eisenvaultappflutter/services/delete_service.dart';
+import 'package:eisenvaultappflutter/services/delete/delete_service.dart';
 import 'package:eisenvaultappflutter/widgets/delete_confirmation_dialog.dart';
 import 'package:eisenvaultappflutter/services/browse/angora_browse_service.dart';
+import 'package:eisenvaultappflutter/utils/logger.dart';
 
+/// Handles UI interactions related to deleting repository items
 class DeleteHandler {
   final BuildContext context;
-  final String instanceType;
+  final String repositoryType;
   final String baseUrl;
   final String authToken;
   final DeleteService deleteService;
@@ -14,132 +16,178 @@ class DeleteHandler {
 
   DeleteHandler({
     required this.context,
-    required this.instanceType,
+    required this.repositoryType,
     required this.baseUrl,
     required this.authToken,
     required this.deleteService,
     required this.onDeleteSuccess,
   });
 
-  void showDeleteConfirmation(BrowseItem item) async {
-    // Show loading indicator
-    final loadingDialog = showDialog(
-      context: context,
+  /// Check if the user has permission to delete the specified item
+  Future<bool> _checkDeletePermission(BrowseItem item) async {
+    try {
+      if (repositoryType.toLowerCase() == 'angora') {
+        final browseService = AngoraBrowseService(baseUrl, authToken);
+        return await browseService.hasPermission(item.id, 'delete');
+      } else {
+        // For Classic/Alfresco, use the existing canDelete property
+        return item.canDelete;
+      }
+    } catch (e) {
+      EVLogger.error('Error checking delete permissions', {
+        'error': e.toString(), 
+        'itemId': item.id,
+        'itemName': item.name
+      });
+      return false;
+    }
+  }
+
+
+  /// Show an error message to the user
+  void _showErrorMessage(BuildContext context, String message) {
+    // Use the provided context to ensure we're showing the message in the right place
+    if (!context.mounted) return;
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+
+  /// Show a success message to the user
+  void _showSuccessMessage(BuildContext context, String message) {
+    if (!context.mounted) return;
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  /// Main entry point - show delete confirmation for an item
+  Future<void> showDeleteConfirmation(BrowseItem item) async {
+    // Use a safe context reference
+    final BuildContext currentContext = context;
+    if (!currentContext.mounted) return;
+    
+    // Show loading indicator while checking permissions
+    bool hasPermission = false;
+    
+    await showDialog(
+      context: currentContext,
       barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
+      builder: (dialogContext) {
+        // Start the permission check
+        _checkDeletePermission(item).then((result) {
+          hasPermission = result;
+          // Close the loading dialog when check completes
+          if (dialogContext.mounted) {
+            Navigator.of(dialogContext).pop();
+          }
+        }).catchError((error) {
+          hasPermission = false;
+          if (dialogContext.mounted) {
+            Navigator.of(dialogContext).pop();
+          }
+        });
+        
+        // Show loading indicator while waiting
+        return const Center(child: CircularProgressIndicator());
+      }
     );
     
-    try {
-      // Check if the user has delete permission
-      bool canDelete = false;
-      
-      if (instanceType.toLowerCase() == 'angora') {
-        // Get the Angora browse service
-        final browseService = AngoraBrowseService(baseUrl, authToken);
-        
-        // Check if the user has delete permission
-        canDelete = await browseService.hasPermission(item.id, 'delete');
-      } else {
-        // For Alfresco, use the existing canDelete property
-        canDelete = item.canDelete;
+    // If user doesn't have permission, show error and exit
+    if (!hasPermission || !currentContext.mounted) {
+      if (currentContext.mounted) {
+        _showErrorMessage(currentContext, 'You don\'t have permission to delete this item');
       }
-      
-      // Close loading dialog
-      Navigator.of(context).pop();
-      
-      if (!canDelete) {
-        // Show error message if the user doesn't have delete permission
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('You don\'t have permission to delete this item'),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
-      
-      // Show delete confirmation dialog
-      String itemType = item.isDepartment 
-          ? 'department' 
-          : (item.type == 'folder' ? 'folder' : 'document');
-      
-      showDialog(
-        context: context,
-        builder: (context) {
-          bool isDeleting = false;
-          
-          return StatefulBuilder(
-            builder: (context, setState) {
-              return DeleteConfirmationDialog(
-                title: 'Delete ${item.name}',
-                content: 'Are you sure you want to delete this $itemType? This action cannot be undone.',
-                isLoading: isDeleting,
-                onConfirm: () async {
-                  setState(() {
-                    isDeleting = true;
-                  });
+      return;
+    }
+    
+    // Show delete confirmation dialog
+    final itemType = _getItemTypeLabel(item);
+    
+    if (!currentContext.mounted) return;
+    
+    await showDialog(
+      context: currentContext,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            bool isDeleting = false;
+            
+            return DeleteConfirmationDialog(
+              title: 'Delete ${item.name}',
+              content: 'Are you sure you want to delete this $itemType? This action cannot be undone.',
+              isLoading: isDeleting,
+              onConfirm: () async {
+                // Set loading state
+                setState(() {
+                  isDeleting = true;
+                });
+                
+                try {
+                  // Perform the delete operation
+                  final result = await _performDelete(item);
                   
-                  try {
-                    String message;
-                    
-                    if (item.isDepartment) {
-                      message = await deleteService.deleteDepartments(
-                        [item.id],
-                        instanceType.toLowerCase(),
-                      );
-                    } else if (item.type == 'folder') {
-                      message = await deleteService.deleteFolders(
-                        [item.id],
-                        instanceType.toLowerCase(),
-                      );
-                    } else {
-                      message = await deleteService.deleteFiles(
-                        [item.id],
-                        instanceType.toLowerCase(),
-                      );
-                    }
-                    
-                    Navigator.of(context).pop(); // Close dialog
-                    
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(message),
-                        behavior: SnackBarBehavior.floating,
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                    
-                    onDeleteSuccess();
-                  } catch (e) {
-                    Navigator.of(context).pop(); // Close dialog
-                    
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Failed to delete: $e'),
-                        behavior: SnackBarBehavior.floating,
-                        backgroundColor: Colors.red,
-                      ),
-                    );
+                  // Close dialog and show success message
+                  if (dialogContext.mounted) {
+                    Navigator.of(dialogContext).pop();
+                    _showSuccessMessage(currentContext, result);
                   }
-                },
-              );
-            }
-          );
-        },
-      );
+                  
+                  // Notify parent to refresh
+                  onDeleteSuccess();
+                } catch (e) {
+                  // Close dialog and show error message
+                  if (dialogContext.mounted) {
+                    Navigator.of(dialogContext).pop();
+                  }
+                  
+                  if (currentContext.mounted) {
+                    _showErrorMessage(currentContext, 'Failed to delete: ${e.toString()}');
+                  }
+                }
+              },
+            );
+          }
+        );
+      },
+    );
+  }
+
+  /// Get a user-friendly label for the item type
+  String _getItemTypeLabel(BrowseItem item) {
+    if (item.isDepartment) return 'department';
+    if (item.type == 'folder') return 'folder';
+    return 'document';
+  }
+
+  /// Perform the delete operation based on item type
+  Future<String> _performDelete(BrowseItem item) async {
+    try {
+      if (item.isDepartment) {
+        return await deleteService.deleteDepartments([item.id]);
+      } else if (item.type == 'folder') {
+        return await deleteService.deleteFolders([item.id]);
+      } else {
+        return await deleteService.deleteFiles([item.id]);
+      }
     } catch (e) {
-      // Close loading dialog
-      Navigator.of(context).pop();
-      
-      // Show error message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to check delete permission: $e'),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.red,
-        ),
-      );
+      EVLogger.error('Error in _performDelete', {
+        'error': e.toString(),
+        'itemId': item.id,
+        'itemType': item.type,
+        'itemName': item.name
+      });
+      rethrow;
     }
   }
 }
