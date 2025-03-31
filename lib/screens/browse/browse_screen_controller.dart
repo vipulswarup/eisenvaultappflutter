@@ -88,14 +88,6 @@ class BrowseScreenController {
       final nextPage = _currentPage + 1;
       final skipCount = nextPage * _itemsPerPage;
       
-      EVLogger.debug('Fetching contents', {
-        'id': currentFolder!.id,
-        'isDepartment': currentFolder!.isDepartment,
-        'type': currentFolder!.type,
-        'skip': skipCount,
-        'limit': _itemsPerPage
-      });
-      
       // Get the browse service
       final browseService = BrowseServiceFactory.getService(
         instanceType, 
@@ -226,13 +218,6 @@ class BrowseScreenController {
             allowableOperations: ['create', 'update', 'delete'],
           );
           
-          EVLogger.debug('Angora Department Added', {
-            'id': item.id,
-            'name': item.name,
-            'documentLibraryId': item.documentLibraryId,
-            'allowableOperations': item.allowableOperations
-          });
-          
           items.add(item);
         } else {
           // Existing Alfresco/Classic logic
@@ -249,28 +234,12 @@ class BrowseScreenController {
                 headers: {'Authorization': authToken},
               );
               
-              EVLogger.debug('Document library node response', {
-                'statusCode': nodeResponse.statusCode,
-                'docLibId': docLibId,
-                'response': nodeResponse.body
-              });
               if (nodeResponse.statusCode == 200) {
                 final nodeData = json.decode(nodeResponse.body);
-                
-                EVLogger.debug('Document library node response structure', {
-                  'hasEntry': nodeData.containsKey('entry'),
-                  'entryKeys': nodeData['entry']?.keys.toList() ?? []
-                });
                 
                 // Check if allowableOperations exists and print its exact type
                 if (nodeData['entry'].containsKey('allowableOperations')) {
                   final operations = nodeData['entry']['allowableOperations'];
-                  
-                  EVLogger.debug('Operations data details', {
-                    'type': operations.runtimeType.toString(),
-                    'isNull': operations == null,
-                    'value': operations
-                  });
                   
                   // Be extra careful with type conversion
                   List<String> ops = [];
@@ -280,21 +249,8 @@ class BrowseScreenController {
                       ops.add(op.toString());
                     }
                     
-                    EVLogger.debug('Converted operations', {
-                      'operations': ops,
-                      'count': ops.length
-                    });
-                    
                     siteOperations = ops;
-                  } else {
-                    EVLogger.error('Operations is not a list', {
-                      'operations': operations
-                    });
                   }
-                } else {
-                  EVLogger.debug('No allowableOperations found in response', {
-                    'availableKeys': nodeData['entry'].keys.toList()
-                  });
                 }
               } else {
                 EVLogger.error('Failed to get node details', {
@@ -370,8 +326,6 @@ class BrowseScreenController {
   
   /// Navigates to a specific folder and loads its contents
   Future<void> navigateToFolder(BrowseItem folder) async {
-    EVLogger.debug('Navigating to folder', {'id': folder.id, 'name': folder.name});
-    
     isLoading = true;
     errorMessage = null;
     _notifyListeners();

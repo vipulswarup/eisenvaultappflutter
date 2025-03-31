@@ -27,19 +27,13 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
       
       // If we're at the root level, get all departments
       if (parent.id == 'root') {
-        EVLogger.debug('Fetching all departments');
+        
         // For departments, we might not need pagination or it might use different parameters
         url = buildUrl('departments?slim=true');
       } else {
         // Otherwise, get children of the specified folder/department
         final id = parent.id;
-        EVLogger.debug('Fetching contents', {
-          'id': id, 
-          'isDepartment': parent.isDepartment, 
-          'type': parent.type,
-          'page': page,
-          'limit': limit
-        });
+        
         
         // Use the appropriate endpoint based on item type
         if (parent.isDepartment) {
@@ -52,12 +46,12 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
         }
       }
       
-      EVLogger.debug('Making API request', {'url': url});
+      
       
       // Use the headers from AngoraBaseService
       final headers = createHeaders(serviceName: 'service-file');
       
-      EVLogger.debug('Request headers', {'headers': headers});
+    
       
       final response = await http.get(
         Uri.parse(url),
@@ -75,11 +69,7 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
       final data = json.decode(response.body);
       
       // Log the full API response structure
-      EVLogger.debug('Full API response structure', {
-        'status': data['status'],
-        'dataKeys': data['data'] != null ? (data['data'] is List ? 'List' : Map<String, dynamic>.from(data['data']).keys.toList()) : null,
-        'firstItem': data['data'] is List && data['data'].isNotEmpty ? Map<String, dynamic>.from(data['data'][0]).keys.toList() : null,
-      });
+
       
       // Check if we got a valid response
       if (data['status'] != 200 || data['data'] == null) {
@@ -108,14 +98,6 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
 
   /// Maps an Angora API response item to a BrowseItem object
   BrowseItem _mapAngoraBrowseItem(Map<String, dynamic> item) {
-    // Log more detailed properties for debugging
-    EVLogger.debug('Mapping item', {
-      'id': item['id'],
-      'name': item['raw_file_name'],
-      'is_department': item['is_department'],
-      'is_folder': item['is_folder'],
-      'permissions': item['permissions'],
-    });
     
     // Improved folder detection logic
     bool isFolder = false;
@@ -143,11 +125,7 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
     // Extract permissions
     List<String>? operations = _getOperationsFromPermissions(item);
     
-    // For debugging, log the extracted operations
-    EVLogger.debug('Item permissions determined', {
-      'name': item['raw_file_name'],
-      'operations': operations,
-    });
+
     
     return BrowseItem(
       id: item['id'],
@@ -204,6 +182,25 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
           operations.add('delete');
         }
       }
+    } else {
+      // NEW CODE: Check for alternate permission indicators when permissions field is null
+      
+      // Check for direct can_delete flag
+      if (item['can_delete'] == true) {
+        operations.add('delete');
+      }
+      
+      // Check for owner flag - owners can typically delete
+      if (item['is_owner'] == true) {
+        operations.add('delete');
+        operations.add('update');
+      }
+      
+      // Add standard folder permissions by default (can be adjusted based on your security model)
+      if (item['is_folder'] == true || item['is_department'] == true) {
+        operations.add('create');
+        // You might want to conditionally add 'delete' here based on your security model
+      }
     }
     
     // If no specific permissions found but it's a folder, default to allowing create
@@ -212,14 +209,7 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
       operations.add('create');
     }
     
-    // Add more detailed logging to help diagnose permission issues
-    EVLogger.debug('Extracted permissions', {
-      'itemName': item['raw_file_name'] ?? item['name'],
-      'itemType': item['is_department'] ? 'department' : (item['is_folder'] ? 'folder' : 'document'),
-      'rawPermissions': permissions,
-      'mappedOperations': operations,
-      'canDelete': operations.contains('delete')
-    });
+
     
     return operations.isEmpty ? null : operations;
   }
@@ -229,45 +219,62 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
 
   // Add a method to fetch permissions for a specific node
   Future<Map<String, dynamic>> getNodePermissions(String nodeId) async {
-    try {
-      final url = buildUrl('nodes/$nodeId/permissions');
-      EVLogger.debug('Fetching node permissions', {'url': url, 'nodeId': nodeId});
-      
-      final headers = createHeaders(serviceName: 'service-file');
-      EVLogger.debug('Request headers', {'headers': headers});
-      
-      final response = await http.get(
-        Uri.parse(url),
-        headers: headers,
-      );
-      
-      if (response.statusCode != 200) {
-        EVLogger.error('Failed to fetch node permissions', {
-          'statusCode': response.statusCode,
-          'body': response.body
+    // Try multiple endpoints to see which one works
+    final endpoints = [
+      'nodes/$nodeId/permissions',
+      'files/$nodeId/permissions',
+      'items/$nodeId/permissions',
+      'documents/$nodeId/permissions'
+    ];
+    
+    Exception? lastError;
+    
+    for (final endpoint in endpoints) {
+      try {
+        final url = buildUrl(endpoint);
+        final headers = createHeaders(serviceName: 'service-file');
+        
+        // Direct print statement that will show in logs regardless of logger config
+        print("======= PERMISSION API CALL =======");
+        print("CURL: curl -X GET \"$url\" \\");
+        headers.forEach((key, value) {
+          print("  -H \"$key: $value\" \\");
         });
-        throw Exception('Failed to fetch node permissions: ${response.statusCode}');
+        print("===============================");
+        
+        final response = await http.get(
+          Uri.parse(url),
+          headers: headers,
+        );
+        
+
+        
+        if (response.statusCode != 200) {
+          EVLogger.error('Failed to fetch node permissions', {
+            'statusCode': response.statusCode,
+            'body': response.body
+          });
+          throw Exception('Failed to fetch node permissions: ${response.statusCode}');
+        }
+        
+        final data = json.decode(response.body);
+        
+        if (data['status'] != 200 || data['data'] == null) {
+          EVLogger.error('Invalid permissions API response', {'response': data});
+          throw Exception('Invalid permissions API response format');
+        }
+        
+        // If successful, return the data
+        return data['data'];
+      } catch (e) {
+        EVLogger.error('ENDPOINT FAILED: $endpoint - $e');
+        lastError = Exception(e.toString());
+        // Continue to next endpoint
       }
-      
-      final data = json.decode(response.body);
-      
-      // Log the full permissions response
-      EVLogger.debug('Node permissions response', {
-        'nodeId': nodeId,
-        'status': data['status'],
-        'data': data['data'],
-      });
-      
-      if (data['status'] != 200 || data['data'] == null) {
-        EVLogger.error('Invalid permissions API response', {'response': data});
-        throw Exception('Invalid permissions API response format');
-      }
-      
-      return data['data'];
-    } catch (e) {
-      EVLogger.error('Failed to get node permissions', e);
-      throw Exception('Failed to get node permissions: ${e.toString()}');
     }
+    
+    // If all endpoints failed, throw the last error
+    throw lastError ?? Exception('All permission endpoints failed');
   }
 
   // Add a method to extract operations from detailed permissions
@@ -286,11 +293,7 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
     if (permissions['delete_folder'] == true) operations.add('delete');
     if (permissions['delete_document'] == true) operations.add('delete');
     
-    // Log the extracted operations
-    EVLogger.debug('Extracted operations from detailed permissions', {
-      'permissions': permissions,
-      'operations': operations,
-    });
+
     
     return operations.isEmpty ? null : operations;
   }
@@ -298,10 +301,16 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
   // Add a method to check if an item has a specific permission
   Future<bool> hasPermission(String nodeId, String permission) async {
     try {
+
+      
       // Check cache first
       if (_permissionsCache.containsKey(nodeId)) {
         final operations = _permissionsCache[nodeId];
-        return operations != null && operations.contains(permission);
+        final hasPermission = operations != null && operations.contains(permission);
+        
+
+        
+        return hasPermission;
       }
       
       // Fetch permissions if not in cache
@@ -311,7 +320,10 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
       // Cache the operations
       _permissionsCache[nodeId] = operations ?? [];
       
-      return operations != null && operations.contains(permission);
+      final hasPermission = operations != null && operations.contains(permission);
+    
+      
+      return hasPermission;
     } catch (e) {
       EVLogger.error('Failed to check permission', {
         'nodeId': nodeId,

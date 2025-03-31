@@ -108,10 +108,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
           _showFailedFiles = false; // Hide failed files when new files are selected
         });
         
-        EVLogger.debug('Files selected', {
-          'count': files.length,
-          'isWeb': kIsWeb
-        });
+
       }
     } catch (e) {
       EVLogger.error('Error picking files', {'error': e.toString()});
@@ -158,10 +155,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
         },
         onFileProgressUpdate: (progress) {
           // Optional: Handle individual file progress
-          EVLogger.debug('File progress', {
-            'fileId': progress.fileId,
-            'percent': progress.percentComplete.toStringAsFixed(1) + '%',
-          });
+
         },
       );
       

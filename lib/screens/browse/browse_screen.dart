@@ -205,10 +205,6 @@ class _BrowseScreenState extends State<BrowseScreen> {
     if (_controller.instanceType.toLowerCase() == 'angora') {
       // For Angora, we use the current folder ID directly
       parentFolderId = _controller.currentFolder!.id;
-    
-      EVLogger.debug('Angora upload: Using folder ID directly', {
-        'parentFolderId': parentFolderId
-      });
     } else {
       // For Alfresco/Classic, handle documentLibrary ID
       if (_controller.currentFolder!.isDepartment) {

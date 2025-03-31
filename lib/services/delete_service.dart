@@ -71,7 +71,7 @@ class DeleteService {
       if (backend.toLowerCase() == 'angora') {
         // Angora implementation
         final url = _angoraService.buildUrl('$entityType?ids=${ids.join(',')}');
-        EVLogger.debug('Deleting Angora $entityType', {'url': url});
+        
         
         final headers = _angoraService.createHeaders();
         headers['x-portal'] = 'mobile';
@@ -82,17 +82,13 @@ class DeleteService {
           headers.addAll(additionalHeaders);
         }
         
-        EVLogger.debug('Request headers', {'headers': headers});
+        
         
         final response = await http.delete(
           Uri.parse(url),
           headers: headers,
         );
         
-        EVLogger.debug('Delete response', {
-          'statusCode': response.statusCode,
-          'body': response.body,
-        });
         
         if (response.statusCode == 200) {
           final data = json.decode(response.body);
@@ -113,10 +109,10 @@ class DeleteService {
         
         for (final id in ids) {
           final url = _classicService.buildUrl(_getClassicEndpoint(entityType, id));
-          EVLogger.debug('Deleting Classic/Alfresco $entityType', {'url': url, 'id': id});
+        
           
           final headers = _classicService.createHeaders();
-          EVLogger.debug('Request headers', {'headers': headers});
+        
           
           try {
             final response = await http.delete(
@@ -124,10 +120,6 @@ class DeleteService {
               headers: headers,
             );
             
-            EVLogger.debug('Delete response for $entityType $id', {
-              'statusCode': response.statusCode,
-              'body': response.body,
-            });
             
             if (response.statusCode >= 200 && response.statusCode < 300) {
               successfulDeletes.add(id);

@@ -22,23 +22,18 @@ class ClassicBrowseService implements BrowseService {
     try {
       // If we're at the root level, get Sites folder contents instead
       if (parent.id == 'root') {
-        EVLogger.debug('Fetching Sites folder contents instead of root');
+        
         return _getSitesFolderContents(skipCount: skipCount, maxItems: maxItems);
       }
       
       // If this is a department/site, we need to get its documentLibrary
       if (parent.isDepartment) {
-        EVLogger.debug('Fetching document library for site', {'siteId': parent.id});
+        
         return _getSiteDocumentLibraryContents(parent.id, skipCount: skipCount, maxItems: maxItems);
       }
       
       // Otherwise, get children of the specified folder
       final nodeId = parent.id;
-      EVLogger.debug('Fetching contents of folder', {
-        'nodeId': nodeId,
-        'skipCount': skipCount,
-        'maxItems': maxItems
-      });
       
       final url = Uri.parse(
         '$baseUrl/api/-default-/public/alfresco/versions/1/nodes/$nodeId/children?include=path,properties,allowableOperations&skipCount=$skipCount&maxItems=$maxItems'
@@ -85,10 +80,6 @@ class ClassicBrowseService implements BrowseService {
     int maxItems = 25,
   }) async {
     try {
-      EVLogger.debug('Fetching Sites folder contents', {
-        'skipCount': skipCount,
-        'maxItems': maxItems
-      });
       
       final url = Uri.parse(
         '$baseUrl/api/-default-/public/alfresco/versions/1/sites?skipCount=$skipCount&maxItems=$maxItems'
@@ -143,11 +134,6 @@ class ClassicBrowseService implements BrowseService {
     int maxItems = 25,
   }) async {
     try {
-      EVLogger.debug('Fetching document library for site', {
-        'siteId': siteId,
-        'skipCount': skipCount,
-        'maxItems': maxItems
-      });
       
       // First, we need to get the documentLibrary container node ID for this site
       final urlDocLib = Uri.parse(

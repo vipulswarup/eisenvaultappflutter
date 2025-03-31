@@ -1,5 +1,4 @@
 import 'base_service.dart';
-import 'package:eisenvaultappflutter/utils/logger.dart';
 
 class AngoraBaseService extends BaseService {
   String? _token;
@@ -24,7 +23,7 @@ class AngoraBaseService extends BaseService {
     if (serviceName != null) {
       headers['x-service-name'] = serviceName;
     }
-    EVLogger.debug('Request headers', {'headers': headers});
+    
     return headers;
   }
 

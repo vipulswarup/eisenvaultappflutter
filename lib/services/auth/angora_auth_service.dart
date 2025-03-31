@@ -18,13 +18,13 @@ class AngoraAuthService extends AngoraBaseService {
   Future<Map<String, dynamic>> login(String username, String password) async {
     try {
       final loginUrl = buildUrl('auth/login');
-      EVLogger.info('Attempting Angora login', {'url': loginUrl});
+      
     
       final payload = {
         'email': username,
         'password': password,
       };
-      EVLogger.debug('Login payload', payload);
+      
 
       final response = await http.post(
         Uri.parse(loginUrl),
@@ -32,9 +32,7 @@ class AngoraAuthService extends AngoraBaseService {
         body: jsonEncode(payload),
       );
 
-      EVLogger.debug('Response status code', response.statusCode);
-      EVLogger.debug('Response body', response.body);
-
+      
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final token = data['data']['token'];

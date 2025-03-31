@@ -42,12 +42,7 @@ class FileTapHandler {
       );
       
       final fileType = getFileType(document.name);
-      EVLogger.debug('Opening document', {
-        'id': document.id, 
-        'name': document.name,
-        'type': FileTypeUtils.getFileTypeString(fileType),
-        'instanceType': instanceType
-      });
+      
       
       // Get the appropriate document service
       final documentService = DocumentServiceFactory.getService(

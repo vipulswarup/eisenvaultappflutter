@@ -91,12 +91,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
           canDebug: false,
           maxPageWidth: 700,
           actions: [],
-          onPrinted: (context) {
-            EVLogger.debug('PDF printed successfully');
-          },
-          onShared: (context) {
-            EVLogger.debug('PDF shared successfully');
-          },
+
         );
       }
 
@@ -123,12 +118,12 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
   Future<void> _launchPdfUrl(String url) async {
     try {
       final uri = Uri.parse(url);
-      EVLogger.debug('Attempting to launch URL: $url');
+      
       
       if (await canLaunchUrl(uri)) {
-        EVLogger.debug('URL can be launched, attempting launch...');
+      
         final result = await launchUrl(uri, mode: LaunchMode.externalApplication);
-        EVLogger.debug('Launch result: $result');
+        EVLogger.info('Launch result: $result');
       } else {
         EVLogger.error('URL cannot be launched', url);
         setState(() {
