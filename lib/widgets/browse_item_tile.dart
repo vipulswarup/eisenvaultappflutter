@@ -1,6 +1,6 @@
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
-import 'package:eisenvaultappflutter/services/browse/angora_browse_service.dart';
+import 'package:eisenvaultappflutter/services/permissions/angora_permission_service.dart';
 import 'package:flutter/material.dart';
 
 class BrowseItemTile extends StatefulWidget {
@@ -53,16 +53,14 @@ class _BrowseItemTileState extends State<BrowseItemTile> {
     });
 
     try {
-      
-      // Create a service instance
-      final service = AngoraBrowseService(
+      // Create a permission service instance instead of browse service
+      final permissionService = AngoraPermissionService(
         widget.baseUrl!,
         widget.authToken!
       );
       
-      // Check permission
-      final result = await service.hasPermission(widget.item.id, 'delete');
-    
+      // Check permission using the permission service
+      final result = await permissionService.hasPermission(widget.item.id, 'delete');
       
       if (mounted) {
         setState(() {
@@ -127,13 +125,6 @@ class _BrowseItemTileState extends State<BrowseItemTile> {
     }
     
     return const Icon(Icons.chevron_right);
-  }
-
-  // New helper method - if needed in your environment
-  bool _forceShowDeleteOption() {
-    // You could add additional checks here based on your requirements
-    // For example, show delete based on other business rules
-    return false;
   }
 
   Widget _buildLeadingIcon() {

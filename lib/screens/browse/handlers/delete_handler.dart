@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/services/delete/delete_service.dart';
 import 'package:eisenvaultappflutter/widgets/delete_confirmation_dialog.dart';
-import 'package:eisenvaultappflutter/services/browse/angora_browse_service.dart';
+import 'package:eisenvaultappflutter/services/permissions/angora_permission_service.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 
 /// Handles UI interactions related to deleting repository items
@@ -27,8 +27,9 @@ class DeleteHandler {
   Future<bool> _checkDeletePermission(BrowseItem item) async {
     try {
       if (repositoryType.toLowerCase() == 'angora') {
-        final browseService = AngoraBrowseService(baseUrl, authToken);
-        return await browseService.hasPermission(item.id, 'delete');
+        // Use AngoraPermissionService instead of AngoraBrowseService
+        final permissionService = AngoraPermissionService(baseUrl, authToken);
+        return await permissionService.hasPermission(item.id, 'delete');
       } else {
         // For Classic/Alfresco, use the existing canDelete property
         return item.canDelete;
