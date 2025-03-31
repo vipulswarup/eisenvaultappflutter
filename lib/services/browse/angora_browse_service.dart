@@ -68,9 +68,14 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
         throw Exception('Invalid API response format');
       }
 
-      final items = (data['data'] as List)
-          .map((item) => _mapAngoraBrowseItem(item))
-          .toList();
+      final itemsData = data['data'] as List;
+      final items = <BrowseItem>[];
+      
+      // Process each item asynchronously
+      for (final itemData in itemsData) {
+        final mappedItem = await _mapAngoraBrowseItem(itemData);
+        items.add(mappedItem);
+      }
       
       return items;
     } catch (e) {
@@ -79,7 +84,8 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
   }
 
   /// Maps an Angora API response item to a BrowseItem object
-  BrowseItem _mapAngoraBrowseItem(Map<String, dynamic> item) {
+  /// Now this is async since it needs to await permission extraction
+  Future<BrowseItem> _mapAngoraBrowseItem(Map<String, dynamic> item) async {
     // Improved folder detection logic
     bool isFolder = false;
     
@@ -104,7 +110,8 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
     }
     
     // Use the permission service to extract permissions
-    List<String>? operations = _permissionService.extractPermissionsFromItem(item);
+    // Add await here to properly handle the Future
+    List<String>? operations = await _permissionService.extractPermissionsFromItem(item);
     
     return BrowseItem(
       id: item['id'],
@@ -118,27 +125,5 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
       // Include permissions from the permission service
       allowableOperations: operations,
     );
-  }
-
-  Future<BrowseItem> getItemWithDetailedPermissions(BrowseItem item) async {
-    try {
-      // Get detailed permissions from API
-      final permissions = await _permissionService.getPermissions(item.id);
-      
-      // Create new item with updated permissions
-      return BrowseItem(
-        id: item.id,
-        name: item.name,
-        type: item.type,
-        description: item.description,
-        isDepartment: item.isDepartment,
-        modifiedDate: item.modifiedDate,
-        modifiedBy: item.modifiedBy,
-        allowableOperations: permissions,
-      );
-    } catch (e) {
-      // If API call fails, return original item
-      return item;
-    }
   }
 }

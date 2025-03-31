@@ -107,16 +107,41 @@ class AngoraPermissionService extends AngoraBaseService implements PermissionSer
   }
   
   @override
-  List<String>? extractPermissionsFromItem(Map<String, dynamic> item) {
+  Future<List<String>?> extractPermissionsFromItem(Map<String, dynamic> item) async {
+    final String itemId = item['id'];
     EVLogger.debug('Extracting permissions from item', {
-      'itemId': item['id'],
-      'itemName': item['name'] ?? item['raw_file_name']
+      'itemId': itemId,
+      'itemName': item['name'] ?? item['raw_file_name'],
+      'hasPermissionsField': item.containsKey('permissions') && item['permissions'] != null
     });
     
     final List<String> operations = [];
     
     // Map Angora permissions to operations
     var permissions = item['permissions'];
+    
+    // If permissions field is missing or null, fetch from API
+    if (permissions == null) {
+      EVLogger.debug('Item lacks permissions data, fetching from API', {'itemId': itemId});
+      
+      try {
+        // Use getNodePermissions directly to avoid circular call through getPermissions
+        final apiPermissions = await getNodePermissions(itemId);
+        
+        // Extract and return operations from the API response
+        return extractPermissionsFromDetailedResponse(apiPermissions);
+      } catch (e) {
+        EVLogger.error('Failed to fetch permissions for item', {
+          'itemId': itemId,
+          'error': e.toString()
+        });
+        
+        // Continue with the regular extraction logic as fallback
+        EVLogger.debug('Falling back to default permission logic', {'itemId': itemId});
+      }
+    }
+    
+    // The rest of the existing extraction logic remains the same
     if (permissions != null) {
       // Standard permissions
       if (permissions['can_edit'] == true) operations.add('update');
@@ -156,9 +181,7 @@ class AngoraPermissionService extends AngoraBaseService implements PermissionSer
       // Check for alternate permission indicators when permissions field is null
       
       // Check for direct can_delete flag
-      if (item['can_delete'] == true) {
-        operations.add('delete');
-      }
+      if (item['can_delete'] == true) operations.add('delete');
       
       // Check for owner flag - owners can typically delete
       if (item['is_owner'] == true) {
@@ -178,7 +201,7 @@ class AngoraPermissionService extends AngoraBaseService implements PermissionSer
     }
     
     EVLogger.debug('Extracted permissions from item', {
-      'itemId': item['id'],
+      'itemId': itemId,
       'permissions': operations
     });
     
@@ -217,80 +240,72 @@ class AngoraPermissionService extends AngoraBaseService implements PermissionSer
     return operations.isEmpty ? null : operations;
   }
   
-  /// Fetch node permissions from API based on the Angora API documentation
+  /// Fetch node permissions from API
+  /// Tries multiple endpoints to find the correct one for the given node
   Future<Map<String, dynamic>> getNodePermissions(String nodeId) async {
     EVLogger.debug('Fetching node permissions from API', {'nodeId': nodeId});
     
-    // Use the documented endpoint from angora-get-node-permissions.txt
-    final endpoint = 'nodes/$nodeId/permissions';
-    final url = buildUrl(endpoint);
+    // Try multiple endpoints to see which one works
+    final endpoints = [
+      'nodes/$nodeId/permissions',
+      'files/$nodeId/permissions',
+      'items/$nodeId/permissions',
+      'documents/$nodeId/permissions'
+    ];
     
-    // Create headers with required parameters from the API documentation
-    // The API requires 'x-customer-hostname' header
-    final headers = createHeaders(serviceName: 'service-file');
+    Exception? lastError;
     
-    // Add the x-customer-hostname header if not already included
-    // Note: You may need to get the hostname from configuration or extract from baseUrl
-    if (!headers.containsKey('x-customer-hostname')) {
-      // Extract hostname from baseUrl or use a configured value
-      // This is a placeholder - replace with actual hostname logic
-      final uri = Uri.parse(baseUrl);
-      final hostname = uri.host;
-      
-      headers['x-customer-hostname'] = hostname;
-      
-      EVLogger.debug('Added customer hostname to headers', {'hostname': hostname});
-    }
-    
-    EVLogger.debug('Making permissions API call', {
-      'url': url,
-      'headers': headers.keys.toList()
-    });
-    
-    try {
-      final response = await http.get(
-        Uri.parse(url),
-        headers: headers,
-      );
-      
-      if (response.statusCode == 401) {
-        EVLogger.error('Authentication failed when fetching permissions', {
-          'statusCode': response.statusCode,
+    for (final endpoint in endpoints) {
+      try {
+        final url = buildUrl(endpoint);
+        final headers = createHeaders(serviceName: 'service-file');
+        
+        EVLogger.debug('Trying permission endpoint', {'url': url});
+        
+        final response = await http.get(
+          Uri.parse(url),
+          headers: headers,
+        );
+        
+        if (response.statusCode != 200) {
+          EVLogger.warning('Failed to fetch node permissions', {
+            'endpoint': endpoint,
+            'statusCode': response.statusCode,
+            'body': response.body
+          });
+          throw Exception('Failed to fetch node permissions: ${response.statusCode}');
+        }
+        
+        final data = json.decode(response.body);
+        
+        if (data['status'] != 200 || data['data'] == null) {
+          EVLogger.warning('Invalid permissions API response', {
+            'endpoint': endpoint,
+            'response': data
+          });
+          throw Exception('Invalid permissions API response format');
+        }
+        
+        EVLogger.debug('Successfully retrieved permissions', {
+          'endpoint': endpoint,
           'nodeId': nodeId
         });
-        throw Exception('Authentication failed: ${response.statusCode}');
-      }
-      
-      if (response.statusCode != 200) {
-        EVLogger.error('Failed to fetch node permissions', {
-          'statusCode': response.statusCode,
-          'body': response.body
+        
+        // If successful, return the data
+        return data['data'];
+      } catch (e) {
+        EVLogger.error('Permission endpoint failed', {
+          'endpoint': endpoint,
+          'error': e.toString()
         });
-        throw Exception('Failed to fetch node permissions: ${response.statusCode}');
+        lastError = Exception(e.toString());
+        // Continue to next endpoint
       }
-      
-      final data = json.decode(response.body);
-      
-      // Check the expected response format based on the API documentation
-      if (data['status'] != 200 || data['data'] == null) {
-        EVLogger.error('Invalid permissions API response', {'response': data});
-        throw Exception('Invalid permissions API response format');
-      }
-      
-      EVLogger.debug('Successfully retrieved permissions', {
-        'nodeId': nodeId,
-        'permissions': data['data']
-      });
-      
-      // Return the permissions data
-      return data['data'];
-    } catch (e) {
-      EVLogger.error('Permission API request failed', {
-        'endpoint': endpoint,
-        'error': e.toString()
-      });
-      rethrow;
     }
+    
+    // If all endpoints failed, throw the last error
+    EVLogger.error('All permission endpoints failed', {'nodeId': nodeId});
+    throw lastError ?? Exception('All permission endpoints failed');
   }
   
   /// Invalidate a specific node's permissions in the cache
