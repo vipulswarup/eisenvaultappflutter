@@ -71,12 +71,7 @@ class BatchUploadManager {
       // Process this batch concurrently
       final futures = batch.map((file) async {
         try {
-          EVLogger.debug('Starting upload for file', {
-            'fileName': file.name,
-            'fileId': file.id,
-            'index': files.indexOf(file) + 1,
-            'totalFiles': files.length,
-          });
+
           
           // Update file status to in progress
           _updateFileProgress(file.id!, FileUploadStatus.inProgress);
@@ -100,10 +95,7 @@ class BatchUploadManager {
           successful.add(file);
           _updateFileProgress(file.id!, FileUploadStatus.success);
           
-          EVLogger.debug('Upload successful', {
-            'fileName': file.name,
-            'result': result,
-          });
+
           
           return true;
         } catch (e) {

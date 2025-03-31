@@ -64,12 +64,6 @@ class AlfrescoUploadService extends BaseUploadService {
     // If onProgressUpdate is provided, use it instead of the class level one
     final progressCallback = onProgressUpdate ?? super.onProgressUpdate;
     
-    EVLogger.debug('Upload document to Alfresco', {
-      'parentFolderId': parentFolderId,
-      'fileName': fileName,
-      'hasPath': filePath != null,
-      'hasBytes': fileBytes != null
-    });
     
     try {
       // Get file bytes if path provided
@@ -130,9 +124,7 @@ class AlfrescoUploadService extends BaseUploadService {
       final baseUrl = _baseService.baseUrl;
       final cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
       final url = '$cleanBaseUrl/api/-default-/public/alfresco/versions/1/nodes/$parentFolderId/children';
-      
-      EVLogger.debug('Creating Alfresco upload request', {'url': url});
-      
+    
       // Create multipart request
       var request = http.MultipartRequest('POST', Uri.parse(url));
       
@@ -140,8 +132,6 @@ class AlfrescoUploadService extends BaseUploadService {
       final baseHeaders = _baseService.createHeaders();
       baseHeaders.remove('Content-Type'); // Will be set by multipart
       request.headers.addAll(baseHeaders);
-      
-      EVLogger.debug('Request headers', {'headers': request.headers});
       
       // Update progress to in-progress
       _updateProgress(
@@ -177,8 +167,6 @@ class AlfrescoUploadService extends BaseUploadService {
       // Request doclib rendition generation
       request.fields['renditions'] = 'doclib';
       
-      EVLogger.debug('Request fields', {'fields': request.fields});
-      
       // Send request with timeout
       final streamedResponse = await request.send().timeout(
         Duration(seconds: _uploadTimeoutSeconds),
@@ -200,11 +188,6 @@ class AlfrescoUploadService extends BaseUploadService {
           UploadStatus.success, 
           onProgressUpdate
         );
-        
-        EVLogger.debug('Upload successful', {
-          'fileId': fileId, 
-          'status': streamedResponse.statusCode
-        });
         
         return jsonDecode(responseBody);
       } else {

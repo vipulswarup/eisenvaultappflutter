@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:eisenvaultappflutter/models/upload/batch_upload_models.dart';
-import 'package:eisenvaultappflutter/utils/logger.dart';
 
 /// Displays a list of file upload progress items
 /// 
@@ -87,12 +86,6 @@ class FileUploadProgressItem extends StatelessWidget {
         statusColor = Colors.grey;
     }
     
-    // Log detailed progress for debugging
-    EVLogger.debug('Rendering progress item', {
-      'fileName': progress.fileName,
-      'status': progress.status,
-      'progress': '${progress.uploadedBytes}/${progress.totalBytes} bytes (${progress.percentComplete.toStringAsFixed(1)}%)'
-    });
     
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 0),

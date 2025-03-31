@@ -93,13 +93,7 @@ class AngoraChunkUploader {
     if (description != null && description.isNotEmpty) {
       request.fields['comment'] = description;
     }
-    
-    EVLogger.debug('Uploading chunk', {
-      'fileId': fileId,
-      'startByte': startByte,
-      'chunkSize': chunk.length,
-      'totalSize': totalFileSize
-    });
+
     
     // Send the request with timeout
     final streamedResponse = await request.send().timeout(
@@ -114,11 +108,7 @@ class AngoraChunkUploader {
     
     // Check response status - API returns 201 for successful uploads
     if (streamedResponse.statusCode == 200 || streamedResponse.statusCode == 201) {
-      EVLogger.debug('Chunk upload successful', {
-        'statusCode': streamedResponse.statusCode,
-        'startByte': startByte,
-        'endByte': startByte + chunk.length
-      });
+
       
       return jsonDecode(responseBody);
     } else {

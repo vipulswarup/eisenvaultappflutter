@@ -30,11 +30,7 @@ class UploadServiceFactory {
   }) {
     // Normalize instance type to lowercase for case-insensitive comparison
     final type = instanceType.toLowerCase();
-    
-    EVLogger.debug('Creating upload service', {
-      'instanceType': instanceType, 
-      'baseUrl': baseUrl
-    });
+  
     
     // Create and return the appropriate implementation
     switch (type) {

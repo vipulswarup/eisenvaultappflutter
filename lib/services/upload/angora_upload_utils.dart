@@ -53,12 +53,7 @@ class AngoraUploadUtils {
     final chunkSize = getChunkSize(fileBytes.length);
     final totalChunks = (fileBytes.length / chunkSize).ceil();
     
-    EVLogger.debug('Splitting file into chunks', {
-      'fileSize': fileBytes.length,
-      'chunkSize': chunkSize,
-      'totalChunks': totalChunks,
-    });
-    
+
     final chunks = <UploadChunk>[];
     
     for (int i = 0; i < totalChunks; i++) {

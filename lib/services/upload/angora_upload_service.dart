@@ -266,14 +266,7 @@ class AngoraUploadService {
       totalBytes: totalBytes,
       status: status,
     );
-    
-    EVLogger.debug('Upload progress', {
-      'fileId': fileId,
-      'uploadedBytes': uploadedBytes,
-      'totalBytes': totalBytes,
-      'status': status,
-      'percent': progress.percentComplete.toStringAsFixed(1) + '%',
-    });
+  
     
     onProgressUpdate?.call(progress);
   }

@@ -1,5 +1,4 @@
 import 'dart:typed_data';
-import 'package:eisenvaultappflutter/utils/logger.dart';
 
 /// Utility functions for file uploads across different backends
 ///
@@ -72,12 +71,7 @@ class UploadUtils {
   }) {
     final chunkSize = calculateChunkSize(fileBytes.length);
     final totalChunks = (fileBytes.length / chunkSize).ceil();
-    
-    EVLogger.debug('Splitting file into chunks', {
-      'fileSize': fileBytes.length,
-      'chunkSize': chunkSize,
-      'totalChunks': totalChunks,
-    });
+  
     
     final chunks = <FileChunk>[];
     

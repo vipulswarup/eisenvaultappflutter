@@ -53,21 +53,17 @@ class AngoraDeleteProvider implements DeleteProvider {
   Future<String> deleteFileVersion(String fileId, String versionId) async {
     try {
       final url = _angoraService.buildUrl('files/$fileId/versions/$versionId');
-      EVLogger.debug('Deleting Angora file version', {'url': url});
+      
       
       final headers = _angoraService.createHeaders();
       headers['x-customer-hostname'] = _customerHostname;
-      EVLogger.debug('Request headers', {'headers': headers});
+      
       
       final response = await http.delete(
         Uri.parse(url),
         headers: headers,
       );
       
-      EVLogger.debug('Delete response', {
-        'statusCode': response.statusCode,
-        'body': response.body,
-      });
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -112,7 +108,6 @@ class AngoraDeleteProvider implements DeleteProvider {
       });
       
       final url = _angoraService.buildUrl('$entityType?ids=${ids.join(',')}');
-      EVLogger.debug('Deleting Angora $entityType', {'url': url});
       
       final headers = _angoraService.createHeaders();
       
@@ -121,18 +116,13 @@ class AngoraDeleteProvider implements DeleteProvider {
         headers.addAll(additionalHeaders);
       }
       
-      EVLogger.debug('Request headers', {'headers': headers});
       
       final response = await http.delete(
         Uri.parse(url),
         headers: headers,
       );
       
-      EVLogger.debug('Delete response', {
-        'statusCode': response.statusCode,
-        'body': response.body,
-      });
-      
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final message = data['notifications'] ?? 'Delete operation queued successfully';

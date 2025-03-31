@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:eisenvaultappflutter/models/upload/batch_upload_models.dart';
-import 'package:eisenvaultappflutter/utils/logger.dart';
 
 /// Displays a list of files that failed to upload
 /// 
@@ -29,11 +28,7 @@ class FailedUploadList extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
-    // Log failed files for debugging
-    EVLogger.debug('Rendering failed uploads list', {
-      'failedCount': failedFiles.length,
-      'files': failedFiles.map((f) => f.name).toList()
-    });
+
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

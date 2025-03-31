@@ -24,8 +24,6 @@ class AlfrescoDocumentService implements DocumentService {
       final nodeId = document.id;
       final contentUrl = '$baseUrl/api/-default-/public/alfresco/versions/1/nodes/$nodeId/content';
       
-      EVLogger.debug('Getting document content', {'url': contentUrl});
-      
       // Make the request
       final response = await http.get(
         Uri.parse(contentUrl),
@@ -41,7 +39,7 @@ class AlfrescoDocumentService implements DocumentService {
 
       // For web platform, return the bytes directly
       if (kIsWeb) {
-        EVLogger.debug('Returning content bytes for web platform');
+  
         return response.bodyBytes;
       } 
       
@@ -49,8 +47,6 @@ class AlfrescoDocumentService implements DocumentService {
       else {
         final tempDir = await getTemporaryDirectory();
         final filePath = '${tempDir.path}/${document.name}';
-        
-        EVLogger.debug('Saving content to file', {'path': filePath});
         
         final file = File(filePath);
         await file.writeAsBytes(response.bodyBytes);
@@ -77,7 +73,7 @@ class AngoraDocumentServiceAdapter implements DocumentService {
       
       // For web platform, return the bytes directly
       if (kIsWeb) {
-        EVLogger.debug('Returning content bytes for web platform (Angora)');
+  
         return bytes;
       } 
       
@@ -85,9 +81,6 @@ class AngoraDocumentServiceAdapter implements DocumentService {
       else {
         final tempDir = await getTemporaryDirectory();
         final filePath = '${tempDir.path}/${document.name}';
-        
-        EVLogger.debug('Saving Angora content to file', {'path': filePath});
-        
         final file = File(filePath);
         await file.writeAsBytes(bytes);
         

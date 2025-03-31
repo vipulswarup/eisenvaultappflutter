@@ -39,20 +39,16 @@ class ClassicDeleteProvider implements DeleteProvider {
   Future<String> deleteFileVersion(String fileId, String versionId) async {
     try {
       final url = _classicService.buildUrl('api/-default-/public/alfresco/versions/1/nodes/$fileId/versions/$versionId');
-      EVLogger.debug('Deleting Classic/Alfresco file version', {'url': url});
+      
       
       final headers = _classicService.createHeaders();
-      EVLogger.debug('Request headers', {'headers': headers});
+      
       
       final response = await http.delete(
         Uri.parse(url),
         headers: headers,
       );
       
-      EVLogger.debug('Delete response', {
-        'statusCode': response.statusCode,
-        'body': response.body,
-      });
       
       if (response.statusCode == 204) {
         EVLogger.info('File version deleted successfully');
@@ -74,26 +70,21 @@ class ClassicDeleteProvider implements DeleteProvider {
   Future<String> deleteTrashItems(List<String> trashIds) async {
     try {
       final url = _classicService.buildUrl('api/-default-/public/alfresco/versions/1/deleted-nodes');
-      EVLogger.debug('Deleting Classic/Alfresco trash items', {'url': url});
+     
       
       final headers = _classicService.createHeaders();
-      EVLogger.debug('Request headers', {'headers': headers});
+     
       
       final body = json.encode({
         'nodeIds': trashIds,
       });
-      EVLogger.debug('Request body', {'body': body});
+     
       
       final response = await http.delete(
         Uri.parse(url),
         headers: headers,
         body: body,
       );
-      
-      EVLogger.debug('Delete response', {
-        'statusCode': response.statusCode,
-        'body': response.body,
-      });
       
       if (response.statusCode == 204) {
         EVLogger.info('Trash items deleted successfully');
@@ -126,10 +117,8 @@ class ClassicDeleteProvider implements DeleteProvider {
       
       for (final id in ids) {
         final url = _classicService.buildUrl('api/-default-/public/alfresco/versions/1/nodes/$id');
-        EVLogger.debug('Deleting $entityType', {'url': url, 'id': id});
-        
         final headers = _classicService.createHeaders();
-        EVLogger.debug('Request headers', {'headers': headers});
+    
         
         try {
           final response = await http.delete(
@@ -137,10 +126,6 @@ class ClassicDeleteProvider implements DeleteProvider {
             headers: headers,
           );
           
-          EVLogger.debug('Delete response for $id', {
-            'statusCode': response.statusCode,
-            'body': response.body,
-          });
           
           if (response.statusCode >= 200 && response.statusCode < 300) {
             successfulDeletes.add(id);

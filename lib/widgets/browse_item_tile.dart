@@ -1,7 +1,6 @@
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/services/browse/angora_browse_service.dart';
-import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:flutter/material.dart';
 
 class BrowseItemTile extends StatefulWidget {
@@ -54,14 +53,6 @@ class _BrowseItemTileState extends State<BrowseItemTile> {
     });
 
     try {
-      EVLogger.debug('Checking delete permission', {
-        'itemId': widget.item.id,
-        'itemName': widget.item.name,
-        'itemType': widget.item.type
-      });
-
-      // Direct print for debugging
-      print("CHECKING PERMISSION FOR: ${widget.item.id} ${widget.item.name}");
       
       // Create a service instance
       final service = AngoraBrowseService(
@@ -69,14 +60,9 @@ class _BrowseItemTileState extends State<BrowseItemTile> {
         widget.authToken!
       );
       
-      // Log explicit curl command for testing
-      final url = service.buildUrl('nodes/${widget.item.id}/permissions');
-      print("CURL TEST: curl -X GET \"$url\" -H \"Authorization: ${widget.authToken}\" -H \"Content-Type: application/json\"");
-      
       // Check permission
       final result = await service.hasPermission(widget.item.id, 'delete');
-      
-      print("PERMISSION CHECK RESULT: $result for ${widget.item.name}");
+    
       
       if (mounted) {
         setState(() {
@@ -85,7 +71,6 @@ class _BrowseItemTileState extends State<BrowseItemTile> {
         });
       }
     } catch (e) {
-      print("ERROR CHECKING PERMISSION: $e");
       if (mounted) {
         setState(() {
           _isCheckingPermission = false;
@@ -117,15 +102,7 @@ class _BrowseItemTileState extends State<BrowseItemTile> {
   }
 
   Widget _buildTrailingWidget() {
-    EVLogger.debug('Delete button visibility check', {
-      'itemName': widget.item.name,
-      'showDeleteOption': widget.showDeleteOption,
-      'canDelete': widget.item.canDelete,
-      'hasDeletePermission': _hasDeletePermission,
-      'isCheckingPermission': _isCheckingPermission,
-      'hasDeleteCallback': widget.onDeleteTap != null,
-      'allowableOperations': widget.item.allowableOperations
-    });
+
     
     if (_isCheckingPermission) {
       return const SizedBox(

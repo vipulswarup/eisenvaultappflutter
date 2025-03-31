@@ -234,14 +234,6 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
         final url = buildUrl(endpoint);
         final headers = createHeaders(serviceName: 'service-file');
         
-        // Direct print statement that will show in logs regardless of logger config
-        print("======= PERMISSION API CALL =======");
-        print("CURL: curl -X GET \"$url\" \\");
-        headers.forEach((key, value) {
-          print("  -H \"$key: $value\" \\");
-        });
-        print("===============================");
-        
         final response = await http.get(
           Uri.parse(url),
           headers: headers,

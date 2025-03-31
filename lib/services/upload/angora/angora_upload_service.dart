@@ -62,13 +62,7 @@ class AngoraUploadService extends BaseUploadService {
     // Validate inputs using shared method from base class
     validateUploadInputs(filePath: filePath, fileBytes: fileBytes);
   
-    
-    EVLogger.debug('Upload document to Angora', {
-      'parentFolderId': parentFolderId,
-      'fileName': fileName,
-      'hasPath': filePath != null,
-      'hasBytes': fileBytes != null
-    });
+
     
     try {
       // Get file bytes if path provided
@@ -131,8 +125,6 @@ class AngoraUploadService extends BaseUploadService {
       // Build API URL
       final url = _baseService.buildUrl('uploads');
       
-      EVLogger.debug('Creating Angora upload request', {'url': url});
-      
       // Create multipart request
       var request = http.MultipartRequest('POST', Uri.parse(url));
       
@@ -186,8 +178,7 @@ class AngoraUploadService extends BaseUploadService {
       if (streamedResponse.statusCode == 200 || streamedResponse.statusCode == 201) {
         // Update progress to success
         updateProgress(fileId, fileBytes.length, fileBytes.length, UploadStatus.success);
-        
-        EVLogger.debug('Upload successful', {'fileId': fileId, 'status': streamedResponse.statusCode});
+      
         return jsonDecode(responseBody);
       } else {
         // Update progress to failed
@@ -225,12 +216,7 @@ class AngoraUploadService extends BaseUploadService {
       fileName: fileName,
       fileBytes: fileBytes,
     );
-    
-    EVLogger.debug('Starting chunked upload', {
-      'fileId': fileId,
-      'totalChunks': chunks.length,
-      'totalSize': fileBytes.length
-    });
+
     
     // Upload each chunk with retry logic
     Map<String, dynamic>? finalResponse;
