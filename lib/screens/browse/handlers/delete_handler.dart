@@ -74,94 +74,95 @@ class DeleteHandler {
 
   /// Main entry point - show delete confirmation for an item
   Future<void> showDeleteConfirmation(BrowseItem item) async {
-    // Use a safe context reference
-    final BuildContext currentContext = context;
-    if (!currentContext.mounted) return;
-    
-    // Show loading indicator while checking permissions
-    bool hasPermission = false;
-    
-    await showDialog(
-      context: currentContext,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        // Start the permission check
-        _checkDeletePermission(item).then((result) {
-          hasPermission = result;
-          // Close the loading dialog when check completes
-          if (dialogContext.mounted) {
-            Navigator.of(dialogContext).pop();
-          }
-        }).catchError((error) {
-          hasPermission = false;
-          if (dialogContext.mounted) {
-            Navigator.of(dialogContext).pop();
-          }
-        });
-        
-        // Show loading indicator while waiting
-        return const Center(child: CircularProgressIndicator());
+    try {
+      // Show loading indicator while checking permissions
+      bool hasPermission = false;
+      
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          // Start the permission check
+          _checkDeletePermission(item).then((result) {
+            hasPermission = result;
+            if (dialogContext.mounted) {
+              Navigator.of(dialogContext).pop();
+            }
+          }).catchError((error) {
+            hasPermission = false;
+            if (dialogContext.mounted) {
+              Navigator.of(dialogContext).pop();
+            }
+          });
+          
+          // Show loading indicator
+          return const Center(child: CircularProgressIndicator());
+        }
+      );
+      
+      // If user doesn't have permission, show error and exit
+      if (!hasPermission || !context.mounted) {
+        if (context.mounted) {
+          _showErrorMessage(context, 'You don\'t have permission to delete this item');
+        }
+        return;
       }
-    );
-    
-    // If user doesn't have permission, show error and exit
-    if (!hasPermission || !currentContext.mounted) {
-      if (currentContext.mounted) {
-        _showErrorMessage(currentContext, 'You don\'t have permission to delete this item');
+      
+      // Show delete confirmation dialog
+      final itemType = _getItemTypeLabel(item);
+      
+      if (!context.mounted) return;
+      
+      await showDialog(
+        context: context,
+        builder: (dialogContext) {
+          return StatefulBuilder(
+            builder: (context, setState) {
+              bool isDeleting = false;
+              
+              return DeleteConfirmationDialog(
+                title: 'Delete ${item.name}',
+                content: 'Are you sure you want to delete this $itemType? This action cannot be undone.',
+                isLoading: isDeleting,
+                onConfirm: () async {
+                  // Set loading state
+                  setState(() {
+                    isDeleting = true;
+                  });
+                  
+                  try {
+                    // Perform the delete operation
+                    final result = await _performDelete(item);
+                    
+                    // Close dialog and show success message
+                    if (dialogContext.mounted) {
+                      Navigator.of(dialogContext).pop();
+                      _showSuccessMessage(context, result);
+                    }
+                    
+                    // Notify parent to refresh
+                    onDeleteSuccess();
+                  } catch (e) {
+                    // Close dialog and show error message
+                    if (dialogContext.mounted) {
+                      Navigator.of(dialogContext).pop();
+                    }
+                    
+                    if (context.mounted) {
+                      _showErrorMessage(context, 'Failed to delete: ${e.toString()}');
+                    }
+                  }
+                },
+              );
+            }
+          );
+        },
+      );
+    } catch (e) {
+      if (context.mounted) {
+        _showErrorMessage(context, 'Error checking permissions: ${e.toString()}');
       }
-      return;
     }
-    
-    // Show delete confirmation dialog
-    final itemType = _getItemTypeLabel(item);
-    
-    if (!currentContext.mounted) return;
-    
-    await showDialog(
-      context: currentContext,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            bool isDeleting = false;
-            
-            return DeleteConfirmationDialog(
-              title: 'Delete ${item.name}',
-              content: 'Are you sure you want to delete this $itemType? This action cannot be undone.',
-              isLoading: isDeleting,
-              onConfirm: () async {
-                // Set loading state
-                setState(() {
-                  isDeleting = true;
-                });
-                
-                try {
-                  // Perform the delete operation
-                  final result = await _performDelete(item);
-                  
-                  // Close dialog and show success message
-                  if (dialogContext.mounted) {
-                    Navigator.of(dialogContext).pop();
-                    _showSuccessMessage(currentContext, result);
-                  }
-                  
-                  // Notify parent to refresh
-                  onDeleteSuccess();
-                } catch (e) {
-                  // Close dialog and show error message
-                  if (dialogContext.mounted) {
-                    Navigator.of(dialogContext).pop();
-                  }
-                  
-                  if (currentContext.mounted) {
-                    _showErrorMessage(currentContext, 'Failed to delete: ${e.toString()}');
-                  }
-                }
-              },
-            );
-          }
-        );
-      },
-    );
   }
 
   /// Get a user-friendly label for the item type

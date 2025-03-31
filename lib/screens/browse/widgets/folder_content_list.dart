@@ -3,16 +3,21 @@ import 'package:eisenvaultappflutter/widgets/browse_item_tile.dart';
 import 'package:flutter/material.dart';
 
 /// Widget that displays a list of folder contents
-class FolderContentList extends StatefulWidget {
+class FolderContentList extends StatelessWidget {
   final List<BrowseItem> items;
   final Function(BrowseItem) onFolderTap;
   final Function(BrowseItem) onFileTap;
-  final Function(BrowseItem)? onDeleteTap;
+  final void Function(BrowseItem)? onDeleteTap;
+  final bool showDeleteOption;
   final Future<void> Function() onRefresh;
-  final Future<void> Function()? onLoadMore;
+  final VoidCallback onLoadMore;
   final bool isLoadingMore;
   final bool hasMoreItems;
-  final bool showDeleteOption;
+  
+  // Add these properties for selection mode
+  final bool selectionMode;
+  final Set<String> selectedItems;
+  final Function(String, bool)? onItemSelected;
 
   const FolderContentList({
     Key? key,
@@ -20,85 +25,95 @@ class FolderContentList extends StatefulWidget {
     required this.onFolderTap,
     required this.onFileTap,
     this.onDeleteTap,
-    required this.onRefresh,
-    this.onLoadMore,
-    this.isLoadingMore = false,
-    this.hasMoreItems = false,
     this.showDeleteOption = false,
+    required this.onRefresh,
+    required this.onLoadMore,
+    required this.isLoadingMore,
+    required this.hasMoreItems,
+    this.selectionMode = false,
+    this.selectedItems = const {},
+    this.onItemSelected,
   }) : super(key: key);
-
-  @override
-  State<FolderContentList> createState() => _FolderContentListState();
-}
-
-class _FolderContentListState extends State<FolderContentList> {
-  final ScrollController _scrollController = ScrollController();
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController.addListener(_scrollListener);
-  }
-
-  @override
-  void dispose() {
-    _scrollController.removeListener(_scrollListener);
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  void _scrollListener() {
-    if (widget.onLoadMore == null || !widget.hasMoreItems || widget.isLoadingMore) {
-      return;
-    }
-
-    if (_scrollController.position.pixels >= 
-        _scrollController.position.maxScrollExtent - 200) {
-      widget.onLoadMore!();
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
-      onRefresh: widget.onRefresh,
-      child: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              itemCount: widget.items.length + (widget.hasMoreItems ? 1 : 0),
-              cacheExtent: 500, // Increase cache to reduce rebuilds
-              itemBuilder: (context, index) {
-                // Show loading indicator at the end
-                if (index == widget.items.length) {
-                  return const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: CircularProgressIndicator(),
-                    ),
-                  );
-                }
-
-                final item = widget.items[index];
-                return BrowseItemTile(
+      onRefresh: onRefresh,
+      child: ListView.builder(
+        itemCount: items.length + (hasMoreItems ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index == items.length) {
+            return _buildLoadMoreIndicator();
+          }
+          
+          final item = items[index];
+          final isSelected = selectedItems.contains(item.id);
+          
+          return selectionMode
+              ? _buildSelectableItem(context, item, isSelected)
+              : BrowseItemTile(
                   item: item,
                   onTap: () {
-                    // If the item is a folder or department, navigate to it
                     if (item.type == 'folder' || item.isDepartment) {
-                      widget.onFolderTap(item);
+                      onFolderTap(item);
                     } else {
-                      widget.onFileTap(item);
+                      onFileTap(item);
                     }
                   },
-                  onDeleteTap: widget.onDeleteTap != null ? () => widget.onDeleteTap!(item) : null,
-                  showDeleteOption: widget.showDeleteOption,
+                  onDeleteTap: showDeleteOption ? () {
+                    // Ignore the future
+                    onDeleteTap?.call(item);
+                  } : null,
+                  showDeleteOption: showDeleteOption,
                 );
-              },
-            ),
-          ),
-        ],
+        },
       ),
     );
+  }
+  
+  Widget _buildSelectableItem(BuildContext context, BrowseItem item, bool isSelected) {
+    return ListTile(
+      leading: _buildItemIcon(item),
+      title: Text(item.name),
+      subtitle: Text(
+        item.modifiedDate != null 
+            ? 'Modified: ${_formatDate(item.modifiedDate!)}'
+            : item.description ?? '',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: Checkbox(
+        value: isSelected,
+        onChanged: (value) {
+          onItemSelected?.call(item.id, value ?? false);
+        },
+      ),
+      onTap: () {
+        onItemSelected?.call(item.id, !isSelected);
+      },
+    );
+  }
+  
+  Widget _buildLoadMoreIndicator() {
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.all(16.0),
+        child: CircularProgressIndicator(),
+      ),
+    );
+  }
+  
+  Widget _buildItemIcon(BrowseItem item) {
+    // Implement your logic to build the item icon
+    return const Icon(Icons.folder);
+  }
+  
+  String _formatDate(String dateString) {
+    try {
+      final date = DateTime.parse(dateString);
+      return '${date.day}/${date.month}/${date.year}';
+    } catch (e) {
+      return dateString;
+    }
   }
 }

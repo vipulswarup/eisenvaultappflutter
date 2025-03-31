@@ -1,18 +1,21 @@
 import 'package:eisenvaultappflutter/services/browse/angora_browse_service.dart';
 import 'package:eisenvaultappflutter/services/browse/browse_service.dart';
 import 'package:eisenvaultappflutter/services/browse/classic_browse_service.dart';
-import 'package:eisenvaultappflutter/services/permissions/angora_permission_service.dart';
-
+import 'package:eisenvaultappflutter/services/permissions/permission_service_factory.dart';
 
 class BrowseServiceFactory {
   static BrowseService getService(String instanceType, String baseUrl, String authToken) {
-    switch (instanceType) {
-      case 'Classic':
+    // Get the appropriate permission service
+    final permissionService = PermissionServiceFactory.getService(
+      instanceType, 
+      baseUrl, 
+      authToken
+    );
+    
+    switch (instanceType.toLowerCase()) {
+      case 'classic':
         return ClassicBrowseService(baseUrl, authToken);
-      case 'Angora':
-        // Create the permission service first
-        final permissionService = AngoraPermissionService(baseUrl, authToken);
-        // Pass it to the browse service
+      case 'angora':
         return AngoraBrowseService(baseUrl, authToken, permissionService);
       default:
         throw Exception('Unsupported instance type: $instanceType');

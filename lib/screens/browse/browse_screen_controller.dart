@@ -47,7 +47,7 @@ class BrowseScreenController {
     required this.authToken,
     required this.instanceType,
     required this.onStateChanged,
-  }) : angoraBaseService = instanceType == 'Angora' 
+  }) : angoraBaseService = instanceType.toLowerCase() == 'angora' 
         ? AngoraBaseService(baseUrl)
         : null {
     

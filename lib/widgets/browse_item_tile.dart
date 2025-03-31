@@ -11,6 +11,9 @@ class BrowseItemTile extends StatefulWidget {
   final String? repositoryType;
   final String? baseUrl;
   final String? authToken;
+  final bool selectionMode;
+  final bool isSelected;
+  final Function(bool)? onSelectionChanged;
 
   const BrowseItemTile({
     Key? key,
@@ -21,6 +24,9 @@ class BrowseItemTile extends StatefulWidget {
     this.repositoryType,
     this.baseUrl,
     this.authToken,
+    this.selectionMode = false,
+    this.isSelected = false,
+    this.onSelectionChanged,
   }) : super(key: key);
 
   @override
@@ -30,52 +36,6 @@ class BrowseItemTile extends StatefulWidget {
 class _BrowseItemTileState extends State<BrowseItemTile> {
   bool _isCheckingPermission = false;
   bool _hasDeletePermission = false;
-
-  @override
-  void initState() {
-    super.initState();
-    // If we need to show delete option, check permissions
-    if (widget.showDeleteOption && widget.repositoryType?.toLowerCase() == 'angora') {
-      _checkDeletePermission();
-    } else {
-      _hasDeletePermission = widget.item.canDelete;
-    }
-  }
-
-  Future<void> _checkDeletePermission() async {
-    if (widget.baseUrl == null || widget.authToken == null) {
-      // Can't check without service info
-      return;
-    }
-
-    setState(() {
-      _isCheckingPermission = true;
-    });
-
-    try {
-      // Create a permission service instance instead of browse service
-      final permissionService = AngoraPermissionService(
-        widget.baseUrl!,
-        widget.authToken!
-      );
-      
-      // Check permission using the permission service
-      final result = await permissionService.hasPermission(widget.item.id, 'delete');
-      
-      if (mounted) {
-        setState(() {
-          _hasDeletePermission = result;
-          _isCheckingPermission = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isCheckingPermission = false;
-        });
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -94,37 +54,105 @@ class _BrowseItemTileState extends State<BrowseItemTile> {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      trailing: _buildTrailingWidget(),
-      onTap: widget.onTap,
+      trailing: widget.selectionMode 
+        ? Checkbox(
+            value: widget.isSelected,
+            onChanged: (value) => widget.onSelectionChanged?.call(value ?? false),
+          )
+        : (widget.showDeleteOption && _hasDeletePermission && widget.onDeleteTap != null)
+            ? IconButton(
+                icon: Icon(Icons.more_vert),
+                onPressed: () => _showOptionsMenu(context),
+              )
+            : const Icon(Icons.chevron_right),
+      onTap: widget.selectionMode
+        ? () => widget.onSelectionChanged?.call(!widget.isSelected)
+        : widget.onTap,
     );
   }
 
-  Widget _buildTrailingWidget() {
+  void _showOptionsMenu(BuildContext context) async {
+    // Only check permissions now, when the menu is about to be shown
+    if (widget.showDeleteOption && !_hasDeletePermission && widget.onDeleteTap != null) {
+      if (widget.repositoryType?.toLowerCase() == 'angora') {
+        setState(() {
+          _isCheckingPermission = true;
+        });
 
-    
-    if (_isCheckingPermission) {
-      return const SizedBox(
-        width: 24,
-        height: 24,
-        child: CircularProgressIndicator(strokeWidth: 2),
-      );
+        try {
+          // Create service and check permission only when needed
+          if (widget.baseUrl != null && widget.authToken != null) {
+            final permissionService = AngoraPermissionService(
+              widget.baseUrl!,
+              widget.authToken!,
+            );
+            
+            final result = await permissionService.hasPermission(widget.item.id, 'delete');
+            
+            if (mounted) {
+              setState(() {
+                _hasDeletePermission = result;
+                _isCheckingPermission = false;
+              });
+              
+              // Now show the menu with the permission result
+              _displayOptionsMenu(context);
+            }
+          }
+        } catch (e) {
+          if (mounted) {
+            setState(() {
+              _isCheckingPermission = false;
+            });
+            _displayOptionsMenu(context);
+          }
+        }
+      } else {
+        // For non-Angora repositories, use the canDelete property
+        _hasDeletePermission = widget.item.canDelete;
+        _displayOptionsMenu(context);
+      }
+    } else {
+      // Already checked permissions, just show the menu
+      _displayOptionsMenu(context);
     }
-    
-    if (widget.showDeleteOption && _hasDeletePermission && widget.onDeleteTap != null) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            icon: Icon(Icons.delete, color: Colors.red),
-            onPressed: widget.onDeleteTap,
-            tooltip: 'Delete',
+  }
+
+  void _displayOptionsMenu(BuildContext context) {
+    final RenderBox button = context.findRenderObject() as RenderBox;
+    final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final RelativeRect position = RelativeRect.fromRect(
+      Rect.fromPoints(
+        button.localToGlobal(Offset.zero, ancestor: overlay),
+        button.localToGlobal(button.size.bottomRight(Offset.zero), ancestor: overlay),
+      ),
+      Offset.zero & overlay.size,
+    );
+
+    showMenu(
+      context: context,
+      position: position,
+      items: [
+        PopupMenuItem(
+          enabled: _hasDeletePermission,
+          child: Row(
+            children: [
+              Icon(Icons.delete, color: _hasDeletePermission ? Colors.red : Colors.grey),
+              SizedBox(width: 10),
+              Text('Delete', style: TextStyle(
+                color: _hasDeletePermission ? null : Colors.grey
+              )),
+            ],
           ),
-          Icon(Icons.chevron_right),
-        ],
-      );
-    }
-    
-    return const Icon(Icons.chevron_right);
+          onTap: _hasDeletePermission && widget.onDeleteTap != null ? 
+            () => Future.delayed(
+              Duration(milliseconds: 100),
+              widget.onDeleteTap!,
+            ) : null,
+        ),
+        // Add other options here (download, share, etc.)
+      ],
+    );
   }
 
   Widget _buildLeadingIcon() {
