@@ -84,7 +84,6 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
   }
 
   /// Maps an Angora API response item to a BrowseItem object
-  /// Now this is async since it needs to await permission extraction
   Future<BrowseItem> _mapAngoraBrowseItem(Map<String, dynamic> item) async {
     // Improved folder detection logic
     bool isFolder = false;
@@ -110,7 +109,6 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
     }
     
     // Use the permission service to extract permissions
-    // Add await here to properly handle the Future
     List<String>? operations = await _permissionService.extractPermissionsFromItem(item);
     
     return BrowseItem(
