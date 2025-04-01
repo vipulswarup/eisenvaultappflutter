@@ -229,7 +229,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
           ? 'Upload Document' 
           : 'You don\'t have permission to upload here',
         backgroundColor: hasWritePermission 
-          ? EVColors.terracotta 
+          ? EVColors.buttonErrorBackground 
           : Colors.grey,
       );
     }

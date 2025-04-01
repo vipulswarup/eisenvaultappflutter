@@ -54,8 +54,8 @@ class _LoginScreenState extends State<LoginScreen> {
     
     // Calculate adaptive logo height
     final logoHeight = isSmallScreen 
-      ? size.height * 0.20 // 20% of screen height on small screens
-      : size.height * 0.30; // 30% of screen height on larger screens
+      ? size.height * 0.40 // 20% of screen height on small screens
+      : size.height * 0.50; // 30% of screen height on larger screens
       
     // Calculate padding for the entire form
     final screenPadding = isSmallScreen 
