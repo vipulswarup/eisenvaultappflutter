@@ -1,6 +1,7 @@
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/services/permissions/angora_permission_service.dart';
+import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:flutter/material.dart';
 
 class BrowseItemTile extends StatefulWidget {
@@ -40,7 +41,7 @@ class _BrowseItemTileState extends State<BrowseItemTile> {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: _buildLeadingIcon(),
+      leading: _buildLeadingIcon(), // This is correctly implemented but something is changing the item type
       title: Text(
         widget.item.name,
         style: const TextStyle(
@@ -156,6 +157,13 @@ class _BrowseItemTileState extends State<BrowseItemTile> {
   }
 
   Widget _buildLeadingIcon() {
+    EVLogger.debug('Building icon', {
+      'name': widget.item.name,
+      'type': widget.item.type,
+      'isDepartment': widget.item.isDepartment,
+      'selectionMode': widget.selectionMode
+    });
+    
     if (widget.item.isDepartment) {
       // Department/Site icon
       return Container(
@@ -189,6 +197,10 @@ class _BrowseItemTileState extends State<BrowseItemTile> {
     } else {
       // Document icon - determine icon based on file extension
       IconData iconData = _getDocumentIcon(widget.item.name);
+      EVLogger.debug('Document icon determined', {
+        'name': widget.item.name,
+        'iconData': iconData.toString()
+      });
       return Container(
         width: 40,
         height: 40,

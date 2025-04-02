@@ -1,3 +1,5 @@
+import 'package:eisenvaultappflutter/utils/logger.dart';
+
 class BrowseItem {
   final String id;
   final String name;
@@ -27,6 +29,11 @@ class BrowseItem {
   
   // Add this helper method to check for write permission
   bool get canWrite {
+    EVLogger.debug('Checking canWrite', {
+      'name': name,
+      'allowableOperations': allowableOperations
+    });
+    
     if (allowableOperations == null) return false;
     
     // Alfresco typically uses these permission strings
@@ -40,6 +47,11 @@ class BrowseItem {
   
   // Add this helper method to check for delete permission
   bool get canDelete {
+    EVLogger.debug('Checking canDelete', {
+      'name': name,
+      'allowableOperations': allowableOperations
+    });
+    
     if (allowableOperations == null) return false;
     
     // Alfresco typically uses these permission strings

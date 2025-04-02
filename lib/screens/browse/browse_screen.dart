@@ -143,9 +143,28 @@ class _BrowseScreenState extends State<BrowseScreen> {
               icon: Icon(_isInSelectionMode ? Icons.cancel : Icons.select_all),
               tooltip: _isInSelectionMode ? 'Cancel selection' : 'Select items',
               onPressed: () {
+                // Debug log the items before toggling selection mode
+                EVLogger.debug('Before toggling selection mode', {
+                  'items': _controller.items.map((item) => {
+                    'name': item.name,
+                    'type': item.type,
+                    'isDepartment': item.isDepartment
+                  }).toList()
+                });
+                
                 setState(() {
                   _isInSelectionMode = !_isInSelectionMode;
                   _selectedItems.clear(); // Clear selection when toggling mode
+                });
+                
+                // Debug log the items after toggling selection mode
+                EVLogger.debug('After toggling selection mode', {
+                  'newMode': _isInSelectionMode,
+                  'items': _controller.items.map((item) => {
+                    'name': item.name,
+                    'type': item.type,
+                    'isDepartment': item.isDepartment
+                  }).toList()
                 });
               },
             ),

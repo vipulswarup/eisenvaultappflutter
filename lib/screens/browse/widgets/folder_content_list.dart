@@ -1,4 +1,5 @@
 import 'package:eisenvaultappflutter/models/browse_item.dart';
+import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:eisenvaultappflutter/widgets/browse_item_tile.dart';
 import 'package:flutter/material.dart';
 
@@ -104,8 +105,87 @@ class FolderContentList extends StatelessWidget {
   }
   
   Widget _buildItemIcon(BrowseItem item) {
-    // Implement your logic to build the item icon
-    return const Icon(Icons.folder);
+      EVLogger.debug('Building selection mode icon', {
+    'name': item.name,
+    'type': item.type,
+    'isDepartment': item.isDepartment
+  });
+    if (item.isDepartment) {
+      // Department/Site icon
+      return Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: Colors.blue.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          Icons.business,
+          color: Colors.blue,
+          size: 24,
+        ),
+      );
+    } else if (item.type == 'folder') {
+      // Folder icon
+      return Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: Colors.amber.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          Icons.folder,
+          color: Colors.amber,
+          size: 24,
+        ),
+      );
+    } else {
+      // Document icon - determine icon based on file extension
+      IconData iconData = _getDocumentIcon(item.name);
+      return Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: Colors.teal.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          iconData,
+          color: Colors.teal,
+          size: 24,
+        ),
+      );
+    }
+  }
+
+  IconData _getDocumentIcon(String fileName) {
+    final extension = fileName.split('.').last.toLowerCase();
+    
+    switch (extension) {
+      case 'pdf':
+        return Icons.picture_as_pdf;
+      case 'doc':
+      case 'docx':
+        return Icons.description;
+      case 'xls':
+      case 'xlsx':
+        return Icons.table_chart;
+      case 'ppt':
+      case 'pptx':
+        return Icons.slideshow;
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+      case 'gif':
+        return Icons.image;
+      case 'mp4':
+      case 'avi':
+      case 'mov':
+        return Icons.video_file;
+      default:
+        return Icons.insert_drive_file;
+    }
   }
   
   String _formatDate(String dateString) {
