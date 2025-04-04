@@ -87,6 +87,10 @@ class DeleteHandler {
 
   /// Main entry point - show delete confirmation for an item
   Future<void> showDeleteConfirmation(BrowseItem item) async {
+    EVLogger.debug('Showing delete confirmation', {
+      'itemId': item.id,
+      'itemName': item.name,
+    });
     try {
       // Show loading indicator while checking permissions
       bool hasPermission = false;

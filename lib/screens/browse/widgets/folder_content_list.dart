@@ -61,8 +61,8 @@ class FolderContentList extends StatelessWidget {
                       onFileTap(item);
                     }
                   },
-                  onDeleteTap: showDeleteOption ? () {
-                    // Ignore the future
+                  onDeleteTap: showDeleteOption ? (item) {
+                    // Pass the function that takes a BrowseItem parameter
                     onDeleteTap?.call(item);
                   } : null,
                   showDeleteOption: showDeleteOption,
@@ -105,11 +105,7 @@ class FolderContentList extends StatelessWidget {
   }
   
   Widget _buildItemIcon(BrowseItem item) {
-      EVLogger.debug('Building selection mode icon', {
-    'name': item.name,
-    'type': item.type,
-    'isDepartment': item.isDepartment
-  });
+    
     if (item.isDepartment) {
       // Department/Site icon
       return Container(

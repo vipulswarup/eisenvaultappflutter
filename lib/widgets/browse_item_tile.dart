@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 class BrowseItemTile extends StatefulWidget {
   final BrowseItem item;
   final VoidCallback onTap;
-  final VoidCallback? onDeleteTap;
+  final Function(BrowseItem)? onDeleteTap;  // Now it can accept a BrowseItem parameter
   final bool showDeleteOption;
   final String? repositoryType;
   final String? baseUrl;
@@ -151,7 +151,7 @@ class _BrowseItemTileState extends State<BrowseItemTile> {
           onTap: _hasDeletePermission && widget.onDeleteTap != null ? 
             () => Future.delayed(
               Duration(milliseconds: 100),
-              widget.onDeleteTap!,
+              () => widget.onDeleteTap!(widget.item),  // Fixed - pass the item
             ) : null,
         ),
         // Add other options here (download, share, etc.)
@@ -160,12 +160,7 @@ class _BrowseItemTileState extends State<BrowseItemTile> {
   }
 
   Widget _buildLeadingIcon() {
-    EVLogger.debug('Building icon', {
-      'name': widget.item.name,
-      'type': widget.item.type,
-      'isDepartment': widget.item.isDepartment,
-      'selectionMode': widget.selectionMode
-    });
+    
     
     if (widget.item.isDepartment) {
       // Department/Site icon
@@ -200,10 +195,7 @@ class _BrowseItemTileState extends State<BrowseItemTile> {
     } else {
       // Document icon - determine icon based on file extension
       IconData iconData = _getDocumentIcon(widget.item.name);
-      EVLogger.debug('Document icon determined', {
-        'name': widget.item.name,
-        'iconData': iconData.toString()
-      });
+      
       return Container(
         width: 40,
         height: 40,

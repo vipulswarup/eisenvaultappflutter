@@ -38,7 +38,7 @@ class AngoraPermissionService extends AngoraBaseService implements PermissionSer
   
   @override
   Future<List<String>?> getPermissions(String nodeId) async {
-    EVLogger.debug('Fetching permissions for nodeId: $nodeId');
+    
     try {
       // Check cache first
       if (_permissionsCache.containsKey(nodeId)) {
@@ -59,7 +59,7 @@ class AngoraPermissionService extends AngoraBaseService implements PermissionSer
   
   @override
   Future<List<String>?> extractPermissionsFromItem(Map<String, dynamic> item) async {
-    EVLogger.debug('Extracting permissions from item: ${item['id']}');
+    
     final String itemId = item['id'];
     final List<String> operations = [];
     
@@ -144,7 +144,7 @@ class AngoraPermissionService extends AngoraBaseService implements PermissionSer
   
   /// Extract operations from detailed permissions response
   List<String>? extractPermissionsFromDetailedResponse(Map<String, dynamic> permissions) {
-    EVLogger.debug('Extracting permissions from detailed response');
+    
     final List<String> operations = [];
     
     // Map detailed permissions to operations
@@ -171,7 +171,7 @@ class AngoraPermissionService extends AngoraBaseService implements PermissionSer
   
   /// Fetch node permissions from API based on the Angora API documentation
   Future<Map<String, dynamic>> getNodePermissions(String nodeId) async {
-    EVLogger.debug('Fetching node permissions for nodeId: $nodeId');
+    
     // Use the documented endpoint from angora-get-node-permissions.txt
     final endpoint = 'nodes/$nodeId/permissions';
     final url = buildUrl(endpoint);
