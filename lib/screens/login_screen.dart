@@ -1,3 +1,4 @@
+import 'package:eisenvaultappflutter/config/dev_credentials.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:flutter/material.dart';
 import 'package:eisenvaultappflutter/services/auth/classic_auth_service.dart';
@@ -35,14 +36,20 @@ class _LoginScreenState extends State<LoginScreen> {
   
   // Update credentials based on selected instance type
   void _updateDevCredentials(String instanceType) {
-    if (instanceType == 'Classic') {
-      _urlController.text = 'systest.eisenvault.net';
-      _usernameController.text = 'vipul';
-      _passwordController.text = 'Vipul@123';
-    } else if (instanceType == 'Angora') {
-      _urlController.text = 'binod.angorastage.in';
-      _usernameController.text = 'vipul@binod.in';
-      _passwordController.text = 'Vipul@123';
+    try {
+      // Try to load credentials from the config file
+      final credentialsMap = DevCredentials.credentials[instanceType];
+      if (credentialsMap != null) {
+        _urlController.text = credentialsMap['url'] ?? '';
+        _usernameController.text = credentialsMap['username'] ?? '';
+        _passwordController.text = credentialsMap['password'] ?? '';
+      }
+    } catch (e) {
+      // If the config file is missing or has an error, use empty credentials
+      _urlController.text = '';
+      _usernameController.text = '';
+      _passwordController.text = '';
+      print('Dev credentials not loaded: $e');
     }
   }
   
