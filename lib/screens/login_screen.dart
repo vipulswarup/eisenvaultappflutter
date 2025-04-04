@@ -269,6 +269,20 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           );
           
+          // For Angora login, extract the hostname from the URL or response
+          String customerHostname = '';
+
+          if (_selectedVersion == 'Angora') {
+            // Option 1: Extract from the URL
+            customerHostname = _urlController.text.trim().split('/')[0]; 
+            
+            // Option 2: Or if the hostname is returned in the login response:
+            // customerHostname = loginResult['customerHostname'] ?? '';
+          } else {
+            // For Classic, this won't be used but set to avoid null issues
+            customerHostname = 'classic-repository';
+          }
+
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
               builder: (context) => BrowseScreen(
@@ -276,6 +290,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 authToken: loginResult['token'],
                 firstName: loginResult['firstName'] ?? 'User',
                 instanceType: _selectedVersion,
+                customerHostname: customerHostname,  // Now properly defined
               ),
             ),
           );

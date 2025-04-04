@@ -24,6 +24,7 @@ class BrowseScreen extends StatefulWidget {
   final String authToken;
   final String firstName;
   final String instanceType;
+  final String customerHostname; // Add this parameter
 
   const BrowseScreen({
     super.key,
@@ -31,6 +32,7 @@ class BrowseScreen extends StatefulWidget {
     required this.authToken,
     required this.firstName,
     required this.instanceType,
+    required this.customerHostname, // Make it required
   });
 
   @override
@@ -57,7 +59,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
       repositoryType: widget.instanceType,
       baseUrl: widget.baseUrl,
       authToken: widget.authToken,
-      customerHostname: 'default-hostname', // May need to get from elsewhere
+      customerHostname: widget.customerHostname, // Use the actual hostname
     );
     
     // Initialize controllers and handlers
