@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../models/browse_item.dart';
-import '../../../screens/search/search_screen.dart';
+import '../../search/search_screen.dart';
 
 class SearchNavigationHandler {
   final BuildContext context;
@@ -8,6 +8,7 @@ class SearchNavigationHandler {
   final String authToken;
   final String instanceType;
   final Function(BrowseItem) navigateToFolder;
+  final Function(BrowseItem)? openDocument;
 
   SearchNavigationHandler({
     required this.context,
@@ -15,10 +16,10 @@ class SearchNavigationHandler {
     required this.authToken,
     required this.instanceType,
     required this.navigateToFolder,
+    this.openDocument,
   });
 
-  /// Navigate to the search screen
-  Future<void> navigateToSearch() async {
+  Future<void> navigateToSearch([String? initialQuery]) async {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
@@ -26,14 +27,21 @@ class SearchNavigationHandler {
           baseUrl: baseUrl,
           authToken: authToken,
           instanceType: instanceType,
+          initialQuery: initialQuery,
         ),
       ),
     );
-    
-    // If a folder or department was selected from search results, navigate to it
-    if (result is BrowseItem) {
+
+    // Handle the returned search result item
+    if (result != null && result is BrowseItem) {
       if (result.type == 'folder' || result.isDepartment) {
+        // Navigate to the folder
         navigateToFolder(result);
+      } else {
+        // Open the document if handler is provided
+        if (openDocument != null) {
+          openDocument!(result);
+        }
       }
     }
   }

@@ -129,7 +129,11 @@ class _BrowseScreenState extends State<BrowseScreen> {
       authToken: widget.authToken,
       instanceType: widget.instanceType,
       navigateToFolder: _controller.navigateToFolder,
+      openDocument: (document) {
+        _fileTapHandler.handleFileTap(document);
+      },
     );
+
   }
   
   // Change this method to return Future<void>
