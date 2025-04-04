@@ -214,4 +214,45 @@ class ClassicBrowseService implements BrowseService {
           : null,
     );
   }
+
+  @override
+  Future<List<String>?> fetchPermissionsForItem(String itemId) async {
+    try {
+      // For Classic/Alfresco, we need to fetch the node to get its allowable operations
+      final url = Uri.parse(
+        '$baseUrl/api/-default-/public/alfresco/versions/1/nodes/$itemId?include=allowableOperations'
+      );
+
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': '$authToken',
+        },
+      );
+
+      if (response.statusCode != 200) {
+        EVLogger.error('Failed to fetch item permissions', {
+          'statusCode': response.statusCode, 
+          'body': response.body
+        });
+        return null;
+      }
+
+      final data = json.decode(response.body);
+      
+      if (data['entry'] == null || data['entry']['allowableOperations'] == null) {
+        return null;
+      }
+
+      // Extract and return the allowable operations
+      return List<String>.from(data['entry']['allowableOperations']);
+    } catch (e) {
+      EVLogger.error('Error fetching permissions for item', {
+        'itemId': itemId,
+        'error': e.toString()
+      });
+      return null;
+    }
+  }
 }

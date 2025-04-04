@@ -23,17 +23,30 @@ class DeleteHandler {
     required this.onDeleteSuccess,
   });
 
+  // Add a permission cache to avoid repeated calls
+  static final Map<String, bool> _permissionCache = {};
+
   /// Check if the user has permission to delete the specified item
   Future<bool> _checkDeletePermission(BrowseItem item) async {
+    // Check cache first
+    if (_permissionCache.containsKey(item.id)) {
+      return _permissionCache[item.id]!;
+    }
+    
     try {
+      bool result;
       if (repositoryType.toLowerCase() == 'angora') {
-        // Use AngoraPermissionService instead of AngoraBrowseService
+        EVLogger.debug('Checking delete permission for Angora item: ${item.id}');
         final permissionService = AngoraPermissionService(baseUrl, authToken);
-        return await permissionService.hasPermission(item.id, 'delete');
+        result = await permissionService.hasPermission(item.id, 'delete');
+        EVLogger.debug('Delete permission result: $result');
       } else {
-        // For Classic/Alfresco, use the existing canDelete property
-        return item.canDelete;
+        result = item.canDelete;
       }
+      
+      // Cache the result
+      _permissionCache[item.id] = result;
+      return result;
     } catch (e) {
       EVLogger.error('Error checking delete permissions', {
         'error': e.toString(), 

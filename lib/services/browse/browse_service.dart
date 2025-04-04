@@ -12,4 +12,7 @@ abstract class BrowseService {
     int skipCount = 0,
     int maxItems = 25,
   });
+  
+  /// Fetches permissions for a specific item on demand
+  Future<List<String>?> fetchPermissionsForItem(String itemId);
 }

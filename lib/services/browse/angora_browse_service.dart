@@ -3,6 +3,7 @@ import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/services/browse/browse_service.dart';
 import 'package:eisenvaultappflutter/services/api/angora_base_service.dart';
 import 'package:eisenvaultappflutter/services/permissions/permission_service.dart';
+import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:http/http.dart' as http;
 
 class AngoraBrowseService extends AngoraBaseService implements BrowseService {
@@ -71,9 +72,9 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
       final itemsData = data['data'] as List;
       final items = <BrowseItem>[];
       
-      // Process each item asynchronously
+      // Map all items WITHOUT fetching permissions
       for (final itemData in itemsData) {
-        final mappedItem = await _mapAngoraBrowseItem(itemData);
+        final mappedItem = _mapAngoraBrowseItemWithoutPermissions(itemData);
         items.add(mappedItem);
       }
       
@@ -123,5 +124,50 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
       // Include permissions from the permission service
       allowableOperations: operations,
     );
+  }
+
+  // New method that doesn't fetch permissions
+  BrowseItem _mapAngoraBrowseItemWithoutPermissions(Map<String, dynamic> item) {
+    // Same logic as before for determining folder type, etc.
+    bool isFolder = false;
+    
+    if (item['is_department'] == true || item['is_folder'] == true) {
+      isFolder = true;
+    } 
+    else if (item['file_type'] != null || 
+                item['content_type'] != null || 
+                item['mime_type'] != null || 
+                item['extension'] != null) {
+      isFolder = false;
+    }
+    else if (item['can_have_children'] == true) {
+      isFolder = true;
+    }
+    else if (item['parent_department_id'] != null && item['is_department'] != false) {
+      isFolder = true;
+    }
+    
+    return BrowseItem(
+      id: item['id'],
+      name: item['raw_file_name'] ?? item['name'] ?? 'Unnamed Item',
+      type: isFolder ? 'folder' : 'document',
+      description: item['description'] ?? '',
+      isDepartment: item['is_department'] == true,
+      // Format dates appropriately
+      modifiedDate: item['updated_at'] ?? item['created_at'] ?? '',
+      modifiedBy: item['updated_by_name'] ?? item['created_by_name'] ?? '',
+      // Skip permissions for now
+      allowableOperations: null,
+    );
+  }
+
+  // Add new method to fetch permissions for a single item on demand
+  Future<List<String>?> fetchPermissionsForItem(String itemId) async {
+    try {
+      return await _permissionService.getPermissions(itemId);
+    } catch (e) {
+      EVLogger.error('Error fetching permissions', {'itemId': itemId, 'error': e.toString()});
+      return null;
+    }
   }
 }

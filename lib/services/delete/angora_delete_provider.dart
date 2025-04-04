@@ -54,16 +54,19 @@ class AngoraDeleteProvider implements DeleteProvider {
     try {
       final url = _angoraService.buildUrl('files/$fileId/versions/$versionId');
       
-      
-      final headers = _angoraService.createHeaders();
+      final headers = _angoraService.createHeaders(serviceName: 'service-file');
+      headers['x-portal'] = 'mobile';  // Set to mobile instead of web
       headers['x-customer-hostname'] = _customerHostname;
       
+      // Log headers for debugging
+      EVLogger.info('Delete version request headers', {
+        'headers': headers.toString()
+      });
       
       final response = await http.delete(
         Uri.parse(url),
         headers: headers,
       );
-      
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -109,13 +112,22 @@ class AngoraDeleteProvider implements DeleteProvider {
       
       final url = _angoraService.buildUrl('$entityType?ids=${ids.join(',')}');
       
-      final headers = _angoraService.createHeaders();
+      // Get headers with service-file parameter
+      final headers = _angoraService.createHeaders(serviceName: 'service-file');
+      
+      // Ensure mobile portal is set for the right API endpoint context
+      headers['x-portal'] = 'mobile';  // Instead of default 'web'
+      headers['x-customer-hostname'] = _customerHostname;
       
       // Add any additional headers
       if (additionalHeaders != null) {
         headers.addAll(additionalHeaders);
       }
       
+      // Log the headers for debugging (remove sensitive data in production)
+      EVLogger.info('Delete request headers', {
+        'headers': headers.toString()
+      });
       
       final response = await http.delete(
         Uri.parse(url),
@@ -125,7 +137,21 @@ class AngoraDeleteProvider implements DeleteProvider {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final message = data['notifications'] ?? 'Delete operation queued successfully';
+        
+        // Handle the case where notifications might be a list
+        String message;
+        if (data['notifications'] != null) {
+          if (data['notifications'] is List) {
+            // Join list items into a single string
+            message = (data['notifications'] as List).join('. ');
+          } else {
+            // Use as is if it's already a string
+            message = data['notifications'].toString();
+          }
+        } else {
+          message = 'Delete operation queued successfully';
+        }
+        
         EVLogger.info('$entityType deleted successfully', {'message': message});
         return message;
       } else {

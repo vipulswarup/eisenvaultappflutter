@@ -37,6 +37,7 @@ class BrowseItemTile extends StatefulWidget {
 class _BrowseItemTileState extends State<BrowseItemTile> {
   bool _isCheckingPermission = false;
   bool _hasDeletePermission = false;
+  bool _permissionsLoaded = false;
 
   @override
   Widget build(BuildContext context) {
@@ -73,15 +74,14 @@ class _BrowseItemTileState extends State<BrowseItemTile> {
   }
 
   void _showOptionsMenu(BuildContext context) async {
-    // Only check permissions now, when the menu is about to be shown
-    if (widget.showDeleteOption && !_hasDeletePermission && widget.onDeleteTap != null) {
-      if (widget.repositoryType?.toLowerCase() == 'angora') {
-        setState(() {
-          _isCheckingPermission = true;
-        });
+    // Check permissions only when needed and not already loaded
+    if (widget.showDeleteOption && !_permissionsLoaded && widget.onDeleteTap != null) {
+      setState(() {
+        _isCheckingPermission = true;
+      });
 
-        try {
-          // Create service and check permission only when needed
+      try {
+        if (widget.repositoryType?.toLowerCase() == 'angora') {
           if (widget.baseUrl != null && widget.authToken != null) {
             final permissionService = AngoraPermissionService(
               widget.baseUrl!,
@@ -94,27 +94,30 @@ class _BrowseItemTileState extends State<BrowseItemTile> {
               setState(() {
                 _hasDeletePermission = result;
                 _isCheckingPermission = false;
+                _permissionsLoaded = true;  // Mark as loaded
               });
               
-              // Now show the menu with the permission result
               _displayOptionsMenu(context);
             }
           }
-        } catch (e) {
-          if (mounted) {
-            setState(() {
-              _isCheckingPermission = false;
-            });
-            _displayOptionsMenu(context);
+        } else {
+          // For non-Angora, load permissions if not already set
+          if (!_permissionsLoaded && widget.item.allowableOperations == null) {
+            // Request permissions for this specific item
+            // This would need to be implemented in the browse controller
+            // For now, just use canDelete
+            _hasDeletePermission = widget.item.canDelete;
+            _permissionsLoaded = true;
+          } else {
+            _hasDeletePermission = widget.item.canDelete;
           }
+          _displayOptionsMenu(context);
         }
-      } else {
-        // For non-Angora repositories, use the canDelete property
-        _hasDeletePermission = widget.item.canDelete;
-        _displayOptionsMenu(context);
+      } catch (e) {
+        // Handle errors
       }
     } else {
-      // Already checked permissions, just show the menu
+      // Permissions already loaded or not needed
       _displayOptionsMenu(context);
     }
   }

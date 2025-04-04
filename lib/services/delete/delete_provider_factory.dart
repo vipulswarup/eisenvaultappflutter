@@ -25,7 +25,8 @@ class DeleteProviderFactory {
         }
         
         final angoraService = AngoraBaseService(baseUrl);
-        angoraService.setToken('Bearer $authToken');
+        // Don't add 'Bearer' prefix - just pass the token as-is
+        angoraService.setToken(authToken);
         
         return AngoraDeleteProvider(
           angoraService: angoraService,
