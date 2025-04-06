@@ -297,4 +297,14 @@ class SyncService {
     _connectivitySubscription?.cancel();
     EVLogger.debug('Sync service disposed');
   }
+
+  // Add this method to SyncService
+  void startPeriodicSync({Duration interval = const Duration(hours: 2)}) {
+    Timer.periodic(interval, (_) async {
+      final connectivityResult = await _connectivity.checkConnectivity();
+      if (connectivityResult != ConnectivityResult.none) {
+        await startSync();
+      }
+    });
+  }
 }

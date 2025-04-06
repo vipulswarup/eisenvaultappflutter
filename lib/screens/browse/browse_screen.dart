@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/screens/browse/browse_screen_controller.dart';
@@ -41,6 +43,12 @@ class BrowseScreen extends StatefulWidget {
 }
 
 class _BrowseScreenState extends State<BrowseScreen> {
+  // Connectivity variables
+  final Connectivity _connectivity = Connectivity();
+  bool _isOffline = false;
+  late StreamSubscription<ConnectivityResult> _connectivitySubscription;
+  
+  // Controller and handlers
   late BrowseScreenController _controller;
   late FileTapHandler _fileTapHandler;
   late AuthHandler _authHandler;
@@ -49,94 +57,12 @@ class _BrowseScreenState extends State<BrowseScreen> {
   late BatchDeleteHandler _batchDeleteHandler;
   late UploadNavigationHandler _uploadHandler;
   late SearchNavigationHandler _searchHandler;
-
+  
   // Selection mode state
   bool _isInSelectionMode = false;
   final Set<String> _selectedItems = {};
 
-  @override
-  void initState() {
-    super.initState();
-    
-    // Initialize delete service
-    _deleteService = DeleteService(
-      repositoryType: widget.instanceType,
-      baseUrl: widget.baseUrl,
-      authToken: widget.authToken,
-      customerHostname: widget.customerHostname,
-    );
-    
-    // Initialize controllers and handlers
-    _controller = BrowseScreenController(
-      baseUrl: widget.baseUrl,
-      authToken: widget.authToken,
-      instanceType: widget.instanceType,
-      onStateChanged: () {
-        if (mounted) {
-          setState(() {});
-        }
-      },
-    );
-    
-    _fileTapHandler = FileTapHandler(
-      context: context,
-      instanceType: widget.instanceType,
-      baseUrl: widget.baseUrl,
-      authToken: widget.authToken,
-      angoraBaseService: _controller.angoraBaseService,
-    );
-    
-    _authHandler = AuthHandler(
-      context: context,
-      instanceType: widget.instanceType,
-      baseUrl: widget.baseUrl,
-    );
-    
-    _deleteHandler = DeleteHandler(
-      context: context,
-      repositoryType: widget.instanceType,
-      baseUrl: widget.baseUrl,
-      authToken: widget.authToken,
-      deleteService: _deleteService,
-      onDeleteSuccess: () {
-        _refreshCurrentFolder();
-      },
-    );
-    
-    _batchDeleteHandler = BatchDeleteHandler(
-      context: context,
-      instanceType: widget.instanceType,
-      baseUrl: widget.baseUrl,
-      authToken: widget.authToken,
-      deleteService: _deleteService,
-      getSelectedItems: _getSelectedItems,
-      onDeleteSuccess: _refreshCurrentFolder,
-      clearSelectionMode: _clearSelectionMode,
-    );
-    
-    _uploadHandler = UploadNavigationHandler(
-      context: context,
-      instanceType: widget.instanceType,
-      baseUrl: widget.baseUrl,
-      authToken: widget.authToken,
-      currentFolder: _controller.currentFolder,
-      refreshCurrentFolder: _refreshCurrentFolder,
-    );
-    
-    _searchHandler = SearchNavigationHandler(
-      context: context,
-      baseUrl: widget.baseUrl,
-      authToken: widget.authToken,
-      instanceType: widget.instanceType,
-      navigateToFolder: _controller.navigateToFolder,
-      openDocument: (document) {
-        _fileTapHandler.handleFileTap(document);
-      },
-    );
-
-  }
-  
-  // Change this method to return Future<void>
+  // Define _refreshCurrentFolder first to avoid being referenced before declaration
   Future<void> _refreshCurrentFolder() async {
     if (_controller.currentFolder != null) {
       await _controller.loadFolderContents(_controller.currentFolder!);
@@ -156,6 +82,107 @@ class _BrowseScreenState extends State<BrowseScreen> {
       _isInSelectionMode = false;
       _selectedItems.clear();
     });
+  }
+
+  Future<void> _checkConnectivity() async {
+    try {
+      final result = await _connectivity.checkConnectivity();
+      _updateConnectionStatus(result);
+    } catch (e) {
+      EVLogger.error('Error checking connectivity', e);
+    }
+  }
+
+  void _updateConnectionStatus(ConnectivityResult result) {
+    setState(() {
+      _isOffline = result == ConnectivityResult.none;
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+  
+    // Initialize connectivity monitoring
+    _checkConnectivity();
+    _connectivitySubscription = 
+        _connectivity.onConnectivityChanged.listen(_updateConnectionStatus);
+  
+    // Initialize delete service
+    _deleteService = DeleteService(
+      repositoryType: widget.instanceType,
+      baseUrl: widget.baseUrl,
+      authToken: widget.authToken,
+      customerHostname: widget.customerHostname,
+    );
+
+    // Initialize controllers and handlers
+    _controller = BrowseScreenController(
+      baseUrl: widget.baseUrl,
+      authToken: widget.authToken,
+      instanceType: widget.instanceType,
+      onStateChanged: () {
+        if (mounted) {
+          setState(() {});
+        }
+      },
+    );
+
+    _fileTapHandler = FileTapHandler(
+      context: context,
+      instanceType: widget.instanceType,
+      baseUrl: widget.baseUrl,
+      authToken: widget.authToken,
+      angoraBaseService: _controller.angoraBaseService,
+    );
+
+    _authHandler = AuthHandler(
+      context: context,
+      instanceType: widget.instanceType,
+      baseUrl: widget.baseUrl,
+    );
+
+    _deleteHandler = DeleteHandler(
+      context: context,
+      repositoryType: widget.instanceType,
+      baseUrl: widget.baseUrl,
+      authToken: widget.authToken,
+      deleteService: _deleteService,
+      onDeleteSuccess: () {
+        _refreshCurrentFolder();
+      },
+    );
+
+    _batchDeleteHandler = BatchDeleteHandler(
+      context: context,
+      instanceType: widget.instanceType,
+      baseUrl: widget.baseUrl,
+      authToken: widget.authToken,
+      deleteService: _deleteService,
+      getSelectedItems: _getSelectedItems,
+      onDeleteSuccess: _refreshCurrentFolder,
+      clearSelectionMode: _clearSelectionMode,
+    );
+
+    _uploadHandler = UploadNavigationHandler(
+      context: context,
+      instanceType: widget.instanceType,
+      baseUrl: widget.baseUrl,
+      authToken: widget.authToken,
+      currentFolder: _controller.currentFolder,
+      refreshCurrentFolder: _refreshCurrentFolder,
+    );
+
+    _searchHandler = SearchNavigationHandler(
+      context: context,
+      baseUrl: widget.baseUrl,
+      authToken: widget.authToken,
+      instanceType: widget.instanceType,
+      navigateToFolder: _controller.navigateToFolder,
+      openDocument: (document) {
+        _fileTapHandler.handleFileTap(document);
+      },
+    );
   }
 
   @override
@@ -232,32 +259,57 @@ class _BrowseScreenState extends State<BrowseScreen> {
         },
       ),
       body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Welcome message
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              'Welcome, ${widget.firstName}!',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+          // Show offline banner if offline
+          if (_isOffline)
+            Container(
+              color: Colors.orange,
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              child: Row(
+                children: const [
+                  Icon(Icons.cloud_off, color: Colors.white),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'You are offline. Only saved content is available.',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-          
-          // Add breadcrumb navigation if we're not at root level
-          if (_controller.currentFolder != null && _controller.currentFolder!.id != 'root')
-            BreadcrumbNavigation(
-              navigationStack: _controller.navigationStack,
-              currentFolder: _controller.currentFolder,
-              onRootTap: _controller.loadDepartments,
-              onBreadcrumbTap: _controller.navigateToBreadcrumb,
-            ),
-          
-          // Main content area
+          // Your existing content
           Expanded(
-            child: _buildContent(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Welcome message
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    'Welcome, ${widget.firstName}!',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                
+                // Add breadcrumb navigation if we're not at root level
+                if (_controller.currentFolder != null && _controller.currentFolder!.id != 'root')
+                  BreadcrumbNavigation(
+                    navigationStack: _controller.navigationStack,
+                    currentFolder: _controller.currentFolder,
+                    onRootTap: _controller.loadDepartments,
+                    onBreadcrumbTap: _controller.navigateToBreadcrumb,
+                  ),
+                
+                // Main content area
+                Expanded(
+                  child: _buildContent(),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -326,14 +378,10 @@ class _BrowseScreenState extends State<BrowseScreen> {
       hasMoreItems: _controller.hasMoreItems,
     );
   }
+  
   @override
   void dispose() {
-    // Add in relevant navigation methods
-    EVLogger.debug('Navigation Stack Change', {
-      'action': 'navigateToFolder',
-      'stack': _controller.navigationStack.map((i) => '${i.name} (${i.id})').toList(),
-      'currentFolder': _controller.currentFolder?.name ?? 'null'
-    });
+    _connectivitySubscription.cancel();
     _controller.dispose();
     super.dispose();
   }

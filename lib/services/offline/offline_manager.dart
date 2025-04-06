@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Add this import
 
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/services/browse/browse_service_factory.dart';
@@ -10,9 +11,6 @@ import 'package:eisenvaultappflutter/services/offline/offline_file_service.dart'
 import 'package:eisenvaultappflutter/utils/logger.dart';
 
 /// Central manager for offline content functionality
-///
-/// This service coordinates between database, file storage, and
-/// network operations to provide a seamless offline experience.
 class OfflineManager {
   // Services for database and file operations
   final OfflineDatabaseService _database = OfflineDatabaseService.instance;
@@ -21,6 +19,95 @@ class OfflineManager {
   // Connectivity for checking network status
   final Connectivity _connectivity = Connectivity();
   
+  // Secure storage for credentials
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  
+  // Storage keys for credentials
+  static const String _keyInstanceType = 'offline_instance_type';
+  static const String _keyBaseUrl = 'offline_base_url';
+  static const String _keyAuthToken = 'offline_auth_token';
+  static const String _keyUsername = 'offline_username';
+  
+  /// Save user credentials for offline access
+  /// 
+  /// These credentials will be used when the app is offline to
+  /// display user information and authenticate with sync services
+  /// when connectivity is restored.
+  Future<void> saveCredentials({
+    required String instanceType,
+    required String baseUrl,
+    required String authToken,
+    required String username,
+  }) async {
+    try {
+      EVLogger.info('Saving credentials for offline use', {
+        'instanceType': instanceType,
+        'baseUrl': baseUrl,
+        'username': username,
+      });
+      
+      // Store the credentials in secure storage
+      await _secureStorage.write(key: _keyInstanceType, value: instanceType);
+      await _secureStorage.write(key: _keyBaseUrl, value: baseUrl);
+      await _secureStorage.write(key: _keyAuthToken, value: authToken);
+      await _secureStorage.write(key: _keyUsername, value: username);
+      
+      EVLogger.debug('Credentials saved successfully');
+      return;
+    } catch (e) {
+      EVLogger.error('Failed to save credentials for offline use', {
+        'error': e.toString(),
+      });
+      rethrow;
+    }
+  }
+  
+  /// Get the saved credentials
+  /// 
+  /// Returns a map with the saved credentials or null if no credentials are saved
+  Future<Map<String, String?>?> getSavedCredentials() async {
+    try {
+      final instanceType = await _secureStorage.read(key: _keyInstanceType);
+      final baseUrl = await _secureStorage.read(key: _keyBaseUrl);
+      final authToken = await _secureStorage.read(key: _keyAuthToken);
+      final username = await _secureStorage.read(key: _keyUsername);
+      
+      // Return null if any of the required credentials are missing
+      if (instanceType == null || baseUrl == null || authToken == null) {
+        return null;
+      }
+      
+      return {
+        'instanceType': instanceType,
+        'baseUrl': baseUrl,
+        'authToken': authToken,
+        'username': username,
+      };
+    } catch (e) {
+      EVLogger.error('Failed to get saved credentials', {
+        'error': e.toString(),
+      });
+      return null;
+    }
+  }
+  
+  /// Clear saved credentials
+  Future<void> clearCredentials() async {
+    try {
+      await _secureStorage.delete(key: _keyInstanceType);
+      await _secureStorage.delete(key: _keyBaseUrl);
+      await _secureStorage.delete(key: _keyAuthToken);
+      await _secureStorage.delete(key: _keyUsername);
+      
+      EVLogger.debug('Credentials cleared successfully');
+    } catch (e) {
+      EVLogger.error('Failed to clear credentials', {
+        'error': e.toString(),
+      });
+      rethrow;
+    }
+  }
+
   /// Check if the device is currently offline
   Future<bool> isOffline() async {
     final result = await _connectivity.checkConnectivity();

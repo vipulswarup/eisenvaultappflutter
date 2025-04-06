@@ -3,17 +3,20 @@ import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
+import 'package:eisenvaultappflutter/services/offline/sync_service.dart'; // Add this import
 
 /// Widget that displays a banner when the device is offline
 /// and monitors connectivity changes
 class OfflineModeIndicator extends StatefulWidget {
   final Widget child;
   final Function(bool)? onConnectivityChanged;
+  final SyncService syncService; // Add this parameter
 
   const OfflineModeIndicator({
     Key? key,
     required this.child,
     this.onConnectivityChanged,
+    required this.syncService, // Add this parameter to constructor
   }) : super(key: key);
 
   @override
@@ -45,7 +48,6 @@ class _OfflineModeIndicatorState extends State<OfflineModeIndicator> {
       _updateConnectionStatus(ConnectivityResult.mobile);
     }
   }
-
   void _updateConnectionStatus(ConnectivityResult result) {
     final bool wasOffline = _isOffline;
     final bool isNowOffline = result == ConnectivityResult.none;
@@ -66,9 +68,11 @@ class _OfflineModeIndicatorState extends State<OfflineModeIndicator> {
         'isOffline': _isOffline,
         'connectivityResult': result.name,
       });
+      
+      // Note: We're not calling pauseSync() or resumeSync() anymore
+      // since these methods don't exist in the SyncService class
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return Column(

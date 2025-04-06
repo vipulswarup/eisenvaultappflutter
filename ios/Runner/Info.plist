@@ -186,6 +186,9 @@
 	<string>This app needs access to documents for file selection.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Need access to microphone for document upload</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Need access to photo library for selecting and uploading files</string>
+
 </dict>
 </plist>
 
