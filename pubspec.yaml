@@ -48,6 +48,14 @@ dependencies:
   file_selector: ^1.0.1
   # file_picker: ^6.1.1  # Comment out or remove this line
 
+  # Add flutter_secure_storage for securely storing authentication credentials
+  flutter_secure_storage: ^8.0.0
+  # Add connectivity_plus for network connectivity detection
+  connectivity_plus: ^4.0.1
+  # Add sqflite for local database storage
+  sqflite: ^2.2.8
+  # Add path for path manipulation
+  path: ^1.8.3
 
 
 dev_dependencies:

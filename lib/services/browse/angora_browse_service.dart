@@ -6,9 +6,11 @@ import 'package:eisenvaultappflutter/services/permissions/permission_service.dar
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:http/http.dart' as http;
 
+/// Implementation of BrowseService for Angora repositories
 class AngoraBrowseService extends AngoraBaseService implements BrowseService {
   final PermissionService _permissionService;
   
+  /// Constructor initializes the service with base URL, token and permission service
   AngoraBrowseService(
     String baseUrl, 
     String token,
@@ -84,7 +86,7 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
     }
   }
 
-  /// Maps an Angora API response item to a BrowseItem object
+  /// Maps an Angora API response item to a BrowseItem object with permission checking
   Future<BrowseItem> _mapAngoraBrowseItem(Map<String, dynamic> item) async {
     // Improved folder detection logic
     bool isFolder = false;
@@ -126,7 +128,7 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
     );
   }
 
-  // New method that doesn't fetch permissions
+  /// Maps an Angora API response item to a BrowseItem object without permission checking
   BrowseItem _mapAngoraBrowseItemWithoutPermissions(Map<String, dynamic> item) {
     // Same logic as before for determining folder type, etc.
     bool isFolder = false;
@@ -161,13 +163,112 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
     );
   }
 
-  // Add new method to fetch permissions for a single item on demand
+  /// Fetches permissions for a single item on demand
+  @override
   Future<List<String>?> fetchPermissionsForItem(String itemId) async {
     try {
       return await _permissionService.getPermissions(itemId);
     } catch (e) {
       EVLogger.error('Error fetching permissions', {'itemId': itemId, 'error': e.toString()});
       return null;
+    }
+  }
+
+  /// Gets detailed information about a specific item by ID
+  @override
+  Future<BrowseItem?> getItemDetails(String itemId) async {
+    try {
+      // For Angora, we need to determine if this is a file or folder/department
+      // Try both endpoints and use the first successful response
+      
+      // First try as a file
+      try {
+        final fileUrl = buildUrl('files/$itemId');
+        final fileHeaders = createHeaders(serviceName: 'service-file');
+        
+        final fileResponse = await http.get(
+          Uri.parse(fileUrl),
+          headers: fileHeaders,
+        );
+        
+        if (fileResponse.statusCode == 200) {
+          final data = json.decode(fileResponse.body);
+          
+          if (data['status'] == 200 && data['data'] != null) {
+            // Convert file response to BrowseItem
+            return _mapAngoraBrowseItemWithoutPermissions(data['data']);
+          }
+        }
+      } catch (e) {
+        EVLogger.debug('Item not found as file, trying as folder', {'itemId': itemId});
+      }
+      
+      // Then try as a folder
+      try {
+        final folderUrl = buildUrl('folders/$itemId');
+        final folderHeaders = createHeaders(serviceName: 'service-file');
+        
+        final folderResponse = await http.get(
+          Uri.parse(folderUrl),
+          headers: folderHeaders,
+        );
+        
+        if (folderResponse.statusCode == 200) {
+          final data = json.decode(folderResponse.body);
+          
+          if (data['status'] == 200 && data['data'] != null) {
+            // Convert folder response to BrowseItem
+            return _mapAngoraBrowseItemWithoutPermissions(data['data']);
+          }
+        }
+      } catch (e) {
+        EVLogger.debug('Item not found as folder, trying as department', {'itemId': itemId});
+      }
+      
+      // Finally try as a department
+      try {
+        final deptUrl = buildUrl('departments/$itemId');
+        final deptHeaders = createHeaders(serviceName: 'service-file');
+        
+        final deptResponse = await http.get(
+          Uri.parse(deptUrl),
+          headers: deptHeaders,
+        );
+        
+        if (deptResponse.statusCode == 200) {
+          final data = json.decode(deptResponse.body);
+          
+          if (data['status'] == 200 && data['data'] != null) {
+            // Convert department response to BrowseItem
+            final item = _mapAngoraBrowseItemWithoutPermissions(data['data']);
+            // Ensure department flag is set
+            return BrowseItem(
+              id: item.id,
+              name: item.name,
+              type: item.type,
+              description: item.description,
+              modifiedDate: item.modifiedDate,
+              modifiedBy: item.modifiedBy,
+              isDepartment: true, // Ensure this is set for departments
+              allowableOperations: item.allowableOperations,
+            );
+          }
+        }
+      } catch (e) {
+        EVLogger.warning('Item not found as department', {'itemId': itemId, 'error': e.toString()});
+      }
+      
+      // If we've tried all endpoints and found nothing, return null
+      EVLogger.warning('Item not found in any Angora endpoint', {'itemId': itemId});
+      return null;
+    } catch (e) {
+      EVLogger.error('Error getting Angora item details', {
+        'itemId': itemId,
+        'error': e.toString(),
+      });
+      
+      // Rethrow to be handled by caller
+      rethrow;
     }
   }
 }

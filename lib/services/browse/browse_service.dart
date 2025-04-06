@@ -3,10 +3,6 @@ import 'package:eisenvaultappflutter/models/browse_item.dart';
 /// Abstract interface for browse services across different repository types
 abstract class BrowseService {
   /// Fetches children items of a parent folder or department
-  /// 
-  /// [parent] - The parent item whose children to fetch
-  /// [skipCount] - Number of items to skip (for pagination)
-  /// [maxItems] - Maximum number of items to return per page
   Future<List<BrowseItem>> getChildren(
     BrowseItem parent, {
     int skipCount = 0,
@@ -15,4 +11,13 @@ abstract class BrowseService {
   
   /// Fetches permissions for a specific item on demand
   Future<List<String>?> fetchPermissionsForItem(String itemId);
+  
+  /// Fetches details for a specific item by ID
+  /// 
+  /// This is useful for getting the latest metadata of an item
+  /// without knowing its parent, particularly for sync operations.
+  /// 
+  /// [itemId] - The ID of the item to fetch details for
+  /// Returns the item's details or null if not found
+  Future<BrowseItem?> getItemDetails(String itemId);
 }

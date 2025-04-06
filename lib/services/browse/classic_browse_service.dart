@@ -4,6 +4,7 @@ import 'package:eisenvaultappflutter/services/browse/browse_service.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:http/http.dart' as http;
 
+/// Implementation of BrowseService for Classic/Alfresco repositories
 class ClassicBrowseService implements BrowseService {
   final String baseUrl;
   final String authToken;
@@ -22,13 +23,11 @@ class ClassicBrowseService implements BrowseService {
     try {
       // If we're at the root level, get Sites folder contents instead
       if (parent.id == 'root') {
-        
         return _getSitesFolderContents(skipCount: skipCount, maxItems: maxItems);
       }
       
       // If this is a department/site, we need to get its documentLibrary
       if (parent.isDepartment) {
-        
         return _getSiteDocumentLibraryContents(parent.id, skipCount: skipCount, maxItems: maxItems);
       }
       
@@ -80,7 +79,6 @@ class ClassicBrowseService implements BrowseService {
     int maxItems = 25,
   }) async {
     try {
-      
       final url = Uri.parse(
         '$baseUrl/api/-default-/public/alfresco/versions/1/sites?skipCount=$skipCount&maxItems=$maxItems'
       );
@@ -89,7 +87,7 @@ class ClassicBrowseService implements BrowseService {
         url,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': '$authToken',  // No "Basic" prefix added here
+          'Authorization': '$authToken',
         },
       );
 
@@ -134,7 +132,6 @@ class ClassicBrowseService implements BrowseService {
     int maxItems = 25,
   }) async {
     try {
-      
       // First, we need to get the documentLibrary container node ID for this site
       final urlDocLib = Uri.parse(
         '$baseUrl/api/-default-/public/alfresco/versions/1/sites/$siteId/containers/documentLibrary'
@@ -253,6 +250,47 @@ class ClassicBrowseService implements BrowseService {
         'error': e.toString()
       });
       return null;
+    }
+  }
+
+  /// Gets detailed information about a specific item by its ID
+  /// This is particularly useful for synchronization operations
+  @override
+  Future<BrowseItem?> getItemDetails(String itemId) async {
+    try {
+      final url = '$baseUrl/api/-default-/public/alfresco/versions/1/nodes/$itemId';
+      
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {'Authorization': authToken},
+      );
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final entry = data['entry'];
+        
+        // Convert the API response to a BrowseItem
+        return _mapAlfrescoBrowseItem(entry);
+      } else if (response.statusCode == 404) {
+        // Item not found
+        return null;
+      } else {
+        EVLogger.error('Failed to get item details', {
+          'itemId': itemId,
+          'statusCode': response.statusCode,
+          'response': response.body,
+        });
+        
+        throw Exception('Failed to get item details: ${response.statusCode}');
+      }
+    } catch (e) {
+      EVLogger.error('Error getting item details', {
+        'itemId': itemId,
+        'error': e.toString(),
+      });
+      
+      // Rethrow to be handled by caller
+      rethrow;
     }
   }
 }
