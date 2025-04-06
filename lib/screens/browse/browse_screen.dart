@@ -189,8 +189,12 @@ class _BrowseScreenState extends State<BrowseScreen> {
         onBackPressed: () {
           if (_controller.navigationStack.isEmpty) {
             _controller.loadDepartments();
+          } else if (_controller.navigationStack.length == 1) {
+            // If only one item in stack, go back to departments
+            _controller.loadDepartments();
           } else {
-            int parentIndex = _controller.navigationStack.length - 1;
+            // Navigate to the parent folder (one level up)
+            int parentIndex = _controller.navigationStack.length - 2;
             _controller.navigateToBreadcrumb(parentIndex);
           }
         },
@@ -322,9 +326,14 @@ class _BrowseScreenState extends State<BrowseScreen> {
       hasMoreItems: _controller.hasMoreItems,
     );
   }
-
   @override
   void dispose() {
+    // Add in relevant navigation methods
+    EVLogger.debug('Navigation Stack Change', {
+      'action': 'navigateToFolder',
+      'stack': _controller.navigationStack.map((i) => '${i.name} (${i.id})').toList(),
+      'currentFolder': _controller.currentFolder?.name ?? 'null'
+    });
     _controller.dispose();
     super.dispose();
   }
