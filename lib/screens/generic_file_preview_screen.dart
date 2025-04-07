@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:eisenvaultappflutter/utils/file_type_utils.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:open_file/open_file.dart';
 
@@ -15,11 +14,11 @@ class GenericFilePreviewScreen extends StatelessWidget {
   final FileType fileType;
 
   const GenericFilePreviewScreen({
-    Key? key,
+    super.key,
     required this.title,
     required this.fileContent,
     required this.fileType,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -1,4 +1,4 @@
-import 'package:eisenvaultappflutter/utils/logger.dart';
+
 
 class BrowseItem {
   final String id;

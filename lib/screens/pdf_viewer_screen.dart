@@ -5,9 +5,6 @@ import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:url_launcher/url_launcher.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:http/http.dart' as http;
 
@@ -16,10 +13,10 @@ class PdfViewerScreen extends StatefulWidget {
   final dynamic pdfContent; // Can be a File path, Uint8List, or URL String
   
   const PdfViewerScreen({
-    Key? key,
+    super.key,
     required this.title,
     required this.pdfContent,
-  }) : super(key: key);
+  });
 
   @override
   State<PdfViewerScreen> createState() => _PdfViewerScreenState();
@@ -114,29 +111,6 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
       );
     }
   }  
-  // Launch URL in a new tab using url_launcher
-  Future<void> _launchPdfUrl(String url) async {
-    try {
-      final uri = Uri.parse(url);
-      
-      
-      if (await canLaunchUrl(uri)) {
-      
-        final result = await launchUrl(uri, mode: LaunchMode.externalApplication);
-        EVLogger.info('Launch result: $result');
-      } else {
-        EVLogger.error('URL cannot be launched', url);
-        setState(() {
-          _errorMessage = 'Could not open PDF URL';
-        });
-      }
-    } catch (e) {
-      EVLogger.error('Error launching URL', e);
-      setState(() {
-        _errorMessage = 'Error launching PDF: ${e.toString()}';
-      });
-    }
-  }
   
   @override
   void dispose() {

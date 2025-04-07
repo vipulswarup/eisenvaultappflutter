@@ -86,47 +86,7 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
     }
   }
 
-  /// Maps an Angora API response item to a BrowseItem object with permission checking
-  Future<BrowseItem> _mapAngoraBrowseItem(Map<String, dynamic> item) async {
-    // Improved folder detection logic
-    bool isFolder = false;
-    
-    // First check clear folder indicators
-    if (item['is_department'] == true || item['is_folder'] == true) {
-      isFolder = true;
-    } 
-    // Then check clear file indicators - if any of these exist, it's a file
-    else if (item['file_type'] != null || 
-                item['content_type'] != null || 
-                item['mime_type'] != null || 
-                item['extension'] != null) {
-      isFolder = false;
-    }
-    // For items without clear indicators, check if it can have children
-    else if (item['can_have_children'] == true) {
-      isFolder = true;
-    }
-    // Finally, check if it has special folder/department properties
-    else if (item['parent_department_id'] != null && item['is_department'] != false) {
-      isFolder = true;
-    }
-    
-    // Use the permission service to extract permissions
-    List<String>? operations = await _permissionService.extractPermissionsFromItem(item);
-    
-    return BrowseItem(
-      id: item['id'],
-      name: item['raw_file_name'] ?? item['name'] ?? 'Unnamed Item',
-      type: isFolder ? 'folder' : 'document',
-      description: item['description'] ?? '',
-      isDepartment: item['is_department'] == true,
-      // Format dates appropriately
-      modifiedDate: item['updated_at'] ?? item['created_at'] ?? '',
-      modifiedBy: item['updated_by_name'] ?? item['created_by_name'] ?? '',
-      // Include permissions from the permission service
-      allowableOperations: operations,
-    );
-  }
+ 
 
   /// Maps an Angora API response item to a BrowseItem object without permission checking
   BrowseItem _mapAngoraBrowseItemWithoutPermissions(Map<String, dynamic> item) {

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../constants/colors.dart';
-import '../../models/browse_item.dart';
 import 'search_screen_controller.dart';
 import 'widgets/empty_search_results.dart';
 import 'widgets/search_app_bar.dart';
@@ -15,12 +14,12 @@ class SearchScreen extends StatefulWidget {
   final String? initialQuery;
 
   const SearchScreen({
-    Key? key,
+    super.key,
     required this.baseUrl,
     required this.authToken,
     required this.instanceType,
     this.initialQuery,
-  }) : super(key: key);
+  });
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();

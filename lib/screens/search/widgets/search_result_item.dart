@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../constants/colors.dart';
 import '../../../models/browse_item.dart';
-import '../../../utils/file_type_utils.dart';
 
 class SearchResultItem extends StatelessWidget {
   final BrowseItem item;
@@ -9,11 +8,11 @@ class SearchResultItem extends StatelessWidget {
   final String searchQuery;
 
   const SearchResultItem({
-    Key? key,
+    super.key,
     required this.item,
     required this.onTap,
     required this.searchQuery,
-  }) : super(key: key);
+  }) ;
 
   @override
   Widget build(BuildContext context) {

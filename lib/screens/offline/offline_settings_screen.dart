@@ -4,7 +4,6 @@ import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/services/offline/sync_service.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:path_provider/path_provider.dart';
-import 'dart:io';
 
 /// Screen for managing offline content settings and operations
 class OfflineSettingsScreen extends StatefulWidget {
@@ -13,11 +12,11 @@ class OfflineSettingsScreen extends StatefulWidget {
   final String authToken;
 
   const OfflineSettingsScreen({
-    Key? key,
+    super.key,
     required this.instanceType,
     required this.baseUrl,
     required this.authToken,
-  }) : super(key: key);
+  });
 
   @override
   State<OfflineSettingsScreen> createState() => _OfflineSettingsScreenState();
@@ -132,7 +131,6 @@ class _OfflineSettingsScreenState extends State<OfflineSettingsScreen> {
 
   Future<String> _getAvailableStorage() async {
     try {
-      final directory = await getApplicationDocumentsDirectory();
       final available = await _getAvailableSpaceInBytes();
       
       if (available < 1024 * 1024 * 100) { // Less than 100MB
