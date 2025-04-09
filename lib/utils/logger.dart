@@ -1,12 +1,16 @@
-import 'package:talker_flutter/talker_flutter.dart';
+import 'package:logger/logger.dart';
 import 'dart:convert';
 
-// Configure talker with minimal settings
-final talker = Talker(
-  settings: TalkerSettings(
-    useConsoleLogs: true,
-    enabled: true
-  )
+// Configure logger with custom printer
+final _logger = Logger(
+  printer: PrettyPrinter(
+    methodCount: 2, // Number of method calls to be displayed
+    errorMethodCount: 8, // Number of method calls if stacktrace is provided
+    lineLength: 120, // Width of the output
+    colors: true, // Colorful log messages
+    printEmojis: true, // Print an emoji for each log message
+    printTime: true, // Should each log print contain a timestamp
+  ),
 );
 
 class EVLogger {
@@ -85,17 +89,17 @@ class EVLogger {
 
   static void debug(String message, [dynamic data]) {
     final sanitizedData = _sanitizeData(data);
-    talker.debug('$message ${sanitizedData != null ? '| $sanitizedData' : ''}');
+    _logger.d('$message ${sanitizedData != null ? '| $sanitizedData' : ''}');
   }
 
   static void info(String message, [dynamic data]) {
     final sanitizedData = _sanitizeData(data);
-    talker.info('$message ${sanitizedData != null ? '| $sanitizedData' : ''}');
+    _logger.i('$message ${sanitizedData != null ? '| $sanitizedData' : ''}');
   }
 
   static void warning(String message, [dynamic data]) {
     final sanitizedData = _sanitizeData(data);
-    talker.warning('$message ${sanitizedData != null ? '| $sanitizedData' : ''}');
+    _logger.w('$message ${sanitizedData != null ? '| $sanitizedData' : ''}');
   }
 
   static void error(String message, [dynamic error, StackTrace? stackTrace]) {
@@ -109,6 +113,11 @@ class EVLogger {
       }
     }
     
-    talker.error('$message ${sanitizedError != null ? '| $sanitizedError' : ''}', stackTrace);
+    _logger.e('$message ${sanitizedError != null ? '| $sanitizedError' : ''}', error: error, stackTrace: stackTrace);
+  }
+
+  /// Dispose of the logger when no longer needed
+  static void dispose() {
+    _logger.close();
   }
 }

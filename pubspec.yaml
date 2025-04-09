@@ -21,10 +21,8 @@ dependencies:
   url_launcher: ^6.1.12
   mime: ^1.0.4
   
-  # Logging and Debugging
-  talker: ^4.6.14
-  talker_flutter: ^4.6.14
-  talker_logger: ^4.6.14
+  # Logging
+  logger: ^2.0.2+1
   
   # PDF Handling
   syncfusion_flutter_pdfviewer: ^29.1.37
