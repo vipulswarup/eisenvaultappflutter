@@ -1,6 +1,7 @@
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/screens/offline/offline_browse_screen.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
+import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:flutter/material.dart';
 
 class OfflineLoginUI extends StatelessWidget {
@@ -44,6 +45,14 @@ class OfflineLoginUI extends StatelessWidget {
             onPressed: onTryOnlineLogin,
             child: const Text('Try Online Login'),
           ),
+          // Add a debug button in development mode
+          if (true) // Replace with a proper debug flag in production
+            TextButton(
+              onPressed: () => _debugOfflineDatabase(context),
+              child: const Text('Debug Offline Database', 
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
         ],
       ),
     );
@@ -54,8 +63,18 @@ class OfflineLoginUI extends StatelessWidget {
       // Get offline manager
       final offlineManager = OfflineManager.createDefault();
       
+      EVLogger.debug('Checking for offline content');
+      
+      // Debug: Dump database contents
+      await offlineManager.dumpOfflineDatabase();
+      
       // Check if we have offline content
       final items = await offlineManager.getOfflineItems(null);
+      EVLogger.debug('Found offline items', {
+        'count': items.length,
+        'items': items.map((item) => item.name).toList(),
+      });
+      
       if (items.isEmpty) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -97,10 +116,36 @@ class OfflineLoginUI extends StatelessWidget {
         );
       }
     } catch (e) {
+      EVLogger.error('Error accessing offline content', e);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error accessing offline content: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+  
+  Future<void> _debugOfflineDatabase(BuildContext context) async {
+    try {
+      final offlineManager = OfflineManager.createDefault();
+      await offlineManager.dumpOfflineDatabase();
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Database contents dumped to logs. Check your console.'),
+            backgroundColor: Colors.blue,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error debugging database: $e'),
             backgroundColor: Colors.red,
           ),
         );

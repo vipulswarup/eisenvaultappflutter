@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Add this import
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/services/browse/browse_service_factory.dart';
@@ -48,6 +48,9 @@ class OfflineManager {
   
   /// Stream of offline events
   Stream<OfflineEvent> get events => _eventController.stream;
+  
+  /// For testing: force offline mode regardless of actual connectivity
+  static bool forceOfflineMode = false;
   
   /// Factory method to create an OfflineManager with default providers
   static OfflineManager createDefault() {
@@ -165,12 +168,39 @@ class OfflineManager {
 
   /// Check if the device is currently offline
   Future<bool> isOffline() async {
+    if (forceOfflineMode) {
+      return true;
+    }
     final result = await _connectivity.checkConnectivity();
     return result == ConnectivityResult.none;
   }
   
+  /// Check if offline content is available
+  Future<bool> hasOfflineContent() async {
+    try {
+      // Get the list of offline items at the root level
+      final items = await getOfflineItems(null);
+      
+      // If there are any items, offline content is available
+      return items.isNotEmpty;
+    } catch (e) {
+      EVLogger.error('Error checking for offline content', e);
+      return false;
+    }
+  }
+  
   /// Keep an item available offline
-  Future<bool> keepOffline(BrowseItem item) async {
+  /// 
+  /// @param item The item to keep offline
+  /// @param parentId The parent ID of the item (for maintaining hierarchy)
+  /// @param recursiveForFolders Whether to recursively download folder contents
+  /// @param browseService Optional browse service for recursive folder download
+  Future<bool> keepOffline(
+    BrowseItem item, {
+    String? parentId,
+    bool recursiveForFolders = true,
+    dynamic browseService,
+  }) async {
     try {
       // Check storage space
       final usedSpace = await _storage.getStorageUsed();
@@ -182,6 +212,13 @@ class OfflineManager {
         return false;
       }
       
+      EVLogger.debug('Keeping item offline', {
+        'id': item.id,
+        'name': item.name,
+        'type': item.type,
+        'parentId': parentId,
+      });
+      
       // Store metadata first
       await _metadata.storeMetadata(item.id, {
         'id': item.id,
@@ -191,8 +228,35 @@ class OfflineManager {
         'description': item.description,
         'modified_date': item.modifiedDate,
         'modified_by': item.modifiedBy,
+        'parent_id': parentId, // Important: Store parent ID for hierarchy
         'status': OfflineStatus.pending.toString(),
       });
+      
+      // If it's a folder and recursive download is enabled, download its contents
+      if ((item.type == 'folder' || item.isDepartment) && 
+          recursiveForFolders && 
+          browseService != null) {
+        try {
+          // Get folder contents
+          final contents = await browseService.getFolderContents(item.id);
+          
+          // Keep each item offline
+          for (final childItem in contents.items) {
+            await keepOffline(
+              childItem,
+              parentId: item.id,
+              recursiveForFolders: true,
+              browseService: browseService,
+            );
+          }
+        } catch (e) {
+          EVLogger.error('Failed to recursively download folder contents', {
+            'folderId': item.id,
+            'error': e.toString(),
+          });
+          // Continue with the current item even if recursive download fails
+        }
+      }
       
       // Start sync for this item
       await _sync.startSync();
@@ -217,16 +281,32 @@ class OfflineManager {
   
   /// Get all offline items under a parent
   Future<List<BrowseItem>> getOfflineItems(String? parentId) async {
-    final items = await _metadata.getItemsByParent(parentId);
-    return items.map((data) => BrowseItem(
-      id: data['id'],
-      name: data['name'],
-      type: data['type'],
-      isDepartment: data['is_department'] == true,
-      description: data['description'],
-      modifiedDate: data['modified_date'],
-      modifiedBy: data['modified_by'],
-    )).toList();
+    try {
+      EVLogger.debug('Getting offline items', {'parentId': parentId});
+      final items = await _metadata.getItemsByParent(parentId);
+      
+      EVLogger.debug('Retrieved offline items', {
+        'parentId': parentId,
+        'count': items.length,
+        'itemNames': items.map((item) => item['name']).toList(),
+      });
+      
+      return items.map((data) => BrowseItem(
+        id: data['id'],
+        name: data['name'],
+        type: data['type'],
+        isDepartment: data['is_department'] == true,
+        description: data['description'],
+        modifiedDate: data['modified_date'],
+        modifiedBy: data['modified_by'],
+      )).toList();
+    } catch (e) {
+      EVLogger.error('Error getting offline items', {
+        'parentId': parentId,
+        'error': e.toString(),
+      });
+      return [];
+    }
   }
   
   /// Remove an item from offline storage
@@ -265,6 +345,24 @@ class OfflineManager {
       _storage.clearStorage(),
       _metadata.clearMetadata(),
     ]);
+  }
+  
+  /// Debug function to dump all offline database contents
+  Future<void> dumpOfflineDatabase() async {
+    try {
+      final allItems = await _database.getAllOfflineItems();
+      EVLogger.debug('All offline items in database', {
+        'count': allItems.length,
+        'items': allItems.map((item) => {
+          'id': item['id'],
+          'name': item['name'],
+          'type': item['type'],
+          'parent_id': item['parent_id'],
+        }).toList()
+      });
+    } catch (e) {
+      EVLogger.error('Failed to dump offline database', e);
+    }
   }
   
   /// Dispose resources
@@ -329,9 +427,15 @@ class _DatabaseMetadataAdapter implements OfflineMetadataProvider {
     return await _database.getItem(itemId);
   }
   
-  @override
+  
+    @override
   Future<List<Map<String, dynamic>>> getItemsByParent(String? parentId) async {
-    return await _database.getItemsByParent(parentId);
+    final items = await _database.getItemsByParent(parentId);
+    EVLogger.debug('Retrieved items by parent from database', {
+      'parentId': parentId,
+      'count': items.length,
+    });
+    return items;
   }
   
   @override
@@ -349,3 +453,4 @@ class _DatabaseMetadataAdapter implements OfflineMetadataProvider {
     }
   }
 }
+

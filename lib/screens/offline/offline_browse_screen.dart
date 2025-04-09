@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
+import 'package:eisenvaultappflutter/screens/browse/browse_screen.dart'; // Add this import
 import 'package:eisenvaultappflutter/screens/browse/widgets/empty_folder_view.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/folder_content_list.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
@@ -36,6 +37,13 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
   void initState() {
     super.initState();
     _loadRootItems();
+    
+    // Debug: Dump database contents to help diagnose issues
+    _dumpDatabaseContents();
+  }
+  
+  Future<void> _dumpDatabaseContents() async {
+    await _offlineManager.dumpOfflineDatabase();
   }
   
   Future<void> _loadRootItems() async {
@@ -44,8 +52,15 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
     });
     
     try {
+      EVLogger.debug('Loading root offline items');
+      
       // Pass null as parentId to get top-level items
       final items = await _offlineManager.getOfflineItems(null);
+      
+      EVLogger.debug('Loaded root offline items', {
+        'count': items.length,
+        'items': items.map((item) => item.name).toList(),
+      });
       
       setState(() {
         _items = items;
@@ -76,7 +91,19 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
     });
     
     try {
+      EVLogger.debug('Loading offline folder contents', {
+        'folderId': folder.id,
+        'folderName': folder.name,
+      });
+      
       final items = await _offlineManager.getOfflineItems(folder.id);
+      
+      EVLogger.debug('Loaded offline folder contents', {
+        'folderId': folder.id,
+        'folderName': folder.name,
+        'itemCount': items.length,
+        'items': items.map((item) => item.name).toList(),
+      });
       
       setState(() {
         _items = items;
@@ -202,6 +229,53 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
     }
   }
 
+  // Add a new method to switch to online mode
+  void _switchToOnlineMode() async {
+    try {
+      // Get credentials from offline manager
+      final credentials = await _offlineManager.getSavedCredentials();
+      
+      if (credentials == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Cannot switch to online mode: No credentials found'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+      
+      // Navigate to the online browse screen
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => BrowseScreen(
+              baseUrl: credentials['baseUrl']!,
+              authToken: credentials['authToken']!,
+              firstName: credentials['username'] ?? 'User',
+              instanceType: credentials['instanceType']!,
+              customerHostname: credentials['instanceType'] == 'Angora' 
+                  ? Uri.parse(credentials['baseUrl']!).host 
+                  : 'classic-repository',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      EVLogger.error('Error switching to online mode', e);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error switching to online mode: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -213,6 +287,36 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: _navigateBack,
         ),
+        actions: [
+          // Add online mode toggle
+          Row(
+            children: [
+              const Text('Go Online', 
+                style: TextStyle(fontSize: 12),
+              ),
+              Switch(
+                value: false, // Always false in offline screen
+                activeColor: Colors.green,
+                onChanged: (value) {
+                  if (value) {
+                    _switchToOnlineMode();
+                  }
+                },
+              ),
+            ],
+          ),
+          // Existing refresh button
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              if (_currentParentId == null) {
+                _loadRootItems();
+              } else {
+                _loadFolderContents(_navigationStack.last);
+              }
+            },
+          ),
+        ],
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -244,7 +348,7 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
                       final folder = _navigationStack[folderIndex];
                       
                       return InkWell(
-                        onTap: () {
+                                               onTap: () {
                           // Navigate to this folder
                           _navigationStack = _navigationStack.sublist(0, folderIndex + 1);
                           _loadFolderContents(folder);

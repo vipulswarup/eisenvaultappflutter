@@ -13,6 +13,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   bool _isOfflineMode = false;
+  bool _forceOfflineMode = false; // New flag for forced offline mode
 
   @override
   void initState() {
@@ -25,7 +26,10 @@ class _LoginScreenState extends State<LoginScreen> {
     final isOffline = await offlineManager.isOffline();
     if (mounted) {
       setState(() {
-        _isOfflineMode = isOffline;
+        // Only set to offline if not already forced
+        if (!_forceOfflineMode) {
+          _isOfflineMode = isOffline;
+        }
       });
     }
   }
@@ -34,11 +38,38 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: EVColors.screenBackground,
+      // Add AppBar with offline toggle
+      appBar: AppBar(
+        backgroundColor: EVColors.appBarBackground,
+        foregroundColor: EVColors.appBarForeground,
+        title: const Text('EisenVault Login'),
+        actions: [
+          // Add offline mode toggle
+          Row(
+            children: [
+              const Text('Test Offline Mode', 
+                style: TextStyle(fontSize: 14),
+              ),
+              Switch(
+                value: _forceOfflineMode,
+                activeColor: Colors.orange,
+                onChanged: (value) {
+                  setState(() {
+                    _forceOfflineMode = value;
+                    _isOfflineMode = value;
+                  });
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
       body: SafeArea(
         child: _isOfflineMode 
           ? OfflineLoginUI(
               onTryOnlineLogin: () {
                 setState(() {
+                  _forceOfflineMode = false;
                   _isOfflineMode = false;
                 });
               },

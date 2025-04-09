@@ -3,14 +3,11 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/screens/browse/browse_screen_controller.dart';
-import 'package:eisenvaultappflutter/screens/browse/components/action_button_builder.dart';
-import 'package:eisenvaultappflutter/screens/browse/components/browse_app_bar.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/auth_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/batch_delete_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/delete_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/file_tap_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/search_navigation_handler.dart';
-import 'package:eisenvaultappflutter/screens/browse/handlers/upload_navigation_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/breadcrumb_navigation.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_drawer.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/folder_content_list.dart';
@@ -18,7 +15,6 @@ import 'package:eisenvaultappflutter/services/delete/delete_service.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:flutter/material.dart';
-
 /// The main browse screen that displays the repository content
 class BrowseScreen extends StatefulWidget {
   final String baseUrl;
@@ -38,6 +34,31 @@ class BrowseScreen extends StatefulWidget {
 
   @override
   State<BrowseScreen> createState() => _BrowseScreenState();
+}
+
+class UploadNavigationHandler {
+  final BuildContext context;
+  final String instanceType;
+  final String baseUrl;
+  final String authToken;
+  final BrowseItem? currentFolder;
+  final Function() refreshCurrentFolder;
+
+  UploadNavigationHandler({
+    required this.context,
+    required this.instanceType,
+    required this.baseUrl,
+    required this.authToken,
+    required this.currentFolder,
+    required this.refreshCurrentFolder,
+  });
+
+  /// Navigate to the upload screen to add files to the current folder
+  Future<void> navigateToUploadScreen() async {
+    // Method implementation...
+  }
+
+ 
 }
 
 class _BrowseScreenState extends State<BrowseScreen> {
@@ -65,6 +86,8 @@ class _BrowseScreenState extends State<BrowseScreen> {
 
   // Global key for scaffold
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  bool _forceOfflineMode = false;
 
   // Define _refreshCurrentFolder first to avoid being referenced before declaration
   Future<void> _refreshCurrentFolder() async {
@@ -117,24 +140,25 @@ class _BrowseScreenState extends State<BrowseScreen> {
     }
   }
 
+  bool _shouldShowOfflineToggle() {
+    return _offlineManager.hasOfflineContent() != null;
+  }
+
   void _updateConnectionStatus(ConnectivityResult result) {
     final wasOffline = _isOffline;
-    final isNowOffline = result == ConnectivityResult.none;
+    final isNowOffline = _forceOfflineMode || result == ConnectivityResult.none;
     
     if (wasOffline != isNowOffline) {
       setState(() {
         _isOffline = isNowOffline;
       });
       
-      // If we just went offline, switch to offline content
       if (isNowOffline) {
         _loadOfflineContent();
       } else {
-        // If we just came back online, refresh current folder
         _refreshCurrentFolder();
       }
       
-      // Show appropriate message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -148,32 +172,10 @@ class _BrowseScreenState extends State<BrowseScreen> {
     }
   }
 
-  // Add this method to handle offline toggle
-  Future<void> _handleOfflineToggle(BrowseItem item) async {
-    try {
-      await _controller.toggleOfflineAvailability(item);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to toggle offline availability: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  // Add this method to check if an item is available offline
-  Future<bool> _isItemAvailableOffline(String itemId) async {
-    return await _controller.isItemAvailableOffline(itemId);
-  }
-
   @override
   void initState() {
     super.initState();
     
-    // Initialize DeleteService first
     _deleteService = DeleteService(
       repositoryType: widget.instanceType,
       baseUrl: widget.baseUrl,
@@ -181,7 +183,6 @@ class _BrowseScreenState extends State<BrowseScreen> {
       customerHostname: widget.customerHostname,
     );
     
-    // Initialize DeleteHandler
     _deleteHandler = DeleteHandler(
       context: context,
       repositoryType: widget.instanceType,
@@ -193,7 +194,6 @@ class _BrowseScreenState extends State<BrowseScreen> {
       },
     );
     
-    // Initialize BatchDeleteHandler
     _batchDeleteHandler = BatchDeleteHandler(
       context: context,
       instanceType: widget.instanceType,
@@ -284,31 +284,64 @@ class _BrowseScreenState extends State<BrowseScreen> {
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: EVColors.screenBackground,
-      appBar: BrowseAppBar(
-        title: _isOffline ? 'Offline Mode' : 'Departments',
-        isAtDepartmentsList: isAtDepartmentsList,
-        hasItems: _controller.items.isNotEmpty,
-        isInSelectionMode: _isInSelectionMode,
-        onBackPressed: () {
-          if (_controller.navigationStack.isEmpty) {
-            _controller.loadDepartments();
-          } else if (_controller.navigationStack.length == 1) {
-            // If only one item in stack, go back to departments
-            _controller.loadDepartments();
-          } else {
-            // Navigate to the parent folder (one level up)
-            int parentIndex = _controller.navigationStack.length - 2;
-            _controller.navigateToBreadcrumb(parentIndex);
-          }
-        },
-        onSearchPressed: _isOffline ? () {} : () => _searchHandler.navigateToSearch(), // Disable search in offline mode
-        onSelectionModeToggle: () {
-          setState(() {
-            _isInSelectionMode = !_isInSelectionMode;
-            _selectedItems.clear();
-          });
-        },
-        onLogoutPressed: _authHandler.showLogoutConfirmation,
+      appBar: AppBar(
+        title: _isOffline ? const Text('Offline Mode') : const Text('Departments'),
+        backgroundColor: EVColors.appBarBackground,
+        foregroundColor: EVColors.appBarForeground,
+        leading: isAtDepartmentsList
+          ? IconButton(
+              icon: const Icon(Icons.menu),
+              onPressed: () {
+                _scaffoldKey.currentState?.openDrawer();
+              },
+            )
+          : IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () {
+                if (_controller.navigationStack.isEmpty) {
+                  _controller.loadDepartments();
+                } else if (_controller.navigationStack.length == 1) {
+                  // If only one item in stack, go back to departments
+                  _controller.loadDepartments();
+                } else {
+                  // Navigate to the parent folder (one level up)
+                  int parentIndex = _controller.navigationStack.length - 2;
+                  _controller.navigateToBreadcrumb(parentIndex);
+                }
+              },
+            ),
+        actions: [
+          // Add offline mode toggle
+          Row(
+            children: [
+              const Text('Test Offline', 
+                style: TextStyle(fontSize: 12),
+              ),
+              Switch(
+                value: _forceOfflineMode,
+                activeColor: Colors.orange,
+                onChanged: (value) {
+                  setState(() {
+                    _forceOfflineMode = value;
+                    _updateConnectionStatus(value 
+                      ? ConnectivityResult.none 
+                      : ConnectivityResult.mobile);
+                  });
+                },
+              ),
+            ],
+          ),
+          if (!_isOffline) // Only show search in online mode
+            IconButton(
+              icon: const Icon(Icons.search),
+              onPressed: () => _searchHandler.navigateToSearch(),
+            ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: _authHandler.showLogoutConfirmation,
+          ),
+        ],
+        // Rest of the AppBar code...
       ),
       // Only show drawer when at departments list and not in offline mode
       drawer: (!_isOffline && isAtDepartmentsList) ? BrowseDrawer(
@@ -414,15 +447,16 @@ class _BrowseScreenState extends State<BrowseScreen> {
         child: const Icon(Icons.delete),
       );
     }
-
+  
+    // For upload when not in selection mode
     return FloatingActionButton(
-      onPressed: () async {
-        await _uploadHandler.navigateToUploadScreen();
+      onPressed: () {
+        _uploadHandler.navigateToUploadScreen();
       },
+      backgroundColor: EVColors.primaryBlue,
       child: const Icon(Icons.upload),
     );
   }
-
   @override
   void dispose() {
     _connectivitySubscription.cancel();

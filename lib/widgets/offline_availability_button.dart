@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
+import 'package:eisenvaultappflutter/services/browse/browse_service_factory.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 
 /// A button widget that allows users to mark/unmark items for offline availability
@@ -12,6 +13,7 @@ class OfflineAvailabilityButton extends StatefulWidget {
   final String authToken;
   final bool isAvailableOffline;
   final Function(bool) onAvailabilityChanged;
+  final String? parentId; // Add parent ID parameter
 
   const OfflineAvailabilityButton({
     Key? key,
@@ -21,6 +23,7 @@ class OfflineAvailabilityButton extends StatefulWidget {
     required this.authToken,
     required this.isAvailableOffline,
     required this.onAvailabilityChanged,
+    this.parentId, // Add this parameter
   }) : super(key: key);
 
   @override
@@ -95,8 +98,22 @@ class _OfflineAvailabilityButtonState extends State<OfflineAvailabilityButton> {
           }
         }
 
-        // Make available offline
-        final result = await _offlineManager.keepOffline(widget.item);
+        // Create browse service for recursive folder download
+        final browseService = isFolder 
+            ? BrowseServiceFactory.getService(  // Use the correct method name
+                widget.instanceType,
+                widget.baseUrl,
+                widget.authToken,
+              )
+            : null;
+
+        // Make available offline with parent ID
+        final result = await _offlineManager.keepOffline(
+          widget.item,
+          parentId: widget.parentId, // Pass parent ID
+          recursiveForFolders: isFolder,
+          browseService: browseService,
+        );
 
         if (result) {
           _showMessage('Added to offline storage');

@@ -187,7 +187,6 @@ class LoginHandler {
       return false;
     }
   }
-  
   /// Navigates to the offline browse screen
   Future<void> navigateToOfflineBrowse(BuildContext context) async {
     try {

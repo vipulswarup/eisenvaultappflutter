@@ -3,20 +3,22 @@ import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
-import 'package:eisenvaultappflutter/services/offline/sync_service.dart'; // Add this import
+import 'package:eisenvaultappflutter/services/offline/sync_service.dart';
 
 /// Widget that displays a banner when the device is offline
 /// and monitors connectivity changes
 class OfflineModeIndicator extends StatefulWidget {
   final Widget child;
   final Function(bool)? onConnectivityChanged;
-  final SyncService syncService; // Add this parameter
+  final SyncService syncService;
+  final bool forceOfflineMode; // New parameter
 
   const OfflineModeIndicator({
     Key? key,
     required this.child,
     this.onConnectivityChanged,
-    required this.syncService, // Add this parameter to constructor
+    required this.syncService,
+    this.forceOfflineMode = false, // Default to false
   }) : super(key: key);
 
   @override
@@ -48,9 +50,17 @@ class _OfflineModeIndicatorState extends State<OfflineModeIndicator> {
       _updateConnectionStatus(ConnectivityResult.mobile);
     }
   }
+  
   void _updateConnectionStatus(ConnectivityResult result) {
     final bool wasOffline = _isOffline;
-    final bool isNowOffline = result == ConnectivityResult.none;
+    final bool isNowOffline = widget.forceOfflineMode || result == ConnectivityResult.none;
+    
+    EVLogger.debug('Connectivity status changed', {
+      'previous': wasOffline ? 'offline' : 'online',
+      'current': isNowOffline ? 'offline' : 'online',
+      'connectivityResult': result.toString(),
+      'forceOfflineMode': widget.forceOfflineMode,
+    });
     
     // Only update state if there's a change
     if (wasOffline != isNowOffline) {
@@ -67,12 +77,30 @@ class _OfflineModeIndicatorState extends State<OfflineModeIndicator> {
       EVLogger.info('Connection status changed', {
         'isOffline': _isOffline,
         'connectivityResult': result.name,
+        'forced': widget.forceOfflineMode,
       });
       
-      // Note: We're not calling pauseSync() or resumeSync() anymore
-      // since these methods don't exist in the SyncService class
+      // Trigger appropriate sync behavior based on connectivity
+      if (!_isOffline) {
+        // We're back online, trigger sync
+        EVLogger.debug('Device is back online, triggering sync');
+        // Add sync triggering logic here if needed
+      }
     }
   }
+
+  @override
+  void didUpdateWidget(OfflineModeIndicator oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    
+    // If forceOfflineMode changed, update the offline status
+    if (widget.forceOfflineMode != oldWidget.forceOfflineMode) {
+      _updateConnectionStatus(widget.forceOfflineMode 
+        ? ConnectivityResult.none 
+        : ConnectivityResult.mobile);
+    }
+  }
+  
   @override
   Widget build(BuildContext context) {
     return Column(
