@@ -1,16 +1,21 @@
 import 'package:eisenvaultappflutter/constants/colors.dart';
+import 'package:eisenvaultappflutter/screens/offline/offline_settings_screen.dart';
 import 'package:flutter/material.dart';
 
 /// Drawer for the browse screen
 class BrowseDrawer extends StatelessWidget {
   final String firstName;
   final String baseUrl;
+  final String authToken;
+  final String instanceType;
   final VoidCallback onLogoutTap;
 
   const BrowseDrawer({
     Key? key,
     required this.firstName,
     required this.baseUrl,
+    required this.authToken,
+    required this.instanceType,
     required this.onLogoutTap,
   }) : super(key: key);
 
@@ -58,6 +63,23 @@ class BrowseDrawer extends StatelessWidget {
             title: const Text('Departments'),
             onTap: () {
               Navigator.pop(context); // Close the drawer
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.offline_pin),
+            title: const Text('Offline Settings'),
+            onTap: () {
+              Navigator.pop(context); // Close the drawer
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => OfflineSettingsScreen(
+                    instanceType: instanceType,
+                    baseUrl: baseUrl,
+                    authToken: authToken,
+                  ),
+                ),
+              );
             },
           ),
           const Divider(),

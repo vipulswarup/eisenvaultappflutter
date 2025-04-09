@@ -308,6 +308,8 @@ class _BrowseScreenState extends State<BrowseScreen> {
       drawer: (!_isOffline && isAtDepartmentsList) ? BrowseDrawer(
         firstName: widget.firstName,
         baseUrl: widget.baseUrl,
+        authToken: widget.authToken,
+        instanceType: widget.instanceType,
         onLogoutTap: _authHandler.showLogoutConfirmation,
       ) : null,
       body: Column(
