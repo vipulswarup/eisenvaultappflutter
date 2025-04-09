@@ -4,11 +4,11 @@ import 'dart:convert';
 // Configure logger with custom printer
 final _logger = Logger(
   printer: PrettyPrinter(
-    methodCount: 2, // Number of method calls to be displayed
-    errorMethodCount: 8, // Number of method calls if stacktrace is provided
-    lineLength: 120, // Width of the output
+    methodCount: 0, // Reduce number of method calls to be displayed
+    errorMethodCount: 0, // Reduce number of method calls if stacktrace is provided
+    lineLength: 0, // Set to 0 to remove solid lines
     colors: true, // Colorful log messages
-    printEmojis: true, // Print an emoji for each log message
+    printEmojis: false, // Disable emojis in log messages
     printTime: true, // Should each log print contain a timestamp
   ),
 );
