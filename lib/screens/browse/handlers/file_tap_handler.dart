@@ -4,6 +4,7 @@ import 'package:eisenvaultappflutter/screens/image_viewer_screen.dart';
 import 'package:eisenvaultappflutter/screens/pdf_viewer_screen.dart';
 import 'package:eisenvaultappflutter/services/api/angora_base_service.dart';
 import 'package:eisenvaultappflutter/services/document/document_service.dart';
+import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/utils/file_type_utils.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:flutter/material.dart';
@@ -15,6 +16,7 @@ class FileTapHandler {
   final String baseUrl;
   final String authToken;
   final AngoraBaseService? angoraBaseService;
+  final OfflineManager _offlineManager = OfflineManager.createDefault();
   
   FileTapHandler({
     required this.context,
@@ -43,8 +45,17 @@ class FileTapHandler {
       
       final fileType = getFileType(document.name);
       
+      // First check if file is available offline
+      if (await _offlineManager.isAvailableOffline(document.id)) {
+        final offlineContent = await _offlineManager.getFileContent(document.id);
+        if (offlineContent != null) {
+          if (!context.mounted) return;
+          _openAppropriateViewer(document.name, fileType, offlineContent);
+          return;
+        }
+      }
       
-      // Get the appropriate document service
+      // If not available offline or offline content is null, fetch from server
       final documentService = DocumentServiceFactory.getService(
         instanceType,
         baseUrl,

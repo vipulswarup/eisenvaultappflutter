@@ -1,13 +1,14 @@
 import 'package:eisenvaultappflutter/models/browse_item.dart';
+import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
+import 'package:eisenvaultappflutter/services/offline/offline_storage_provider.dart';
+import 'package:eisenvaultappflutter/services/offline/offline_database_service.dart';
 import 'package:eisenvaultappflutter/services/api/angora_base_service.dart';
 import 'package:eisenvaultappflutter/services/browse/browse_service_factory.dart';
-import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:debounce_throttle/debounce_throttle.dart';
 import 'package:dio/dio.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-
 
 /// Controller for the BrowseScreen
 /// Separates business logic from UI
@@ -23,6 +24,7 @@ class BrowseScreenController {
   String? errorMessage;
   List<BrowseItem> navigationStack = [];
   BrowseItem? currentFolder;
+  bool _isOffline = false;
   
   // Callback for state updates
   final Function()? onStateChanged;
@@ -42,7 +44,7 @@ class BrowseScreenController {
   bool _hasMoreItems = true;
   bool _isLoadingMore = false;
   
-  final OfflineManager _offlineManager = OfflineManager();
+  final OfflineManager _offlineManager = OfflineManager.createDefault();
   final Set<String> _offlineItems = {};
   
   /// Constructor initializes the controller with required parameters
@@ -60,8 +62,8 @@ class BrowseScreenController {
       angoraBaseService!.setToken(authToken);
     }
     
-    // Load departments initially
-    loadDepartments();
+    // Check initial connectivity
+    _checkConnectivity();
     
     // Set up debouncer listener
     _debouncer.values.listen((_) {
@@ -79,6 +81,19 @@ class BrowseScreenController {
   /// Debounced version of state change notification
   void notifyStateChanged() {
     _debouncer.value = null; // Trigger the debouncer
+  }
+  
+  /// Check initial connectivity state
+  Future<void> _checkConnectivity() async {
+    _isOffline = await _offlineManager.isOffline();
+  }
+
+  /// Set offline mode
+  void setOfflineMode(bool offline) {
+    _isOffline = offline;
+    if (_isOffline) {
+      _hasMoreItems = false; // No pagination in offline mode
+    }
   }
 
   /// Load more items when scrolling to the end of the list
@@ -137,36 +152,43 @@ class BrowseScreenController {
     setLoading(true);
     errorMessage = null;
     _currentPage = 0;
-    _hasMoreItems = true;
+    _hasMoreItems = !_isOffline; // No pagination in offline mode
     items.clear();
     onStateChanged?.call();
     
     try {
-      final browseService = BrowseServiceFactory.getService(
-        instanceType, 
-        baseUrl, 
-        authToken
-      );
+      if (_isOffline) {
+        // Load offline items
+        final offlineItems = await _offlineManager.getOfflineItems(folder.id);
+        items = offlineItems;
+      } else {
+        // Load online items
+        final browseService = BrowseServiceFactory.getService(
+          instanceType, 
+          baseUrl, 
+          authToken
+        );
 
-      // Fetch initial items with pagination parameters
-      final loadedItems = await browseService.getChildren(
-        folder,
-        skipCount: 0,
-        maxItems: _itemsPerPage,
-      );
-      
-      // Check offline status for each item
-      for (var item in loadedItems) {
-        if (await isItemAvailableOffline(item.id)) {
-          _offlineItems.add(item.id);
+        // Fetch initial items with pagination parameters
+        final loadedItems = await browseService.getChildren(
+          folder,
+          skipCount: 0,
+          maxItems: _itemsPerPage,
+        );
+        
+        // Check offline status for each item
+        for (var item in loadedItems) {
+          if (await isItemAvailableOffline(item.id)) {
+            _offlineItems.add(item.id);
+          }
         }
-      }
-      
-      items = loadedItems;
-      
-      // If we got fewer items than requested, there are no more
-      if (loadedItems.length < _itemsPerPage) {
-        _hasMoreItems = false;
+        
+        items = loadedItems;
+        
+        // If we got fewer items than requested, there are no more
+        if (loadedItems.length < _itemsPerPage) {
+          _hasMoreItems = false;
+        }
       }
       
       setLoading(false);
@@ -190,122 +212,129 @@ class BrowseScreenController {
     isLoading = true;
     errorMessage = null;
     _currentPage = 0;
-    _hasMoreItems = true;
+    _hasMoreItems = !_isOffline; // No pagination in offline mode
     _notifyListeners();
 
     try {
-      final browseService = BrowseServiceFactory.getService(
-        instanceType, 
-        baseUrl, 
-        authToken
-      );
+      if (_isOffline) {
+        // Load offline departments
+        final offlineItems = await _offlineManager.getOfflineItems(null);
+        items = offlineItems;
+      } else {
+        // Load online departments
+        final browseService = BrowseServiceFactory.getService(
+          instanceType, 
+          baseUrl, 
+          authToken
+        );
 
-      // Create a root BrowseItem to fetch top-level departments/sites
-      final rootItem = BrowseItem(
-        id: 'root',
-        name: 'Root',
-        type: 'folder',
-        isDepartment: instanceType == 'Angora',
-      );
+        // Create a root BrowseItem to fetch top-level departments/sites
+        final rootItem = BrowseItem(
+          id: 'root',
+          name: 'Root',
+          type: 'folder',
+          isDepartment: instanceType == 'Angora',
+        );
 
-      final loadedItems = await browseService.getChildren(
-        rootItem,
-        skipCount: 0,
-        maxItems: _itemsPerPage,
-      );
-    
-      items = [];
-      for (var department in loadedItems) {
-        // Different handling based on repository type
-        if (instanceType.toLowerCase() == 'angora') {
-          // For Angora, no document library concept - the department ID is the folder ID
-          // We just need to add the department as is
-          BrowseItem item = BrowseItem(
-            id: department.id,
-            name: department.name,
-            type: 'folder',
-            isDepartment: true,
-            // For Angora, we use the department ID as the document library ID
-            documentLibraryId: department.id,
-            // In Angora, we assume write permissions unless explicitly denied
-            allowableOperations: ['create', 'update', 'delete'],
-          );
-          
-          items.add(item);
-        } else {
-          // Existing Alfresco/Classic logic
-          try {
-            final docLibId = await _fetchDocumentLibraryId(department.id);
-            
-            // For Alfresco/Classic, check permissions on the documentLibrary node
-            List<String> siteOperations = [];
-            
-            try {
-              // Try directly checking permissions on the documentLibrary node
-              final nodeResponse = await http.get(
-                Uri.parse('$baseUrl/api/-default-/public/alfresco/versions/1/nodes/$docLibId?include=allowableOperations'),
-                headers: {'Authorization': authToken},
-              );
-              
-              if (nodeResponse.statusCode == 200) {
-                final nodeData = json.decode(nodeResponse.body);
-                
-                // Check if allowableOperations exists and print its exact type
-                if (nodeData['entry'].containsKey('allowableOperations')) {
-                  final operations = nodeData['entry']['allowableOperations'];
-                  
-                  // Be extra careful with type conversion
-                  List<String> ops = [];
-                  if (operations is List) {
-                    // Convert each element to string explicitly
-                    for (var op in operations) {
-                      ops.add(op.toString());
-                    }
-                    
-                    siteOperations = ops;
-                  }
-                }
-              } else {
-                EVLogger.error('Failed to get node details', {
-                  'status': nodeResponse.statusCode
-                });
-              }
-            } catch (e) {
-              EVLogger.error('Error checking node permissions', {'error': e.toString()});
-              siteOperations = ['create']; // Fallback permissions
-            }
-
-            // Create BrowseItem with the operations we determined
+        final loadedItems = await browseService.getChildren(
+          rootItem,
+          skipCount: 0,
+          maxItems: _itemsPerPage,
+        );
+      
+        items = [];
+        for (var department in loadedItems) {
+          // Different handling based on repository type
+          if (instanceType.toLowerCase() == 'angora') {
+            // For Angora, no document library concept - the department ID is the folder ID
+            // We just need to add the department as is
             BrowseItem item = BrowseItem(
               id: department.id,
               name: department.name,
               type: 'folder',
               isDepartment: true,
-              documentLibraryId: docLibId,
-              allowableOperations: siteOperations,
+              // For Angora, we use the department ID as the document library ID
+              documentLibraryId: department.id,
+              // In Angora, we assume write permissions unless explicitly denied
+              allowableOperations: ['create', 'update', 'delete'],
             );
             
             items.add(item);
-          } catch (e) {
-            EVLogger.error('Error fetching document library', {
-              'siteId': department.id,
-              'error': e.toString()
-            });
-            // Skip this department if we can't find its document library
-            continue;
+          } else {
+            // Existing Alfresco/Classic logic
+            try {
+              final docLibId = await _fetchDocumentLibraryId(department.id);
+              
+              // For Alfresco/Classic, check permissions on the documentLibrary node
+              List<String> siteOperations = [];
+              
+              try {
+                // Try directly checking permissions on the documentLibrary node
+                final nodeResponse = await http.get(
+                  Uri.parse('$baseUrl/api/-default-/public/alfresco/versions/1/nodes/$docLibId?include=allowableOperations'),
+                  headers: {'Authorization': authToken},
+                );
+                
+                if (nodeResponse.statusCode == 200) {
+                  final nodeData = json.decode(nodeResponse.body);
+                  
+                  // Check if allowableOperations exists and print its exact type
+                  if (nodeData['entry'].containsKey('allowableOperations')) {
+                    final operations = nodeData['entry']['allowableOperations'];
+                    
+                    // Be extra careful with type conversion
+                    List<String> ops = [];
+                    if (operations is List) {
+                      // Convert each element to string explicitly
+                      for (var op in operations) {
+                        ops.add(op.toString());
+                      }
+                      
+                      siteOperations = ops;
+                    }
+                  }
+                } else {
+                  EVLogger.error('Failed to get node details', {
+                    'status': nodeResponse.statusCode
+                  });
+                }
+              } catch (e) {
+                EVLogger.error('Error checking node permissions', {'error': e.toString()});
+                siteOperations = ['create']; // Fallback permissions
+              }
+
+              // Create BrowseItem with the operations we determined
+              BrowseItem item = BrowseItem(
+                id: department.id,
+                name: department.name,
+                type: 'folder',
+                isDepartment: true,
+                documentLibraryId: docLibId,
+                allowableOperations: siteOperations,
+              );
+              
+              items.add(item);
+            } catch (e) {
+              EVLogger.error('Error fetching document library', {
+                'siteId': department.id,
+                'error': e.toString()
+              });
+              // Skip this department if we can't find its document library
+              continue;
+            }
           }
         }
+        
+        // If we got fewer items than requested, there are no more
+        if (loadedItems.length < _itemsPerPage) {
+          _hasMoreItems = false;
+        }
+        
+        isLoading = false;
+        currentFolder = rootItem;
+        navigationStack = [];
+        _notifyListeners();
       }
-      
-      // If we got fewer items than requested, there are no more
-      if (loadedItems.length < _itemsPerPage) {
-        _hasMoreItems = false;
-      }
-      
-      isLoading = false;
-      currentFolder = rootItem;
-      navigationStack = [];
-      _notifyListeners();
     } catch (e) {
       errorMessage = 'Failed to load departments: ${e.toString()}';
       isLoading = false;
@@ -416,12 +445,7 @@ class BrowseScreenController {
         _offlineItems.remove(item.id);
       } else {
         // Add to offline
-        final success = await _offlineManager.keepOffline(
-          item: item,
-          instanceType: instanceType,
-          baseUrl: baseUrl,
-          authToken: authToken,
-        );
+        final success = await _offlineManager.keepOffline(item);
         
         if (success) {
           _offlineItems.add(item.id);

@@ -25,7 +25,7 @@ class OfflineBrowseScreen extends StatefulWidget {
 }
 
 class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
-  final OfflineManager _offlineManager = OfflineManager();
+  final OfflineManager _offlineManager = OfflineManager.createDefault();
   
   List<BrowseItem> _items = [];
   bool _isLoading = true;

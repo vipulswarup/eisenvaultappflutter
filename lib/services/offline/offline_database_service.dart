@@ -162,8 +162,8 @@ class OfflineDatabaseService {
       
       final results = await db.query(
         'offline_items',
-        where: 'parent_id = ?',
-        whereArgs: [parentId],
+        where: parentId == null ? 'parent_id IS NULL' : 'parent_id = ?',
+        whereArgs: parentId == null ? null : [parentId],
         orderBy: 'is_department DESC, type DESC, name ASC', // Folders first, then sorted by name
       );
       

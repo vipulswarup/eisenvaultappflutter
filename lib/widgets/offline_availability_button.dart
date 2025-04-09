@@ -28,7 +28,7 @@ class OfflineAvailabilityButton extends StatefulWidget {
 }
 
 class _OfflineAvailabilityButtonState extends State<OfflineAvailabilityButton> {
-  final OfflineManager _offlineManager = OfflineManager();
+  final OfflineManager _offlineManager = OfflineManager.createDefault();
   bool _isProcessing = false;
 
   @override
@@ -72,10 +72,7 @@ class _OfflineAvailabilityButtonState extends State<OfflineAvailabilityButton> {
     try {
       if (widget.isAvailableOffline) {
         // Remove from offline storage
-        final result = await _offlineManager.removeOffline(
-          widget.item.id, 
-          recursive: widget.item.type == 'folder' || widget.item.isDepartment,
-        );
+        final result = await _offlineManager.removeOffline(widget.item.id);
 
         if (result) {
           _showMessage('Removed from offline storage');
@@ -99,13 +96,7 @@ class _OfflineAvailabilityButtonState extends State<OfflineAvailabilityButton> {
         }
 
         // Make available offline
-        final result = await _offlineManager.keepOffline(
-          item: widget.item,
-          instanceType: widget.instanceType,
-          baseUrl: widget.baseUrl,
-          authToken: widget.authToken,
-          recursive: isFolder, // If it's a folder, include its contents
-        );
+        final result = await _offlineManager.keepOffline(widget.item);
 
         if (result) {
           _showMessage('Added to offline storage');

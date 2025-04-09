@@ -17,7 +17,7 @@ void main() async {
   final syncService = SyncService();
   
   // Try to initialize with saved credentials
-  final offlineManager = OfflineManager();
+  final offlineManager = OfflineManager.createDefault();
   final credentials = await offlineManager.getSavedCredentials();
   if (credentials != null) {
     syncService.initialize(

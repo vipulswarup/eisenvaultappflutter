@@ -23,7 +23,7 @@ class OfflineSettingsScreen extends StatefulWidget {
 }
 
 class _OfflineSettingsScreenState extends State<OfflineSettingsScreen> {
-  final OfflineManager _offlineManager = OfflineManager();
+  final OfflineManager _offlineManager = OfflineManager.createDefault();
   final SyncService _syncService = SyncService();
   
   String _storageUsage = "Calculating...";
@@ -219,7 +219,7 @@ class _OfflineSettingsScreenState extends State<OfflineSettingsScreen> {
     });
     
     try {
-      await _offlineManager.clearAllOfflineContent();
+      await _offlineManager.clearOfflineContent();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

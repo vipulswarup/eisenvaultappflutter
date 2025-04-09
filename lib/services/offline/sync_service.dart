@@ -34,7 +34,6 @@ class SyncService {
   // Dependencies
   final OfflineDatabaseService _database = OfflineDatabaseService.instance;
   final OfflineFileService _fileService = OfflineFileService();
-  final OfflineManager _offlineManager = OfflineManager();
   
   // Connectivity monitoring
   final Connectivity _connectivity = Connectivity();

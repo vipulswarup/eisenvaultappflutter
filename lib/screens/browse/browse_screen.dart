@@ -3,19 +3,18 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/screens/browse/browse_screen_controller.dart';
+import 'package:eisenvaultappflutter/screens/browse/components/action_button_builder.dart';
+import 'package:eisenvaultappflutter/screens/browse/components/browse_app_bar.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/auth_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/batch_delete_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/delete_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/file_tap_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/search_navigation_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/upload_navigation_handler.dart';
-import 'package:eisenvaultappflutter/screens/browse/widgets/action_button_builder.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/breadcrumb_navigation.dart';
-import 'package:eisenvaultappflutter/screens/browse/widgets/browse_app_bar.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_drawer.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/folder_content_list.dart';
 import 'package:eisenvaultappflutter/services/delete/delete_service.dart';
-import 'package:eisenvaultappflutter/services/delete/delete_service_factory.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:flutter/material.dart';
@@ -62,7 +61,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
   final Set<String> _selectedItems = {};
 
   // Offline manager
-  final OfflineManager _offlineManager = OfflineManager();
+  final OfflineManager _offlineManager = OfflineManager.createDefault();
 
   // Define _refreshCurrentFolder first to avoid being referenced before declaration
   Future<void> _refreshCurrentFolder() async {
@@ -85,7 +84,13 @@ class _BrowseScreenState extends State<BrowseScreen> {
       });
 
       // Get offline items for current folder
-      final items = await _offlineManager.getOfflineItems(_controller.currentFolder?.id);
+      // If we're at the root level (no current folder), use null as parentId
+      // Otherwise use the current folder's ID
+      final String? parentId = _controller.currentFolder?.id == 'root' 
+          ? null 
+          : _controller.currentFolder?.id;
+          
+      final items = await _offlineManager.getOfflineItems(parentId);
       
       setState(() {
         _controller.items = items;
@@ -100,19 +105,6 @@ class _BrowseScreenState extends State<BrowseScreen> {
     }
   }
   
-  List<BrowseItem> _getSelectedItems() {
-    return _controller.items
-        .where((item) => _selectedItems.contains(item.id))
-        .toList();
-  }
-  
-  void _clearSelectionMode() {
-    setState(() {
-      _isInSelectionMode = false;
-      _selectedItems.clear();
-    });
-  }
-
   Future<void> _checkConnectivity() async {
     try {
       final result = await _connectivity.checkConnectivity();
@@ -178,6 +170,45 @@ class _BrowseScreenState extends State<BrowseScreen> {
   void initState() {
     super.initState();
     
+    // Initialize DeleteService first
+    _deleteService = DeleteService(
+      repositoryType: widget.instanceType,
+      baseUrl: widget.baseUrl,
+      authToken: widget.authToken,
+      customerHostname: widget.customerHostname,
+    );
+    
+    // Initialize DeleteHandler
+    _deleteHandler = DeleteHandler(
+      context: context,
+      repositoryType: widget.instanceType,
+      baseUrl: widget.baseUrl,
+      authToken: widget.authToken,
+      deleteService: _deleteService,
+      onDeleteSuccess: () {
+        _refreshCurrentFolder();
+      },
+    );
+    
+    // Initialize BatchDeleteHandler
+    _batchDeleteHandler = BatchDeleteHandler(
+      context: context,
+      instanceType: widget.instanceType,
+      baseUrl: widget.baseUrl,
+      authToken: widget.authToken,
+      deleteService: _deleteService,
+      getSelectedItems: () => _controller.items.where((item) => _selectedItems.contains(item.id)).toList(),
+      onDeleteSuccess: () {
+        _refreshCurrentFolder();
+      },
+      clearSelectionMode: () {
+        setState(() {
+          _isInSelectionMode = false;
+          _selectedItems.clear();
+        });
+      },
+    );
+    
     // Initialize controller
     _controller = BrowseScreenController(
       baseUrl: widget.baseUrl,
@@ -196,26 +227,29 @@ class _BrowseScreenState extends State<BrowseScreen> {
       authToken: widget.authToken,
     );
     
-    _authHandler = AuthHandler(context: context);
-    
-    _deleteService = DeleteServiceFactory.getService(
-      widget.instanceType,
-      widget.baseUrl,
-      widget.authToken,
+    _authHandler = AuthHandler(
+      context: context,
+      instanceType: widget.instanceType,
+      baseUrl: widget.baseUrl,
     );
     
-    _deleteHandler = DeleteHandler(
+    _uploadHandler = UploadNavigationHandler(
       context: context,
-      deleteService: _deleteService,
-      onDeleteComplete: _refreshCurrentFolder,
+      instanceType: widget.instanceType,
+      baseUrl: widget.baseUrl,
+      authToken: widget.authToken,
+      currentFolder: _controller.currentFolder,
+      refreshCurrentFolder: _refreshCurrentFolder,
     );
-    
-    _batchDeleteHandler = BatchDeleteHandler(
+
+    _searchHandler = SearchNavigationHandler(
       context: context,
-      deleteService: _deleteService,
-      onDeleteComplete: () {
-        _refreshCurrentFolder();
-        _clearSelectionMode();
+      baseUrl: widget.baseUrl,
+      authToken: widget.authToken,
+      instanceType: widget.instanceType,
+      navigateToFolder: _controller.navigateToFolder,
+      openDocument: (document) {
+        _fileTapHandler.handleFileTap(document);
       },
     );
     
@@ -261,7 +295,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
             _controller.navigateToBreadcrumb(parentIndex);
           }
         },
-        onSearchPressed: _isOffline ? null : () => _searchHandler.navigateToSearch(), // Disable search in offline mode
+        onSearchPressed: _isOffline ? () {} : () => _searchHandler.navigateToSearch(), // Disable search in offline mode
         onSelectionModeToggle: () {
           setState(() {
             _isInSelectionMode = !_isInSelectionMode;
@@ -342,7 +376,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
                           onFileTap: (file) {
                             _fileTapHandler.handleFileTap(file);
                           },
-                          onDeleteTap: !_isOffline ? _deleteHandler.handleDeleteTap : null, // Disable delete in offline mode
+                          onDeleteTap: !_isOffline ? _deleteHandler.showDeleteConfirmation : null, // Disable delete in offline mode
                           showDeleteOption: hasWritePermission && !_isOffline,
                           onRefresh: _refreshCurrentFolder,
                           onLoadMore: _controller.loadMoreItems,
@@ -363,25 +397,23 @@ class _BrowseScreenState extends State<BrowseScreen> {
   }
   
   Widget _buildFloatingActionButton() {
-    return ActionButtonBuilder.buildFloatingActionButton(
-      isInSelectionMode: _isInSelectionMode,
-      hasSelectedItems: _selectedItems.isNotEmpty,
-      isInFolder: _controller.currentFolder != null && _controller.currentFolder!.id != 'root',
-      hasWritePermission: hasWritePermission,
-      onBatchDelete: _batchDeleteHandler.handleBatchDelete,
-      onUpload: _uploadHandler.navigateToUploadScreen,
-      onShowNoPermissionMessage: (message) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.orange,
-          )
-        );
+    if (_isInSelectionMode) {
+      return FloatingActionButton(
+        onPressed: () async {
+          await _batchDeleteHandler.handleBatchDelete();
+        },
+        child: const Icon(Icons.delete),
+      );
+    }
+
+    return FloatingActionButton(
+      onPressed: () async {
+        await _uploadHandler.navigateToUploadScreen();
       },
+      child: const Icon(Icons.upload),
     );
   }
-  
+
   @override
   void dispose() {
     _connectivitySubscription.cancel();

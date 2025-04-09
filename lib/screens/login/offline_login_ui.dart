@@ -52,7 +52,7 @@ class OfflineLoginUI extends StatelessWidget {
   Future<void> _browseOfflineContent(BuildContext context) async {
     try {
       // Get offline manager
-      final offlineManager = OfflineManager();
+      final offlineManager = OfflineManager.createDefault();
       
       // Check if we have offline content
       final items = await offlineManager.getOfflineItems(null);

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -9,10 +10,20 @@ import 'package:eisenvaultappflutter/services/browse/browse_service_factory.dart
 import 'package:eisenvaultappflutter/services/document/document_service.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_database_service.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_file_service.dart';
+import 'package:eisenvaultappflutter/services/offline/offline_storage_provider.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
+import 'package:eisenvaultappflutter/services/offline/offline_core.dart';
 
-/// Central manager for offline content functionality
+/// Central manager for offline functionality
+/// 
+/// This class coordinates between storage, metadata, and sync providers
+/// to provide a unified interface for offline operations.
 class OfflineManager {
+  final OfflineStorageProvider _storage;
+  final OfflineMetadataProvider _metadata;
+  final OfflineSyncProvider _sync;
+  final OfflineConfig _config;
+  
   // Services for database and file operations
   final OfflineDatabaseService _database = OfflineDatabaseService.instance;
   final OfflineFileService _fileService = OfflineFileService();
@@ -28,6 +39,49 @@ class OfflineManager {
   static const String _keyBaseUrl = 'offline_base_url';
   static const String _keyAuthToken = 'offline_auth_token';
   static const String _keyUsername = 'offline_username';
+  
+  // Connectivity monitoring
+  late StreamSubscription<ConnectivityResult> _connectivitySubscription;
+  
+  // Event controller for offline state changes
+  final _eventController = StreamController<OfflineEvent>.broadcast();
+  
+  /// Stream of offline events
+  Stream<OfflineEvent> get events => _eventController.stream;
+  
+  /// Factory method to create an OfflineManager with default providers
+  static OfflineManager createDefault() {
+    return OfflineManager(
+      storage: LocalStorageProvider(),
+      metadata: _DatabaseMetadataAdapter(OfflineDatabaseService.instance),
+      sync: _createDefaultSyncProvider(),
+    );
+  }
+  
+  /// Create a default sync provider
+  static OfflineSyncProvider _createDefaultSyncProvider() {
+    return _DefaultSyncProvider();
+  }
+  
+  OfflineManager({
+    required OfflineStorageProvider storage,
+    required OfflineMetadataProvider metadata,
+    required OfflineSyncProvider sync,
+    OfflineConfig? config,
+  }) : _storage = storage,
+       _metadata = metadata,
+       _sync = sync,
+       _config = config ?? const OfflineConfig() {
+    _initConnectivityMonitoring();
+  }
+  
+  void _initConnectivityMonitoring() {
+    _connectivitySubscription = _connectivity.onConnectivityChanged.listen((result) {
+      if (result != ConnectivityResult.none && _config.autoSync) {
+        _sync.startSync();
+      }
+    });
+  }
   
   /// Save user credentials for offline access
   /// 
@@ -115,235 +169,76 @@ class OfflineManager {
     return result == ConnectivityResult.none;
   }
   
-  /// Keep an item available for offline access
-  ///
-  /// If the item is a folder, optionally include all its contents recursively
-  Future<bool> keepOffline({
-    required BrowseItem item,
-    required String instanceType,
-    required String baseUrl,
-    required String authToken,
-    String? parentId,
-    bool recursive = false,
-  }) async {
+  /// Keep an item available offline
+  Future<bool> keepOffline(BrowseItem item) async {
     try {
-      EVLogger.info('Keeping item offline', {
-        'itemId': item.id, 
-        'itemName': item.name,
+      // Check storage space
+      final usedSpace = await _storage.getStorageUsed();
+      if (usedSpace >= _config.maxStorageBytes) {
+        _eventController.add(const OfflineEvent(
+          'error',
+          'Not enough storage space for offline content',
+        ));
+        return false;
+      }
+      
+      // Store metadata first
+      await _metadata.storeMetadata(item.id, {
+        'id': item.id,
+        'name': item.name,
         'type': item.type,
-        'recursive': recursive,
+        'is_department': item.isDepartment,
+        'description': item.description,
+        'modified_date': item.modifiedDate,
+        'modified_by': item.modifiedBy,
+        'status': OfflineStatus.pending.toString(),
       });
       
-      // Insert the item into the database without file path yet
-      await _database.insertItem(item, parentId: parentId);
-      
-      // If it's a document, download and store its content
-      if (item.type != 'folder' && !item.isDepartment) {
-        EVLogger.debug('Downloading document content for offline access');
-        
-        try {
-          // Get the document content from the server
-          final documentService = DocumentServiceFactory.getService(
-            instanceType,
-            baseUrl,
-            authToken,
-          );
-          
-          // Download the document content
-          final content = await documentService.getDocumentContent(item);
-          
-          // Ensure content is in the correct format
-          final Uint8List bytes;
-          if (content is Uint8List) {
-            bytes = content;
-          } else if (content is String) {
-            // If it's a file path, read the file
-            if (await File(content).exists()) {
-              bytes = await File(content).readAsBytes();
-            } else {
-              // If it's raw string content, convert to bytes
-              bytes = Uint8List.fromList(content.codeUnits);
-            }
-          } else {
-            throw Exception('Unsupported content type: ${content.runtimeType}');
-          }
-          
-          // Store the content and get the file path
-          final filePath = await _fileService.storeFile(item.id, bytes);
-          
-          // Update the database with the file path
-          await _database.updateItemFilePath(item.id, filePath);
-          
-          EVLogger.debug('Item inserted into offline database', {
-            'itemId': item.id,
-            'itemName': item.name,
-          });
-        } catch (e) {
-          EVLogger.error('Failed to keep item offline', {
-            'itemId': item.id,
-            'itemName': item.name,
-            'error': e.toString(),
-          });
-          // Remove the item from the database since we couldn't store its content
-          await _database.removeItem(item.id);
-          return false;
-        }
-      }
-      
-      // If this is a folder and recursive is true, download all children
-      if (recursive && (item.type == 'folder' || item.isDepartment)) {
-        EVLogger.debug('Recursively downloading folder contents', {
-          'folderId': item.id,
-          'folderName': item.name,
-        });
-        
-        // Get the browse service for this repository type
-        final browseService = BrowseServiceFactory.getService(
-          instanceType,
-          baseUrl,
-          authToken,
-        );
-        
-        // Get all children of this folder
-        final children = await browseService.getChildren(item);
-        
-        // Recursively keep each child offline
-        for (var child in children) {
-          await keepOffline(
-            item: child,
-            instanceType: instanceType,
-            baseUrl: baseUrl,
-            authToken: authToken,
-            parentId: item.id,
-            recursive: true,
-          );
-        }
-      }
+      // Start sync for this item
+      await _sync.startSync();
       
       return true;
     } catch (e) {
-      EVLogger.error('Failed to keep item offline', {
-        'itemId': item.id,
-        'itemName': item.name,
-        'error': e.toString(),
-      });
+      EVLogger.error('Failed to keep item offline', e);
       return false;
     }
   }
   
   /// Check if an item is available offline
   Future<bool> isAvailableOffline(String itemId) async {
-    try {
-      final item = await _database.getItem(itemId);
-      return item != null;
-    } catch (e) {
-      EVLogger.error('Error checking if item is available offline', {
-        'itemId': itemId,
-        'error': e.toString(),
-      });
-      return false;
-    }
+    final metadata = await _metadata.getMetadata(itemId);
+    return metadata != null;
   }
   
-  /// Get offline file content for a document
+  /// Get offline file content
   Future<Uint8List?> getFileContent(String itemId) async {
-    try {
-      // Get the item metadata from database
-      final item = await _database.getItem(itemId);
-      
-      if (item == null) {
-        EVLogger.warning('Item not found in offline database', {
-          'itemId': itemId,
-        });
-        return null;
-      }
-      
-      // Get the file path
-      final filePath = item['file_path'];
-      
-      if (filePath == null) {
-        EVLogger.warning('Item has no associated file path', {
-          'itemId': itemId,
-        });
-        return null;
-      }
-      
-      // Get the file content
-      return await _fileService.getFileContent(filePath);
-    } catch (e) {
-      EVLogger.error('Failed to get offline file content', {
-        'itemId': itemId,
-        'error': e.toString(),
-      });
-      return null;
-    }
+    return await _storage.getFile(itemId);
   }
   
   /// Get all offline items under a parent
   Future<List<BrowseItem>> getOfflineItems(String? parentId) async {
-    try {
-      // Get items from database
-      final items = await _database.getItemsByParent(parentId);
-      
-      // Convert to BrowseItem objects
-      return items.map((data) => BrowseItem(
-        id: data['id'],
-        name: data['name'],
-        type: data['type'],
-        isDepartment: data['is_department'] == 1,
-        description: data['description'],
-        modifiedDate: data['modified_date'],
-        modifiedBy: data['modified_by'],
-      )).toList();
-    } catch (e) {
-      EVLogger.error('Failed to get offline items', {
-        'parentId': parentId,
-        'error': e.toString(),
-      });
-      return [];
-    }
+    final items = await _metadata.getItemsByParent(parentId);
+    return items.map((data) => BrowseItem(
+      id: data['id'],
+      name: data['name'],
+      type: data['type'],
+      isDepartment: data['is_department'] == true,
+      description: data['description'],
+      modifiedDate: data['modified_date'],
+      modifiedBy: data['modified_by'],
+    )).toList();
   }
   
   /// Remove an item from offline storage
-  ///
-  /// If recursive is true and the item is a folder, also removes all children
-  Future<bool> removeOffline(String itemId, {bool recursive = true}) async {
+  Future<bool> removeOffline(String itemId) async {
     try {
-      // Get the item metadata
-      final item = await _database.getItem(itemId);
-      
-      if (item == null) {
-        EVLogger.warning('Item not found in offline database', {
-          'itemId': itemId,
-        });
-        return false;
-      }
-      
-      // If this is a document with a file path, delete the file
-      final filePath = item['file_path'];
-      if (filePath != null) {
-        await _fileService.deleteFile(filePath);
-      }
-      
-      // If recursive and this is a folder, remove all children
-      if (recursive && (item['type'] == 'folder' || item['is_department'] == 1)) {
-        await _database.removeItemsWithParent(itemId);
-      }
-      
-      // Remove the item itself
-      await _database.removeItem(itemId);
-      
-      EVLogger.info('Item removed from offline storage', {
-        'itemId': itemId,
-        'recursive': recursive,
-      });
-      
+      await Future.wait([
+        _storage.deleteFile(itemId),
+        _metadata.deleteMetadata(itemId),
+      ]);
       return true;
     } catch (e) {
-      EVLogger.error('Failed to remove offline item', {
-        'itemId': itemId,
-        'error': e.toString(),
-      });
+      EVLogger.error('Failed to remove offline item', e);
       return false;
     }
   }
@@ -365,19 +260,92 @@ class OfflineManager {
   }
   
   /// Clear all offline content
-  Future<void> clearAllOfflineContent() async {
-    try {
-      // Clear database
-      final database = await _database.database;
-      await database.delete('offline_items');
-      
-      // Clear files
-      await _fileService.clearAllFiles();
-      
-      EVLogger.info('All offline content cleared');
-    } catch (e) {
-      EVLogger.error('Failed to clear all offline content', e);
-      rethrow;
+  Future<void> clearOfflineContent() async {
+    await Future.wait([
+      _storage.clearStorage(),
+      _metadata.clearMetadata(),
+    ]);
+  }
+  
+  /// Dispose resources
+  void dispose() {
+    _connectivitySubscription.cancel();
+    _eventController.close();
+  }
+}
+
+/// Default implementation of OfflineSyncProvider
+class _DefaultSyncProvider implements OfflineSyncProvider {
+  final _eventController = StreamController<OfflineEvent>.broadcast();
+  
+  @override
+  Future<void> startSync() async {
+    // Default implementation
+  }
+  
+  @override
+  Future<void> stopSync() async {
+    // Default implementation
+  }
+  
+  @override
+  Stream<OfflineEvent> get syncEvents => _eventController.stream;
+  
+  void dispose() {
+    _eventController.close();
+  }
+}
+
+/// Adapter to make OfflineDatabaseService implement OfflineMetadataProvider
+class _DatabaseMetadataAdapter implements OfflineMetadataProvider {
+  final OfflineDatabaseService _database;
+  
+  _DatabaseMetadataAdapter(this._database);
+  
+  @override
+  Future<void> storeMetadata(String itemId, Map<String, dynamic> metadata) async {
+    // Create a BrowseItem from the metadata
+    final item = BrowseItem(
+      id: metadata['id'],
+      name: metadata['name'],
+      type: metadata['type'],
+      isDepartment: metadata['is_department'] == true,
+      description: metadata['description'],
+      modifiedDate: metadata['modified_date'],
+      modifiedBy: metadata['modified_by'],
+    );
+    
+    // Insert the item into the database
+    await _database.insertItem(
+      item,
+      parentId: metadata['parent_id'],
+      filePath: metadata['file_path'],
+      syncStatus: metadata['status'] ?? 'pending',
+    );
+  }
+  
+  @override
+  Future<Map<String, dynamic>?> getMetadata(String itemId) async {
+    return await _database.getItem(itemId);
+  }
+  
+  @override
+  Future<List<Map<String, dynamic>>> getItemsByParent(String? parentId) async {
+    return await _database.getItemsByParent(parentId);
+  }
+  
+  @override
+  Future<void> deleteMetadata(String itemId) async {
+    await _database.removeItem(itemId);
+  }
+  
+  @override
+  Future<void> clearMetadata() async {
+    // Since there's no direct method to clear all metadata,
+    // we'll get all items and remove them one by one
+    final items = await _database.getAllOfflineItems();
+    for (final item in items) {
+      await _database.removeItem(item['id']);
     }
   }
 }

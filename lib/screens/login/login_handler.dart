@@ -150,7 +150,7 @@ class LoginHandler {
   }) async {
     try {
       // Save credentials using the new method
-      final offlineManager = OfflineManager();
+      final offlineManager = OfflineManager.createDefault();
       await offlineManager.saveCredentials(
         instanceType: instanceType,
         baseUrl: baseUrl,
@@ -175,7 +175,7 @@ class LoginHandler {
   Future<bool> hasOfflineContent() async {
     try {
       // Get offline manager
-      final offlineManager = OfflineManager();
+      final offlineManager = OfflineManager.createDefault();
       
       // Get the list of offline items at the root level
       final items = await offlineManager.getOfflineItems(null);
@@ -192,7 +192,7 @@ class LoginHandler {
   Future<void> navigateToOfflineBrowse(BuildContext context) async {
     try {
       // Get saved credentials
-      final offlineManager = OfflineManager();
+      final offlineManager = OfflineManager.createDefault();
       final credentials = await offlineManager.getSavedCredentials();
       
       if (credentials == null) {

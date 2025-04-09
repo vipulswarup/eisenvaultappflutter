@@ -21,7 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
   
   Future<void> _checkOfflineMode() async {
-    final offlineManager = OfflineManager();
+    final offlineManager = OfflineManager.createDefault();
     final isOffline = await offlineManager.isOffline();
     if (mounted) {
       setState(() {
