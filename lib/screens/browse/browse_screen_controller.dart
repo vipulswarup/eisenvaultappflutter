@@ -9,6 +9,7 @@ import 'package:debounce_throttle/debounce_throttle.dart';
 import 'package:dio/dio.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter/material.dart';
 
 /// Controller for the BrowseScreen
 /// Separates business logic from UI
@@ -17,6 +18,8 @@ class BrowseScreenController {
   final String authToken; 
   final String instanceType;
   final AngoraBaseService? angoraBaseService;
+  final BuildContext context;
+  final GlobalKey<ScaffoldState> scaffoldKey;
   
   // State variables
   bool isLoading = true;
@@ -53,6 +56,8 @@ class BrowseScreenController {
     required this.authToken,
     required this.instanceType,
     required this.onStateChanged,
+    required this.context,
+    required this.scaffoldKey,
   }) : angoraBaseService = instanceType.toLowerCase() == 'angora' 
         ? AngoraBaseService(baseUrl)
         : null {
@@ -157,10 +162,15 @@ class BrowseScreenController {
     onStateChanged?.call();
     
     try {
+      // Check offline status first
+      _isOffline = await _offlineManager.isOffline();
+      
       if (_isOffline) {
+        EVLogger.debug('Loading offline items for folder', {'folderId': folder.id});
         // Load offline items
         final offlineItems = await _offlineManager.getOfflineItems(folder.id);
         items = offlineItems;
+        _hasMoreItems = false; // No pagination in offline mode
       } else {
         // Load online items
         final browseService = BrowseServiceFactory.getService(
@@ -193,12 +203,32 @@ class BrowseScreenController {
       
       setLoading(false);
     } catch (e) {
-      // Don't report errors from cancelled requests
-      if (e is! DioException || (e is DioException && e.type != DioExceptionType.cancel)) {
+      // Check if the error is due to being offline
+      if (e.toString().contains('SocketException') || e.toString().contains('Failed host lookup')) {
+        EVLogger.info('Network error, switching to offline mode');
+        _isOffline = true;
+        // Try loading offline content
+        try {
+          final offlineItems = await _offlineManager.getOfflineItems(folder.id);
+          items = offlineItems;
+          _hasMoreItems = false;
+          setLoading(false);
+          // Show offline mode message
+          if (onStateChanged != null) {
+            ScaffoldMessenger.of(_getContext()).showSnackBar(
+              const SnackBar(
+                content: Text('You are offline. Showing available offline content.'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        } catch (offlineError) {
+          errorMessage = 'Failed to load offline content: ${offlineError.toString()}';
+          setLoading(false);
+        }
+      } else if (e is! DioException || (e is DioException && e.type != DioExceptionType.cancel)) {
         errorMessage = 'Failed to load contents: ${e.toString()}';
         setLoading(false);
-        // Re-throw to be caught by the calling method
-        rethrow;
       }
     }
   }
@@ -212,14 +242,19 @@ class BrowseScreenController {
     isLoading = true;
     errorMessage = null;
     _currentPage = 0;
-    _hasMoreItems = !_isOffline; // No pagination in offline mode
+    _hasMoreItems = !_isOffline;
     _notifyListeners();
 
     try {
+      // Check offline status first
+      _isOffline = await _offlineManager.isOffline();
+      
       if (_isOffline) {
+        EVLogger.debug('Loading offline departments');
         // Load offline departments
         final offlineItems = await _offlineManager.getOfflineItems(null);
         items = offlineItems;
+        _hasMoreItems = false;
       } else {
         // Load online departments
         final browseService = BrowseServiceFactory.getService(
@@ -336,8 +371,33 @@ class BrowseScreenController {
         _notifyListeners();
       }
     } catch (e) {
-      errorMessage = 'Failed to load departments: ${e.toString()}';
-      isLoading = false;
+      // Check if the error is due to being offline
+      if (e.toString().contains('SocketException') || e.toString().contains('Failed host lookup')) {
+        EVLogger.info('Network error, switching to offline mode');
+        _isOffline = true;
+        // Try loading offline content
+        try {
+          final offlineItems = await _offlineManager.getOfflineItems(null);
+          items = offlineItems;
+          _hasMoreItems = false;
+          isLoading = false;
+          // Show offline mode message
+          if (onStateChanged != null) {
+            ScaffoldMessenger.of(_getContext()).showSnackBar(
+              const SnackBar(
+                content: Text('You are offline. Showing available offline content.'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        } catch (offlineError) {
+          errorMessage = 'Failed to load offline content: ${offlineError.toString()}';
+          isLoading = false;
+        }
+      } else {
+        errorMessage = 'Failed to load departments: ${e.toString()}';
+        isLoading = false;
+      }
       _notifyListeners();
     }
   }
@@ -373,6 +433,24 @@ class BrowseScreenController {
     _notifyListeners();
 
     try {
+      if (_isOffline) {
+        // In offline mode, just load offline contents
+        final offlineItems = await _offlineManager.getOfflineItems(folder.id);
+        items = offlineItems;
+        
+        // Update navigation stack
+        if (currentFolder?.id == 'root') {
+          navigationStack = [];
+        } else if (currentFolder != null) {
+          navigationStack.add(currentFolder!);
+        }
+        
+        currentFolder = folder;
+        isLoading = false;
+        _notifyListeners();
+        return;
+      }
+
       await loadFolderContents(folder);
       
       // If navigating from root, start a new navigation stack
@@ -458,5 +536,10 @@ class BrowseScreenController {
       EVLogger.error('Error toggling offline availability', e);
       rethrow;
     }
+  }
+
+  // Add this helper method to get context
+  BuildContext _getContext() {
+    return scaffoldKey.currentContext ?? context;
   }
 }

@@ -63,6 +63,9 @@ class _BrowseScreenState extends State<BrowseScreen> {
   // Offline manager
   final OfflineManager _offlineManager = OfflineManager.createDefault();
 
+  // Global key for scaffold
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
   // Define _refreshCurrentFolder first to avoid being referenced before declaration
   Future<void> _refreshCurrentFolder() async {
     if (_isOffline) {
@@ -209,7 +212,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
       },
     );
     
-    // Initialize controller
+    // Initialize controller with context
     _controller = BrowseScreenController(
       baseUrl: widget.baseUrl,
       authToken: widget.authToken,
@@ -217,6 +220,8 @@ class _BrowseScreenState extends State<BrowseScreen> {
       onStateChanged: () {
         if (mounted) setState(() {});
       },
+      context: context,
+      scaffoldKey: _scaffoldKey,
     );
     
     // Initialize handlers
@@ -277,6 +282,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
                                    _controller.currentFolder!.canWrite;
     
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: EVColors.screenBackground,
       appBar: BrowseAppBar(
         title: _isOffline ? 'Offline Mode' : 'Departments',
@@ -391,19 +397,20 @@ class _BrowseScreenState extends State<BrowseScreen> {
           ),
         ],
       ),
-      // Only show FAB when not in offline mode
-      floatingActionButton: !_isOffline && hasWritePermission
+      // Show FAB for delete in selection mode, or for upload when online with write permission
+      floatingActionButton: _isInSelectionMode || (!_isOffline && hasWritePermission)
           ? _buildFloatingActionButton()
           : null,
     );
   }
   
   Widget _buildFloatingActionButton() {
-    if (_isInSelectionMode) {
+    if (_isInSelectionMode && _selectedItems.isNotEmpty) {
       return FloatingActionButton(
         onPressed: () async {
           await _batchDeleteHandler.handleBatchDelete();
         },
+        backgroundColor: Colors.red,
         child: const Icon(Icons.delete),
       );
     }

@@ -15,14 +15,19 @@ class LocalStorageProvider implements OfflineStorageProvider {
   Future<void> init() async {
     if (_initialized) return;
     
-    final appDir = await getApplicationDocumentsDirectory();
-    _baseDir = Directory(path.join(appDir.path, _offlineDir));
-    
-    if (!await _baseDir.exists()) {
-      await _baseDir.create(recursive: true);
+    try {
+      final appDir = await getApplicationDocumentsDirectory();
+      _baseDir = Directory(path.join(appDir.path, _offlineDir));
+      
+      if (!await _baseDir.exists()) {
+        await _baseDir.create(recursive: true);
+      }
+      
+      _initialized = true;
+    } catch (e) {
+      EVLogger.error('Failed to initialize storage provider', {'error': e});
+      rethrow;
     }
-    
-    _initialized = true;
   }
   
   String _getFilePath(String itemId) {
