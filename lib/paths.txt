@@ -1,0 +1,9 @@
+Below are the last remaining files.
+After considering these, please tell me in detail, how the offline sync and offline file storage in this app works. And review the code for obvious issues.
+
+
+
+@file_upload_progress_list.dart:
+@widgets/failed_upload_list.dart
+@widgets/delete_confirmation_dialog.dart
+@widgets/sync_status_indicator.dart

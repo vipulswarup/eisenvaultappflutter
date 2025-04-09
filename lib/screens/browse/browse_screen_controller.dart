@@ -1,6 +1,7 @@
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/services/api/angora_base_service.dart';
 import 'package:eisenvaultappflutter/services/browse/browse_service_factory.dart';
+import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:debounce_throttle/debounce_throttle.dart';
 import 'package:dio/dio.dart';
@@ -40,6 +41,9 @@ class BrowseScreenController {
   final int _itemsPerPage = 25;
   bool _hasMoreItems = true;
   bool _isLoadingMore = false;
+  
+  final OfflineManager _offlineManager = OfflineManager();
+  final Set<String> _offlineItems = {};
   
   /// Constructor initializes the controller with required parameters
   BrowseScreenController({
@@ -118,6 +122,11 @@ class BrowseScreenController {
     }
   }
 
+  void setLoading(bool loading) {
+    isLoading = loading;
+    onStateChanged?.call();
+  }
+
   /// Loads folder contents with pagination reset
   Future<void> loadFolderContents(BrowseItem folder) async {
     // Cancel any ongoing request
@@ -125,7 +134,7 @@ class BrowseScreenController {
     _cancelToken = CancelToken();
 
     currentFolder = folder;
-    isLoading = true;
+    setLoading(true);
     errorMessage = null;
     _currentPage = 0;
     _hasMoreItems = true;
@@ -146,6 +155,13 @@ class BrowseScreenController {
         maxItems: _itemsPerPage,
       );
       
+      // Check offline status for each item
+      for (var item in loadedItems) {
+        if (await isItemAvailableOffline(item.id)) {
+          _offlineItems.add(item.id);
+        }
+      }
+      
       items = loadedItems;
       
       // If we got fewer items than requested, there are no more
@@ -153,15 +169,12 @@ class BrowseScreenController {
         _hasMoreItems = false;
       }
       
-      isLoading = false;
-      onStateChanged?.call();
+      setLoading(false);
     } catch (e) {
       // Don't report errors from cancelled requests
       if (e is! DioException || (e is DioException && e.type != DioExceptionType.cancel)) {
         errorMessage = 'Failed to load contents: ${e.toString()}';
-        isLoading = false;
-        onStateChanged?.call();
-      
+        setLoading(false);
         // Re-throw to be caught by the calling method
         rethrow;
       }
@@ -378,5 +391,48 @@ class BrowseScreenController {
     // This would be implemented if needed, but for now we're relying on
     // the allowableOperations that should be returned with each item
     // from the API
+  }
+
+  // Add this method to check if an item is available offline
+  Future<bool> isItemAvailableOffline(String itemId) async {
+    if (_offlineItems.contains(itemId)) {
+      return true;
+    }
+    final isAvailable = await _offlineManager.isAvailableOffline(itemId);
+    if (isAvailable) {
+      _offlineItems.add(itemId);
+    }
+    return isAvailable;
+  }
+
+  // Add this method to toggle offline availability
+  Future<void> toggleOfflineAvailability(BrowseItem item) async {
+    try {
+      final isAvailable = await isItemAvailableOffline(item.id);
+      
+      if (isAvailable) {
+        // Remove from offline
+        await _offlineManager.removeOffline(item.id);
+        _offlineItems.remove(item.id);
+      } else {
+        // Add to offline
+        final success = await _offlineManager.keepOffline(
+          item: item,
+          instanceType: instanceType,
+          baseUrl: baseUrl,
+          authToken: authToken,
+        );
+        
+        if (success) {
+          _offlineItems.add(item.id);
+        }
+      }
+      
+      // Notify listeners of the change
+      onStateChanged?.call();
+    } catch (e) {
+      EVLogger.error('Error toggling offline availability', e);
+      rethrow;
+    }
   }
 }

@@ -1,13 +1,14 @@
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/services/permissions/angora_permission_service.dart';
+import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:flutter/material.dart';
 
 class BrowseItemTile extends StatefulWidget {
   final BrowseItem item;
   final VoidCallback onTap;
-  final Function(BrowseItem)? onDeleteTap;  // Now it can accept a BrowseItem parameter
+  final Function(BrowseItem)? onDeleteTap;
   final bool showDeleteOption;
   final String? repositoryType;
   final String? baseUrl;
@@ -15,6 +16,8 @@ class BrowseItemTile extends StatefulWidget {
   final bool selectionMode;
   final bool isSelected;
   final Function(bool)? onSelectionChanged;
+  final bool isAvailableOffline;
+  final Function(BrowseItem)? onOfflineToggle;
 
   const BrowseItemTile({
     Key? key,
@@ -28,6 +31,8 @@ class BrowseItemTile extends StatefulWidget {
     this.selectionMode = false,
     this.isSelected = false,
     this.onSelectionChanged,
+    this.isAvailableOffline = false,
+    this.onOfflineToggle,
   }) : super(key: key);
 
   @override
@@ -38,16 +43,32 @@ class _BrowseItemTileState extends State<BrowseItemTile> {
   bool _isCheckingPermission = false;
   bool _hasDeletePermission = false;
   bool _permissionsLoaded = false;
+  bool _isOfflineOperationInProgress = false;
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: _buildLeadingIcon(), // This is correctly implemented but something is changing the item type
-      title: Text(
-        widget.item.name,
-        style: const TextStyle(
-          fontWeight: FontWeight.w500,
-        ),
+      leading: _buildLeadingIcon(),
+      title: Row(
+        children: [
+          Expanded(
+            child: Text(
+              widget.item.name,
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          if (widget.isAvailableOffline)
+            Padding(
+              padding: const EdgeInsets.only(left: 8.0),
+              child: Icon(
+                Icons.cloud_done,
+                size: 16,
+                color: Colors.green,
+              ),
+            ),
+        ],
       ),
       subtitle: Text(
         widget.item.modifiedDate != null 
@@ -94,18 +115,14 @@ class _BrowseItemTileState extends State<BrowseItemTile> {
               setState(() {
                 _hasDeletePermission = result;
                 _isCheckingPermission = false;
-                _permissionsLoaded = true;  // Mark as loaded
+                _permissionsLoaded = true;
               });
               
               _displayOptionsMenu(context);
             }
           }
         } else {
-          // For non-Angora, load permissions if not already set
           if (!_permissionsLoaded && widget.item.allowableOperations == null) {
-            // Request permissions for this specific item
-            // This would need to be implemented in the browse controller
-            // For now, just use canDelete
             _hasDeletePermission = widget.item.canDelete;
             _permissionsLoaded = true;
           } else {
@@ -114,10 +131,9 @@ class _BrowseItemTileState extends State<BrowseItemTile> {
           _displayOptionsMenu(context);
         }
       } catch (e) {
-        // Handle errors
+        EVLogger.error('Error checking permissions', e);
       }
     } else {
-      // Permissions already loaded or not needed
       _displayOptionsMenu(context);
     }
   }
@@ -138,7 +154,28 @@ class _BrowseItemTileState extends State<BrowseItemTile> {
       position: position,
       items: [
         PopupMenuItem(
-          enabled: _hasDeletePermission,
+          enabled: !_isOfflineOperationInProgress,
+          child: Row(
+            children: [
+              Icon(
+                widget.isAvailableOffline ? Icons.cloud_off : Icons.cloud_download,
+                color: _isOfflineOperationInProgress ? Colors.grey : null,
+              ),
+              SizedBox(width: 10),
+              Text(
+                widget.isAvailableOffline ? 'Remove from Offline' : 'Available Offline',
+                style: TextStyle(
+                  color: _isOfflineOperationInProgress ? Colors.grey : null,
+                ),
+              ),
+            ],
+          ),
+          onTap: _isOfflineOperationInProgress ? null : () {
+            widget.onOfflineToggle?.call(widget.item);
+          },
+        ),
+        PopupMenuItem(
+          enabled: _hasDeletePermission && !_isOfflineOperationInProgress,
           child: Row(
             children: [
               Icon(Icons.delete, color: _hasDeletePermission ? Colors.red : Colors.grey),
@@ -151,10 +188,9 @@ class _BrowseItemTileState extends State<BrowseItemTile> {
           onTap: _hasDeletePermission && widget.onDeleteTap != null ? 
             () => Future.delayed(
               Duration(milliseconds: 100),
-              () => widget.onDeleteTap!(widget.item),  // Fixed - pass the item
+              () => widget.onDeleteTap!(widget.item),
             ) : null,
         ),
-        // Add other options here (download, share, etc.)
       ],
     );
   }

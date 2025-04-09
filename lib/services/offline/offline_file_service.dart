@@ -27,7 +27,7 @@ class OfflineFileService {
   /// Store file content to local storage
   /// 
   /// Returns the local file path where the content was stored
-  Future<String> storeFile(String fileId, Uint8List content) async {
+  Future<String> storeFile(String fileId, dynamic content) async {
     try {
       // Get base directory for offline files
       final dir = await _baseDir;
@@ -39,12 +39,26 @@ class OfflineFileService {
       
       // Create and write to file
       final file = File(filePath);
-      await file.writeAsBytes(content);
+      
+      // Handle different content types
+      if (content is Uint8List) {
+        await file.writeAsBytes(content);
+      } else if (content is String) {
+        // If it's a file path, copy the file
+        if (await File(content).exists()) {
+          await File(content).copy(filePath);
+        } else {
+          // If it's raw string content, convert to bytes
+          await file.writeAsBytes(Uint8List.fromList(content.codeUnits));
+        }
+      } else {
+        throw Exception('Unsupported content type: ${content.runtimeType}');
+      }
       
       EVLogger.debug('File saved for offline access', {
         'fileId': fileId,
         'path': filePath,
-        'size': content.length,
+        'contentType': content.runtimeType.toString(),
       });
       
       return filePath;

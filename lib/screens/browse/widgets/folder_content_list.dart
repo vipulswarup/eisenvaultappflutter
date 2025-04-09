@@ -18,6 +18,8 @@ class FolderContentList extends StatelessWidget {
   final bool selectionMode;
   final Set<String> selectedItems;
   final Function(String, bool)? onItemSelected;
+  final Future<bool> Function(String)? isItemAvailableOffline;
+  final Function(BrowseItem)? onOfflineToggle;
 
   const FolderContentList({
     Key? key,
@@ -33,6 +35,8 @@ class FolderContentList extends StatelessWidget {
     this.selectionMode = false,
     this.selectedItems = const {},
     this.onItemSelected,
+    this.isItemAvailableOffline,
+    this.onOfflineToggle,
   }) : super(key: key);
 
   @override
@@ -51,20 +55,24 @@ class FolderContentList extends StatelessWidget {
           
           return selectionMode
               ? _buildSelectableItem(context, item, isSelected)
-              : BrowseItemTile(
-                  item: item,
-                  onTap: () {
-                    if (item.type == 'folder' || item.isDepartment) {
-                      onFolderTap(item);
-                    } else {
-                      onFileTap(item);
-                    }
+              : FutureBuilder<bool>(
+                  future: isItemAvailableOffline?.call(item.id) ?? Future.value(false),
+                  builder: (context, snapshot) {
+                    return BrowseItemTile(
+                      item: item,
+                      onTap: () {
+                        if (item.type == 'folder' || item.isDepartment) {
+                          onFolderTap(item);
+                        } else {
+                          onFileTap(item);
+                        }
+                      },
+                      onDeleteTap: showDeleteOption ? onDeleteTap : null,
+                      showDeleteOption: showDeleteOption,
+                      isAvailableOffline: snapshot.data ?? false,
+                      onOfflineToggle: onOfflineToggle,
+                    );
                   },
-                  onDeleteTap: showDeleteOption ? (item) {
-                    // Pass the function that takes a BrowseItem parameter
-                    onDeleteTap?.call(item);
-                  } : null,
-                  showDeleteOption: showDeleteOption,
                 );
         },
       ),
@@ -72,24 +80,48 @@ class FolderContentList extends StatelessWidget {
   }
   
   Widget _buildSelectableItem(BuildContext context, BrowseItem item, bool isSelected) {
-    return ListTile(
-      leading: _buildItemIcon(item),
-      title: Text(item.name),
-      subtitle: Text(
-        item.modifiedDate != null 
-            ? 'Modified: ${_formatDate(item.modifiedDate!)}'
-            : item.description ?? '',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      trailing: Checkbox(
-        value: isSelected,
-        onChanged: (value) {
-          onItemSelected?.call(item.id, value ?? false);
-        },
-      ),
-      onTap: () {
-        onItemSelected?.call(item.id, !isSelected);
+    return FutureBuilder<bool>(
+      future: isItemAvailableOffline?.call(item.id) ?? Future.value(false),
+      builder: (context, snapshot) {
+        final isAvailableOffline = snapshot.data ?? false;
+        
+        return ListTile(
+          leading: _buildItemIcon(item),
+          title: Text(item.name),
+          subtitle: Text(
+            item.modifiedDate != null 
+                ? 'Modified: ${_formatDate(item.modifiedDate!)}'
+                : item.description ?? '',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (item.type != 'folder' && !item.isDepartment) // Only show for files
+                IconButton(
+                  icon: Icon(
+                    isAvailableOffline ? Icons.offline_pin : Icons.offline_pin_outlined,
+                    color: isAvailableOffline ? Colors.green : Colors.grey,
+                  ),
+                  onPressed: () {
+                    if (onOfflineToggle != null) {
+                      onOfflineToggle!(item);
+                    }
+                  },
+                ),
+              Checkbox(
+                value: isSelected,
+                onChanged: (value) {
+                  onItemSelected?.call(item.id, value ?? false);
+                },
+              ),
+            ],
+          ),
+          onTap: () {
+            onItemSelected?.call(item.id, !isSelected);
+          },
+        );
       },
     );
   }

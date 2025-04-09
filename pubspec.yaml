@@ -5,7 +5,7 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.7.0
+  sdk: '>=3.7.0 <4.0.0'
 
 dependencies:
   flutter:
@@ -27,7 +27,7 @@ dependencies:
   talker_logger: ^4.6.14
   
   # PDF Handling
-  syncfusion_flutter_pdfviewer: ^28.2.7
+  syncfusion_flutter_pdfviewer: ^28.2.9
   pdf: ^3.11.3
   printing: ^5.14.2
   
@@ -38,25 +38,20 @@ dependencies:
   share_plus: ^10.1.4
   share_plus_platform_interface: ^5.0.2
   
-  # Updated device info plugin to a compatible version
+  # Device info and file handling
   device_info_plus: ^11.3.3
   open_file: ^3.5.10
   debounce_throttle: ^2.0.0
   dio: ^5.8.0+1
   
-  # Replace file_picker with file_selector
+  # File selection
   file_selector: ^1.0.1
-  # file_picker: ^6.1.1  # Comment out or remove this line
 
-  # Add flutter_secure_storage for securely storing authentication credentials
-  flutter_secure_storage: ^8.0.0
-  # Add connectivity_plus for network connectivity detection
-  connectivity_plus: ^4.0.1
-  # Add sqflite for local database storage
+  # Security and storage
+  flutter_secure_storage: ^8.1.0
+  connectivity_plus: ^4.0.2
   sqflite: ^2.2.8
-  # Add path for path manipulation
   path: ^1.8.3
-
 
 dev_dependencies:
   flutter_test:

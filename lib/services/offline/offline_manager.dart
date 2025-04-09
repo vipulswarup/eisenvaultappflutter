@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Add this import
@@ -140,21 +141,53 @@ class OfflineManager {
       if (item.type != 'folder' && !item.isDepartment) {
         EVLogger.debug('Downloading document content for offline access');
         
-        // Get the document content from the server
-        final documentService = DocumentServiceFactory.getService(
-          instanceType,
-          baseUrl,
-          authToken,
-        );
-        
-        // Download the document content
-        final content = await documentService.getDocumentContent(item);
-        
-        // Store the content and get the file path
-        final filePath = await _fileService.storeFile(item.id, content);
-        
-        // Update the database with the file path
-        await _database.updateItemFilePath(item.id, filePath);
+        try {
+          // Get the document content from the server
+          final documentService = DocumentServiceFactory.getService(
+            instanceType,
+            baseUrl,
+            authToken,
+          );
+          
+          // Download the document content
+          final content = await documentService.getDocumentContent(item);
+          
+          // Ensure content is in the correct format
+          final Uint8List bytes;
+          if (content is Uint8List) {
+            bytes = content;
+          } else if (content is String) {
+            // If it's a file path, read the file
+            if (await File(content).exists()) {
+              bytes = await File(content).readAsBytes();
+            } else {
+              // If it's raw string content, convert to bytes
+              bytes = Uint8List.fromList(content.codeUnits);
+            }
+          } else {
+            throw Exception('Unsupported content type: ${content.runtimeType}');
+          }
+          
+          // Store the content and get the file path
+          final filePath = await _fileService.storeFile(item.id, bytes);
+          
+          // Update the database with the file path
+          await _database.updateItemFilePath(item.id, filePath);
+          
+          EVLogger.debug('Item inserted into offline database', {
+            'itemId': item.id,
+            'itemName': item.name,
+          });
+        } catch (e) {
+          EVLogger.error('Failed to keep item offline', {
+            'itemId': item.id,
+            'itemName': item.name,
+            'error': e.toString(),
+          });
+          // Remove the item from the database since we couldn't store its content
+          await _database.removeItem(item.id);
+          return false;
+        }
       }
       
       // If this is a folder and recursive is true, download all children

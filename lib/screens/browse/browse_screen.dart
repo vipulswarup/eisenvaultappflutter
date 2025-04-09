@@ -3,21 +3,20 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/screens/browse/browse_screen_controller.dart';
-import 'package:eisenvaultappflutter/screens/browse/components/action_button_builder.dart';
-import 'package:eisenvaultappflutter/screens/browse/components/browse_app_bar.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/auth_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/batch_delete_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/delete_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/file_tap_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/search_navigation_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/upload_navigation_handler.dart';
+import 'package:eisenvaultappflutter/screens/browse/widgets/action_button_builder.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/breadcrumb_navigation.dart';
+import 'package:eisenvaultappflutter/screens/browse/widgets/browse_app_bar.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_drawer.dart';
-import 'package:eisenvaultappflutter/screens/browse/widgets/empty_folder_view.dart';
-import 'package:eisenvaultappflutter/screens/browse/widgets/error_view.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/folder_content_list.dart';
 import 'package:eisenvaultappflutter/services/delete/delete_service.dart';
-import 'package:eisenvaultappflutter/utils/file_type_utils.dart';
+import 'package:eisenvaultappflutter/services/delete/delete_service_factory.dart';
+import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:flutter/material.dart';
 
@@ -62,12 +61,42 @@ class _BrowseScreenState extends State<BrowseScreen> {
   bool _isInSelectionMode = false;
   final Set<String> _selectedItems = {};
 
+  // Offline manager
+  final OfflineManager _offlineManager = OfflineManager();
+
   // Define _refreshCurrentFolder first to avoid being referenced before declaration
   Future<void> _refreshCurrentFolder() async {
-    if (_controller.currentFolder != null) {
-      await _controller.loadFolderContents(_controller.currentFolder!);
+    if (_isOffline) {
+      // In offline mode, load offline content
+      await _loadOfflineContent();
     } else {
-      await _controller.loadDepartments();
+      if (_controller.currentFolder != null) {
+        await _controller.loadFolderContents(_controller.currentFolder!);
+      } else {
+        await _controller.loadDepartments();
+      }
+    }
+  }
+
+  Future<void> _loadOfflineContent() async {
+    try {
+      setState(() {
+        _controller.isLoading = true;
+      });
+
+      // Get offline items for current folder
+      final items = await _offlineManager.getOfflineItems(_controller.currentFolder?.id);
+      
+      setState(() {
+        _controller.items = items;
+        _controller.isLoading = false;
+        _controller.errorMessage = null;
+      });
+    } catch (e) {
+      setState(() {
+        _controller.isLoading = false;
+        _controller.errorMessage = 'Failed to load offline content: ${e.toString()}';
+      });
     }
   }
   
@@ -94,95 +123,111 @@ class _BrowseScreenState extends State<BrowseScreen> {
   }
 
   void _updateConnectionStatus(ConnectivityResult result) {
-    setState(() {
-      _isOffline = result == ConnectivityResult.none;
-    });
+    final wasOffline = _isOffline;
+    final isNowOffline = result == ConnectivityResult.none;
+    
+    if (wasOffline != isNowOffline) {
+      setState(() {
+        _isOffline = isNowOffline;
+      });
+      
+      // If we just went offline, switch to offline content
+      if (isNowOffline) {
+        _loadOfflineContent();
+      } else {
+        // If we just came back online, refresh current folder
+        _refreshCurrentFolder();
+      }
+      
+      // Show appropriate message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(isNowOffline 
+              ? 'You are offline. Showing available offline content.' 
+              : 'Back online. Refreshing content...'),
+            backgroundColor: isNowOffline ? Colors.orange : Colors.green,
+          ),
+        );
+      }
+    }
+  }
+
+  // Add this method to handle offline toggle
+  Future<void> _handleOfflineToggle(BrowseItem item) async {
+    try {
+      await _controller.toggleOfflineAvailability(item);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to toggle offline availability: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // Add this method to check if an item is available offline
+  Future<bool> _isItemAvailableOffline(String itemId) async {
+    return await _controller.isItemAvailableOffline(itemId);
   }
 
   @override
   void initState() {
     super.initState();
-  
-    // Initialize connectivity monitoring
-    _checkConnectivity();
-    _connectivitySubscription = 
-        _connectivity.onConnectivityChanged.listen(_updateConnectionStatus);
-  
-    // Initialize delete service
-    _deleteService = DeleteService(
-      repositoryType: widget.instanceType,
-      baseUrl: widget.baseUrl,
-      authToken: widget.authToken,
-      customerHostname: widget.customerHostname,
-    );
-
-    // Initialize controllers and handlers
+    
+    // Initialize controller
     _controller = BrowseScreenController(
       baseUrl: widget.baseUrl,
       authToken: widget.authToken,
       instanceType: widget.instanceType,
       onStateChanged: () {
-        if (mounted) {
-          setState(() {});
-        }
+        if (mounted) setState(() {});
       },
     );
-
+    
+    // Initialize handlers
     _fileTapHandler = FileTapHandler(
       context: context,
       instanceType: widget.instanceType,
       baseUrl: widget.baseUrl,
       authToken: widget.authToken,
-      angoraBaseService: _controller.angoraBaseService,
     );
-
-    _authHandler = AuthHandler(
-      context: context,
-      instanceType: widget.instanceType,
-      baseUrl: widget.baseUrl,
+    
+    _authHandler = AuthHandler(context: context);
+    
+    _deleteService = DeleteServiceFactory.getService(
+      widget.instanceType,
+      widget.baseUrl,
+      widget.authToken,
     );
-
+    
     _deleteHandler = DeleteHandler(
       context: context,
-      repositoryType: widget.instanceType,
-      baseUrl: widget.baseUrl,
-      authToken: widget.authToken,
       deleteService: _deleteService,
-      onDeleteSuccess: () {
-        _refreshCurrentFolder();
-      },
+      onDeleteComplete: _refreshCurrentFolder,
     );
-
+    
     _batchDeleteHandler = BatchDeleteHandler(
       context: context,
-      instanceType: widget.instanceType,
-      baseUrl: widget.baseUrl,
-      authToken: widget.authToken,
       deleteService: _deleteService,
-      getSelectedItems: _getSelectedItems,
-      onDeleteSuccess: _refreshCurrentFolder,
-      clearSelectionMode: _clearSelectionMode,
-    );
-
-    _uploadHandler = UploadNavigationHandler(
-      context: context,
-      instanceType: widget.instanceType,
-      baseUrl: widget.baseUrl,
-      authToken: widget.authToken,
-      currentFolder: _controller.currentFolder,
-      refreshCurrentFolder: _refreshCurrentFolder,
-    );
-
-    _searchHandler = SearchNavigationHandler(
-      context: context,
-      baseUrl: widget.baseUrl,
-      authToken: widget.authToken,
-      instanceType: widget.instanceType,
-      navigateToFolder: _controller.navigateToFolder,
-      openDocument: (document) {
-        _fileTapHandler.handleFileTap(document);
+      onDeleteComplete: () {
+        _refreshCurrentFolder();
+        _clearSelectionMode();
       },
     );
+    
+    // Check initial connectivity
+    _checkConnectivity();
+    
+    // Start listening to connectivity changes
+    _connectivitySubscription = 
+        _connectivity.onConnectivityChanged.listen(_updateConnectionStatus);
+    
+    // Load initial content
+    _refreshCurrentFolder();
   }
 
   @override
@@ -192,24 +237,15 @@ class _BrowseScreenState extends State<BrowseScreen> {
                                      _controller.currentFolder!.id == 'root';
     
     // Check if user has write permission for the current folder
-    final bool hasWritePermission = _controller.currentFolder != null && 
+    final bool hasWritePermission = !_isOffline && // No write operations in offline mode
+                                   _controller.currentFolder != null && 
                                    _controller.currentFolder!.id != 'root' &&
                                    _controller.currentFolder!.canWrite;
-    
-    // Update handlers that need current state
-    _uploadHandler = UploadNavigationHandler(
-      context: context,
-      instanceType: widget.instanceType,
-      baseUrl: widget.baseUrl,
-      authToken: widget.authToken,
-      currentFolder: _controller.currentFolder,
-      refreshCurrentFolder: _refreshCurrentFolder,
-    );
     
     return Scaffold(
       backgroundColor: EVColors.screenBackground,
       appBar: BrowseAppBar(
-        title: 'Departments',
+        title: _isOffline ? 'Offline Mode' : 'Departments',
         isAtDepartmentsList: isAtDepartmentsList,
         hasItems: _controller.items.isNotEmpty,
         isInSelectionMode: _isInSelectionMode,
@@ -225,7 +261,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
             _controller.navigateToBreadcrumb(parentIndex);
           }
         },
-        onSearchPressed: () => _searchHandler.navigateToSearch(),
+        onSearchPressed: _isOffline ? null : () => _searchHandler.navigateToSearch(), // Disable search in offline mode
         onSelectionModeToggle: () {
           setState(() {
             _isInSelectionMode = !_isInSelectionMode;
@@ -234,148 +270,115 @@ class _BrowseScreenState extends State<BrowseScreen> {
         },
         onLogoutPressed: _authHandler.showLogoutConfirmation,
       ),
-      // Only show drawer when at departments list
-      drawer: isAtDepartmentsList ? BrowseDrawer(
+      // Only show drawer when at departments list and not in offline mode
+      drawer: (!_isOffline && isAtDepartmentsList) ? BrowseDrawer(
         firstName: widget.firstName,
         baseUrl: widget.baseUrl,
         onLogoutTap: _authHandler.showLogoutConfirmation,
       ) : null,
-      // Show appropriate FAB based on selection mode and permissions
-      floatingActionButton: ActionButtonBuilder.buildFloatingActionButton(
-        isInSelectionMode: _isInSelectionMode,
-        hasSelectedItems: _selectedItems.isNotEmpty,
-        isInFolder: _controller.currentFolder != null && _controller.currentFolder!.id != 'root',
-        hasWritePermission: hasWritePermission,
-        onBatchDelete: _batchDeleteHandler.handleBatchDelete,
-        onUpload: _uploadHandler.navigateToUploadScreen,
-        onShowNoPermissionMessage: (message) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(message),
-              behavior: SnackBarBehavior.floating,
-              backgroundColor: Colors.orange,
-            )
-          );
-        },
-      ),
       body: Column(
         children: [
           // Show offline banner if offline
           if (_isOffline)
             Container(
-              color: Colors.orange,
+              width: double.infinity,
+              color: Colors.orange.withOpacity(0.1),
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
               child: Row(
-                children: const [
-                  Icon(Icons.cloud_off, color: Colors.white),
-                  SizedBox(width: 8),
+                children: [
+                  Icon(Icons.offline_pin, color: Colors.orange[700], size: 20),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'You are offline. Only saved content is available.',
-                      style: TextStyle(color: Colors.white),
+                      'Offline Mode - Showing available offline content',
+                      style: TextStyle(
+                        color: Colors.orange[900],
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-          // Your existing content
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Welcome message
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Text(
-                    'Welcome, ${widget.firstName}!',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                
-                // Add breadcrumb navigation if we're not at root level
-                if (_controller.currentFolder != null && _controller.currentFolder!.id != 'root')
-                  BreadcrumbNavigation(
-                    navigationStack: _controller.navigationStack,
-                    currentFolder: _controller.currentFolder,
-                    onRootTap: _controller.loadDepartments,
-                    onBreadcrumbTap: _controller.navigateToBreadcrumb,
-                  ),
-                
-                // Main content area
-                Expanded(
-                  child: _buildContent(),
-                ),
-              ],
+          
+          // Breadcrumb navigation
+          if (_controller.navigationStack.isNotEmpty)
+            BreadcrumbNavigation(
+              navigationStack: _controller.navigationStack,
+              currentFolder: _controller.currentFolder,
+              onRootTap: () => _controller.loadDepartments(),
+              onBreadcrumbTap: (index) => _controller.navigateToBreadcrumb(index),
             ),
+          
+          // Main content
+          Expanded(
+            child: _controller.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _controller.errorMessage != null
+                    ? Center(
+                        child: Text(
+                          _controller.errorMessage!,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      )
+                    : RefreshIndicator(
+                        onRefresh: _refreshCurrentFolder,
+                        child: FolderContentList(
+                          items: _controller.items,
+                          selectionMode: _isInSelectionMode,
+                          selectedItems: _selectedItems,
+                          onItemSelected: (itemId, selected) {
+                            setState(() {
+                              if (selected) {
+                                _selectedItems.add(itemId);
+                              } else {
+                                _selectedItems.remove(itemId);
+                              }
+                            });
+                          },
+                          onFolderTap: (folder) {
+                            _controller.navigateToFolder(folder);
+                          },
+                          onFileTap: (file) {
+                            _fileTapHandler.handleFileTap(file);
+                          },
+                          onDeleteTap: !_isOffline ? _deleteHandler.handleDeleteTap : null, // Disable delete in offline mode
+                          showDeleteOption: hasWritePermission && !_isOffline,
+                          onRefresh: _refreshCurrentFolder,
+                          onLoadMore: _controller.loadMoreItems,
+                          isLoadingMore: _controller.isLoadingMore,
+                          hasMoreItems: _controller.hasMoreItems,
+                          isItemAvailableOffline: _controller.isItemAvailableOffline,
+                          onOfflineToggle: !_isOffline ? _controller.toggleOfflineAvailability : null, // Disable offline toggle in offline mode
+                        ),
+                      ),
           ),
         ],
       ),
+      // Only show FAB when not in offline mode
+      floatingActionButton: !_isOffline && hasWritePermission
+          ? _buildFloatingActionButton()
+          : null,
     );
   }
-
-  /// Builds the main content area (loading indicator, error, or item list)
-  Widget _buildContent() {
-    if (_controller.isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_controller.errorMessage != null) {
-      return ErrorView(
-        errorMessage: _controller.errorMessage!,
-        onRetry: _refreshCurrentFolder,
-      );
-    }
-    
-    if (_controller.items.isEmpty) {
-      return const EmptyFolderView();
-    }
-
-    return FolderContentList(
-      items: _controller.items,
-      selectionMode: _isInSelectionMode,
-      selectedItems: _selectedItems,
-      onItemSelected: (String itemId, bool selected) {
-        setState(() {
-          if (selected) {
-            _selectedItems.add(itemId);
-          } else {
-            _selectedItems.remove(itemId);
-          }
-        });
+  
+  Widget _buildFloatingActionButton() {
+    return ActionButtonBuilder.buildFloatingActionButton(
+      isInSelectionMode: _isInSelectionMode,
+      hasSelectedItems: _selectedItems.isNotEmpty,
+      isInFolder: _controller.currentFolder != null && _controller.currentFolder!.id != 'root',
+      hasWritePermission: hasWritePermission,
+      onBatchDelete: _batchDeleteHandler.handleBatchDelete,
+      onUpload: _uploadHandler.navigateToUploadScreen,
+      onShowNoPermissionMessage: (message) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.orange,
+          )
+        );
       },
-      onFolderTap: _isInSelectionMode 
-        ? (folder){} // Do nothing when in selection mode
-        : (folder) => _controller.navigateToFolder(folder),
-      onFileTap: _isInSelectionMode 
-        ? (file) {} // Do nothing in selection mode
-        : (file) {
-            final fileType = FileTypeUtils.getFileType(file.name);
-            if (fileType != FileType.unknown) {
-              _fileTapHandler.handleFileTap(file);
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Viewing "${file.name}" is not supported yet.'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            }
-          },
-      onDeleteTap: (BrowseItem item) {
-        EVLogger.debug('Delete button tapped', {
-          'itemId': item.id,
-          'itemName': item.name,
-        });
-        _deleteHandler.showDeleteConfirmation(item);
-      },
-      showDeleteOption: false,
-      onRefresh: _refreshCurrentFolder,
-      onLoadMore: _controller.loadMoreItems,
-      isLoadingMore: _controller.isLoadingMore,
-      hasMoreItems: _controller.hasMoreItems,
     );
   }
   

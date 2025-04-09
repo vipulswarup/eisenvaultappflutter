@@ -1,7 +1,13 @@
 import 'package:talker_flutter/talker_flutter.dart';
 import 'dart:convert';
 
-final talker = Talker();
+// Configure talker with minimal settings
+final talker = Talker(
+  settings: TalkerSettings(
+    useConsoleLogs: true,
+    enabled: true
+  )
+);
 
 class EVLogger {
   /// Flag to control whether sensitive data should be sanitized
@@ -79,17 +85,17 @@ class EVLogger {
 
   static void debug(String message, [dynamic data]) {
     final sanitizedData = _sanitizeData(data);
-    talker.debug('$message ${sanitizedData ?? ''}');
+    talker.debug('$message ${sanitizedData != null ? '| $sanitizedData' : ''}');
   }
 
   static void info(String message, [dynamic data]) {
     final sanitizedData = _sanitizeData(data);
-    talker.info('$message ${sanitizedData ?? ''}');
+    talker.info('$message ${sanitizedData != null ? '| $sanitizedData' : ''}');
   }
 
   static void warning(String message, [dynamic data]) {
     final sanitizedData = _sanitizeData(data);
-    talker.warning('$message ${sanitizedData ?? ''}');
+    talker.warning('$message ${sanitizedData != null ? '| $sanitizedData' : ''}');
   }
 
   static void error(String message, [dynamic error, StackTrace? stackTrace]) {
@@ -103,6 +109,6 @@ class EVLogger {
       }
     }
     
-    talker.error(message, sanitizedError, stackTrace);
+    talker.error('$message ${sanitizedError != null ? '| $sanitizedError' : ''}', stackTrace);
   }
 }

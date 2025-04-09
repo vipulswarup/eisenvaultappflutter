@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 
 /// Widget displayed when a folder is empty
 class EmptyFolderView extends StatelessWidget {
-  const EmptyFolderView({Key? key}) : super(key: key);
+  final VoidCallback? onUpload;
+
+  const EmptyFolderView({
+    Key? key,
+    this.onUpload,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -19,6 +24,20 @@ class EmptyFolderView extends StatelessWidget {
               color: Colors.grey[600],
             ),
           ),
+          if (onUpload != null) ...[
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: onUpload,
+              icon: const Icon(Icons.upload_file),
+              label: const Text('Upload Files'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
