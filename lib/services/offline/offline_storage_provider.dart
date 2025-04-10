@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_core.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 
@@ -16,6 +17,16 @@ class LocalStorageProvider implements OfflineStorageProvider {
     if (_initialized) return;
     
     try {
+      // Request storage permissions on Android
+      if (Platform.isAndroid) {
+        final status = await Permission.storage.request();
+        if (status.isGranted) {
+          // Permission granted, proceed with initialization
+        } else {
+          throw Exception('Storage permission is required for offline access');
+        }
+      }
+      
       final appDir = await getApplicationDocumentsDirectory();
       _baseDir = Directory(path.join(appDir.path, _offlineDir));
       

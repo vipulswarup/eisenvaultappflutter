@@ -131,22 +131,10 @@ class _BrowseScreenState extends State<BrowseScreen> {
     }
   }
   
-  Future<void> _checkConnectivity() async {
-    try {
-      final result = await _connectivity.checkConnectivity();
-      _updateConnectionStatus(result);
-    } catch (e) {
-      EVLogger.error('Error checking connectivity', e);
-    }
-  }
-
-  bool _shouldShowOfflineToggle() {
-    return _offlineManager.hasOfflineContent() != null;
-  }
-
   void _updateConnectionStatus(ConnectivityResult result) {
     final wasOffline = _isOffline;
-    final isNowOffline = _forceOfflineMode || result == ConnectivityResult.none;
+    // Consider both ConnectivityResult.none and ConnectivityResult.other as offline states
+    final isNowOffline = _forceOfflineMode || result == ConnectivityResult.none || result == ConnectivityResult.other;
     
     if (wasOffline != isNowOffline) {
       setState(() {
@@ -154,8 +142,10 @@ class _BrowseScreenState extends State<BrowseScreen> {
       });
       
       if (isNowOffline) {
+        EVLogger.debug('Device went offline - loading offline content');
         _loadOfflineContent();
       } else {
+        EVLogger.debug('Device went online - refreshing content');
         _refreshCurrentFolder();
       }
       
@@ -170,6 +160,21 @@ class _BrowseScreenState extends State<BrowseScreen> {
         );
       }
     }
+  }
+
+  Future<void> _checkConnectivity() async {
+    try {
+      final result = await _connectivity.checkConnectivity();
+      _updateConnectionStatus(result);
+    } catch (e) {
+      EVLogger.error('Error checking connectivity', e);
+      // If we can't check connectivity, assume we're offline
+      _updateConnectionStatus(ConnectivityResult.none);
+    }
+  }
+
+  bool _shouldShowOfflineToggle() {
+    return _offlineManager.hasOfflineContent() != null;
   }
 
   @override
@@ -222,6 +227,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
       },
       context: context,
       scaffoldKey: _scaffoldKey,
+      offlineManager: _offlineManager,
     );
     
     // Initialize handlers

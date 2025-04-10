@@ -28,7 +28,7 @@ class OfflineModeIndicator extends StatefulWidget {
 class _OfflineModeIndicatorState extends State<OfflineModeIndicator> {
   final Connectivity _connectivity = Connectivity();
   late StreamSubscription<ConnectivityResult> _connectivitySubscription;
-  bool _isOffline = false;
+  bool _isOnline = true;
 
   @override
   void initState() {
@@ -52,40 +52,20 @@ class _OfflineModeIndicatorState extends State<OfflineModeIndicator> {
   }
   
   void _updateConnectionStatus(ConnectivityResult result) {
-    final bool wasOffline = _isOffline;
-    final bool isNowOffline = widget.forceOfflineMode || result == ConnectivityResult.none;
-    
-    EVLogger.debug('Connectivity status changed', {
-      'previous': wasOffline ? 'offline' : 'online',
-      'current': isNowOffline ? 'offline' : 'online',
-      'connectivityResult': result.toString(),
-      'forceOfflineMode': widget.forceOfflineMode,
+    setState(() {
+      // Consider both ConnectivityResult.none and ConnectivityResult.other as offline states
+      _isOnline = result != ConnectivityResult.none && result != ConnectivityResult.other;
     });
     
-    // Only update state if there's a change
-    if (wasOffline != isNowOffline) {
-      setState(() {
-        _isOffline = isNowOffline;
-      });
-      
-      // Notify parent widget about connectivity change
-      if (widget.onConnectivityChanged != null) {
-        widget.onConnectivityChanged!(_isOffline);
-      }
-      
-      // Log the connectivity change
-      EVLogger.info('Connection status changed', {
-        'isOffline': _isOffline,
-        'connectivityResult': result.name,
-        'forced': widget.forceOfflineMode,
-      });
-      
-      // Trigger appropriate sync behavior based on connectivity
-      if (!_isOffline) {
-        // We're back online, trigger sync
-        EVLogger.debug('Device is back online, triggering sync');
-        // Add sync triggering logic here if needed
-      }
+    EVLogger.debug('Connection status changed', {
+      'isOnline': _isOnline,
+      'result': result.toString(),
+    });
+    
+    if (_isOnline) {
+      widget.syncService.startPeriodicSync();
+    } else {
+      widget.syncService.stopPeriodicSync();
     }
   }
 
@@ -106,7 +86,7 @@ class _OfflineModeIndicatorState extends State<OfflineModeIndicator> {
     return Column(
       children: [
         // Show offline banner if offline
-        if (_isOffline)
+        if (!_isOnline)
           _buildOfflineBanner(),
         
         // Always show the child widget

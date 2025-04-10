@@ -10,10 +10,12 @@ import 'package:dio/dio.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'dart:async';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 /// Controller for the BrowseScreen
 /// Separates business logic from UI
-class BrowseScreenController {
+class BrowseScreenController extends ChangeNotifier {
   final String baseUrl;
   final String authToken; 
   final String instanceType;
@@ -47,10 +49,13 @@ class BrowseScreenController {
   bool _hasMoreItems = true;
   bool _isLoadingMore = false;
   
-  final OfflineManager _offlineManager = OfflineManager.createDefault();
+  final OfflineManager _offlineManager;
   final Set<String> _offlineItems = {};
   
-  /// Constructor initializes the controller with required parameters
+  Timer? _debounceTimer;
+  
+  final Connectivity _connectivity = Connectivity();
+  
   BrowseScreenController({
     required this.baseUrl,
     required this.authToken,
@@ -58,9 +63,11 @@ class BrowseScreenController {
     required this.onStateChanged,
     required this.context,
     required this.scaffoldKey,
+    required OfflineManager offlineManager,
   }) : angoraBaseService = instanceType.toLowerCase() == 'angora' 
         ? AngoraBaseService(baseUrl)
-        : null {
+        : null,
+        _offlineManager = offlineManager {
     
     // Initialize Angora base service if needed
     if (angoraBaseService != null) {
@@ -74,6 +81,8 @@ class BrowseScreenController {
     _debouncer.values.listen((_) {
       _notifyListeners();
     });
+    
+    _initConnectivityListener();
   }
   
   /// Helper method to safely notify listeners
@@ -81,6 +90,7 @@ class BrowseScreenController {
     if (onStateChanged != null) {
       onStateChanged!();
     }
+    notifyListeners();
   }
   
   /// Debounced version of state change notification
@@ -90,14 +100,28 @@ class BrowseScreenController {
   
   /// Check initial connectivity state
   Future<void> _checkConnectivity() async {
-    _isOffline = await _offlineManager.isOffline();
+    try {
+      final result = await _connectivity.checkConnectivity();
+      _isOffline = result == ConnectivityResult.none || result == ConnectivityResult.other;
+      EVLogger.debug('Initial connectivity check', {
+        'result': result.toString(),
+        'isOffline': _isOffline
+      });
+    } catch (e) {
+      EVLogger.error('Error checking connectivity', e);
+      _isOffline = true; // Assume offline if we can't check
+    }
   }
 
   /// Set offline mode
   void setOfflineMode(bool offline) {
-    _isOffline = offline;
-    if (_isOffline) {
-      _hasMoreItems = false; // No pagination in offline mode
+    if (_isOffline != offline) {
+      EVLogger.debug('Setting offline mode', {'offline': offline});
+      _isOffline = offline;
+      if (_isOffline) {
+        _hasMoreItems = false; // No pagination in offline mode
+      }
+      notifyListeners();
     }
   }
 
@@ -149,7 +173,6 @@ class BrowseScreenController {
 
   /// Loads folder contents with pagination reset
   Future<void> loadFolderContents(BrowseItem folder) async {
-    // Cancel any ongoing request
     _cancelToken?.cancel("New request started");
     _cancelToken = CancelToken();
 
@@ -157,36 +180,30 @@ class BrowseScreenController {
     setLoading(true);
     errorMessage = null;
     _currentPage = 0;
-    _hasMoreItems = !_isOffline; // No pagination in offline mode
+    _hasMoreItems = !_isOffline;
     items.clear();
     onStateChanged?.call();
     
     try {
-      // Check offline status first
       _isOffline = await _offlineManager.isOffline();
       
       if (_isOffline) {
-        EVLogger.debug('Loading offline items for folder', {'folderId': folder.id});
-        // Load offline items
         final offlineItems = await _offlineManager.getOfflineItems(folder.id);
         items = offlineItems;
-        _hasMoreItems = false; // No pagination in offline mode
+        _hasMoreItems = false;
       } else {
-        // Load online items
         final browseService = BrowseServiceFactory.getService(
           instanceType, 
           baseUrl, 
           authToken
         );
 
-        // Fetch initial items with pagination parameters
         final loadedItems = await browseService.getChildren(
           folder,
           skipCount: 0,
           maxItems: _itemsPerPage,
         );
         
-        // Check offline status for each item
         for (var item in loadedItems) {
           if (await isItemAvailableOffline(item.id)) {
             _offlineItems.add(item.id);
@@ -195,7 +212,6 @@ class BrowseScreenController {
         
         items = loadedItems;
         
-        // If we got fewer items than requested, there are no more
         if (loadedItems.length < _itemsPerPage) {
           _hasMoreItems = false;
         }
@@ -203,17 +219,13 @@ class BrowseScreenController {
       
       setLoading(false);
     } catch (e) {
-      // Check if the error is due to being offline
       if (e.toString().contains('SocketException') || e.toString().contains('Failed host lookup')) {
-        EVLogger.info('Network error, switching to offline mode');
         _isOffline = true;
-        // Try loading offline content
         try {
           final offlineItems = await _offlineManager.getOfflineItems(folder.id);
           items = offlineItems;
           _hasMoreItems = false;
           setLoading(false);
-          // Show offline mode message
           if (onStateChanged != null) {
             ScaffoldMessenger.of(_getContext()).showSnackBar(
               const SnackBar(
@@ -246,24 +258,19 @@ class BrowseScreenController {
     _notifyListeners();
 
     try {
-      // Check offline status first
       _isOffline = await _offlineManager.isOffline();
       
       if (_isOffline) {
-        EVLogger.debug('Loading offline departments');
-        // Load offline departments
         final offlineItems = await _offlineManager.getOfflineItems(null);
         items = offlineItems;
         _hasMoreItems = false;
       } else {
-        // Load online departments
         final browseService = BrowseServiceFactory.getService(
           instanceType, 
           baseUrl, 
           authToken
         );
 
-        // Create a root BrowseItem to fetch top-level departments/sites
         final rootItem = BrowseItem(
           id: 'root',
           name: 'Root',
@@ -279,32 +286,24 @@ class BrowseScreenController {
       
         items = [];
         for (var department in loadedItems) {
-          // Different handling based on repository type
           if (instanceType.toLowerCase() == 'angora') {
-            // For Angora, no document library concept - the department ID is the folder ID
-            // We just need to add the department as is
             BrowseItem item = BrowseItem(
               id: department.id,
               name: department.name,
               type: 'folder',
               isDepartment: true,
-              // For Angora, we use the department ID as the document library ID
               documentLibraryId: department.id,
-              // In Angora, we assume write permissions unless explicitly denied
               allowableOperations: ['create', 'update', 'delete'],
             );
             
             items.add(item);
           } else {
-            // Existing Alfresco/Classic logic
             try {
               final docLibId = await _fetchDocumentLibraryId(department.id);
               
-              // For Alfresco/Classic, check permissions on the documentLibrary node
               List<String> siteOperations = [];
               
               try {
-                // Try directly checking permissions on the documentLibrary node
                 final nodeResponse = await http.get(
                   Uri.parse('$baseUrl/api/-default-/public/alfresco/versions/1/nodes/$docLibId?include=allowableOperations'),
                   headers: {'Authorization': authToken},
@@ -313,14 +312,11 @@ class BrowseScreenController {
                 if (nodeResponse.statusCode == 200) {
                   final nodeData = json.decode(nodeResponse.body);
                   
-                  // Check if allowableOperations exists and print its exact type
                   if (nodeData['entry'].containsKey('allowableOperations')) {
                     final operations = nodeData['entry']['allowableOperations'];
                     
-                    // Be extra careful with type conversion
                     List<String> ops = [];
                     if (operations is List) {
-                      // Convert each element to string explicitly
                       for (var op in operations) {
                         ops.add(op.toString());
                       }
@@ -335,10 +331,9 @@ class BrowseScreenController {
                 }
               } catch (e) {
                 EVLogger.error('Error checking node permissions', {'error': e.toString()});
-                siteOperations = ['create']; // Fallback permissions
+                siteOperations = ['create'];
               }
 
-              // Create BrowseItem with the operations we determined
               BrowseItem item = BrowseItem(
                 id: department.id,
                 name: department.name,
@@ -354,13 +349,11 @@ class BrowseScreenController {
                 'siteId': department.id,
                 'error': e.toString()
               });
-              // Skip this department if we can't find its document library
               continue;
             }
           }
         }
         
-        // If we got fewer items than requested, there are no more
         if (loadedItems.length < _itemsPerPage) {
           _hasMoreItems = false;
         }
@@ -371,17 +364,13 @@ class BrowseScreenController {
         _notifyListeners();
       }
     } catch (e) {
-      // Check if the error is due to being offline
       if (e.toString().contains('SocketException') || e.toString().contains('Failed host lookup')) {
-        EVLogger.info('Network error, switching to offline mode');
         _isOffline = true;
-        // Try loading offline content
         try {
           final offlineItems = await _offlineManager.getOfflineItems(null);
           items = offlineItems;
           _hasMoreItems = false;
           isLoading = false;
-          // Show offline mode message
           if (onStateChanged != null) {
             ScaffoldMessenger.of(_getContext()).showSnackBar(
               const SnackBar(
@@ -484,6 +473,7 @@ class BrowseScreenController {
   }
 
   /// Properly clean up resources when controller is no longer needed
+  @override
   void dispose() {
     // Cancel any ongoing network requests
     _cancelToken?.cancel("Controller disposed");
@@ -491,6 +481,9 @@ class BrowseScreenController {
     // No need to dispose debouncer in newer versions of the package
     // If using an older version that requires disposal, uncomment:
     // _debouncer.dispose();
+    
+    _debounceTimer?.cancel();
+    super.dispose();
   }
 
   // Add this method to ensure permissions are loaded
@@ -541,5 +534,49 @@ class BrowseScreenController {
   // Add this helper method to get context
   BuildContext _getContext() {
     return scaffoldKey.currentContext ?? context;
+  }
+
+  void _initConnectivityListener() {
+    _offlineManager.onConnectivityChanged.listen((result) {
+      // Consider both ConnectivityResult.none and ConnectivityResult.other as offline states
+      final isOffline = result == ConnectivityResult.none || result == ConnectivityResult.other;
+      
+      // Debounce connectivity changes to prevent rapid state updates
+      _debounceTimer?.cancel();
+      _debounceTimer = Timer(const Duration(seconds: 2), () async {
+        if (isOffline != _isOffline) {
+          EVLogger.debug('Connectivity changed', {
+            'wasOffline': _isOffline,
+            'isNowOffline': isOffline
+          });
+          
+          _isOffline = isOffline;
+          notifyListeners();
+          
+          // If we're offline, load offline content
+          if (_isOffline) {
+            await _loadOfflineContent();
+          }
+        }
+      });
+    });
+    
+    // Initial check
+    _checkOfflineState();
+  }
+  
+  Future<void> _checkOfflineState() async {
+    final result = await _connectivity.checkConnectivity();
+    _isOffline = result == ConnectivityResult.none || result == ConnectivityResult.other;
+    EVLogger.debug('Checking offline state', {'isOffline': _isOffline});
+    notifyListeners();
+    
+    if (_isOffline) {
+      await _loadOfflineContent();
+    }
+  }
+
+  Future<void> _loadOfflineContent() async {
+    // Implementation of _loadOfflineContent method
   }
 }

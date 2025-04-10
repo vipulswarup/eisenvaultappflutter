@@ -52,6 +52,10 @@ class OfflineManager {
   /// For testing: force offline mode regardless of actual connectivity
   static bool forceOfflineMode = false;
   
+  final _connectivityStream = StreamController<bool>.broadcast();
+  
+  Stream<bool> get onConnectivityChanged => _connectivityStream.stream;
+  
   /// Factory method to create an OfflineManager with default providers
   static OfflineManager createDefault() {
     return OfflineManager(
@@ -76,6 +80,7 @@ class OfflineManager {
        _sync = sync,
        _config = config ?? const OfflineConfig() {
     _initConnectivityMonitoring();
+    _initConnectivityListener();
   }
   
   void _initConnectivityMonitoring() {
@@ -83,6 +88,12 @@ class OfflineManager {
       if (result != ConnectivityResult.none && _config.autoSync) {
         _sync.startSync();
       }
+    });
+  }
+  
+  void _initConnectivityListener() {
+    Connectivity().onConnectivityChanged.listen((result) {
+      _connectivityStream.add(result == ConnectivityResult.none);
     });
   }
   
@@ -98,24 +109,12 @@ class OfflineManager {
     required String username,
   }) async {
     try {
-      EVLogger.info('Saving credentials for offline use', {
-        'instanceType': instanceType,
-        'baseUrl': baseUrl,
-        'username': username,
-      });
-      
-      // Store the credentials in secure storage
-      await _secureStorage.write(key: _keyInstanceType, value: instanceType);
-      await _secureStorage.write(key: _keyBaseUrl, value: baseUrl);
-      await _secureStorage.write(key: _keyAuthToken, value: authToken);
-      await _secureStorage.write(key: _keyUsername, value: username);
-      
-      EVLogger.debug('Credentials saved successfully');
-      return;
+      await _secureStorage.write(key: 'instanceType', value: instanceType);
+      await _secureStorage.write(key: 'baseUrl', value: baseUrl);
+      await _secureStorage.write(key: 'authToken', value: authToken);
+      await _secureStorage.write(key: 'username', value: username);
     } catch (e) {
-      EVLogger.error('Failed to save credentials for offline use', {
-        'error': e.toString(),
-      });
+      EVLogger.error('Failed to save credentials', e);
       rethrow;
     }
   }
@@ -152,16 +151,12 @@ class OfflineManager {
   /// Clear saved credentials
   Future<void> clearCredentials() async {
     try {
-      await _secureStorage.delete(key: _keyInstanceType);
-      await _secureStorage.delete(key: _keyBaseUrl);
-      await _secureStorage.delete(key: _keyAuthToken);
-      await _secureStorage.delete(key: _keyUsername);
-      
-      EVLogger.debug('Credentials cleared successfully');
+      await _secureStorage.delete(key: 'instanceType');
+      await _secureStorage.delete(key: 'baseUrl');
+      await _secureStorage.delete(key: 'authToken');
+      await _secureStorage.delete(key: 'username');
     } catch (e) {
-      EVLogger.error('Failed to clear credentials', {
-        'error': e.toString(),
-      });
+      EVLogger.error('Failed to clear credentials', e);
       rethrow;
     }
   }
@@ -171,8 +166,22 @@ class OfflineManager {
     if (forceOfflineMode) {
       return true;
     }
+    
+    // Check connectivity first
     final result = await _connectivity.checkConnectivity();
-    return result == ConnectivityResult.none;
+    // Consider both ConnectivityResult.none and ConnectivityResult.other as offline states
+    final noConnectivity = result == ConnectivityResult.none || result == ConnectivityResult.other;
+    
+    // If we have connectivity, we're not offline
+    if (!noConnectivity) {
+      return false;
+    }
+    
+    // If we have no connectivity, check if we have offline content
+    final hasContent = await hasOfflineContent();
+    
+    // We're only considered offline if we have no connectivity AND have offline content
+    return hasContent;
   }
   
   /// Check if offline content is available
@@ -211,13 +220,6 @@ class OfflineManager {
         ));
         return false;
       }
-      
-      EVLogger.debug('Keeping item offline', {
-        'id': item.id,
-        'name': item.name,
-        'type': item.type,
-        'parentId': parentId,
-      });
       
       // Store metadata first
       await _metadata.storeMetadata(item.id, {
@@ -282,15 +284,7 @@ class OfflineManager {
   /// Get all offline items under a parent
   Future<List<BrowseItem>> getOfflineItems(String? parentId) async {
     try {
-      EVLogger.debug('Getting offline items', {'parentId': parentId});
       final items = await _metadata.getItemsByParent(parentId);
-      
-      EVLogger.debug('Retrieved offline items', {
-        'parentId': parentId,
-        'count': items.length,
-        'itemNames': items.map((item) => item['name']).toList(),
-      });
-      
       return items.map((data) => BrowseItem(
         id: data['id'],
         name: data['name'],
@@ -301,10 +295,7 @@ class OfflineManager {
         modifiedBy: data['modified_by'],
       )).toList();
     } catch (e) {
-      EVLogger.error('Error getting offline items', {
-        'parentId': parentId,
-        'error': e.toString(),
-      });
+      EVLogger.error('Failed to get offline items', e);
       return [];
     }
   }
@@ -351,14 +342,9 @@ class OfflineManager {
   Future<void> dumpOfflineDatabase() async {
     try {
       final allItems = await _database.getAllOfflineItems();
-      EVLogger.debug('All offline items in database', {
+      EVLogger.info('All offline items in database', {
         'count': allItems.length,
-        'items': allItems.map((item) => {
-          'id': item['id'],
-          'name': item['name'],
-          'type': item['type'],
-          'parent_id': item['parent_id'],
-        }).toList()
+        'items': allItems.map((item) => item['name']).toList(),
       });
     } catch (e) {
       EVLogger.error('Failed to dump offline database', e);
@@ -369,6 +355,7 @@ class OfflineManager {
   void dispose() {
     _connectivitySubscription.cancel();
     _eventController.close();
+    _connectivityStream.close();
   }
 }
 
@@ -427,14 +414,9 @@ class _DatabaseMetadataAdapter implements OfflineMetadataProvider {
     return await _database.getItem(itemId);
   }
   
-  
-    @override
+  @override
   Future<List<Map<String, dynamic>>> getItemsByParent(String? parentId) async {
     final items = await _database.getItemsByParent(parentId);
-    EVLogger.debug('Retrieved items by parent from database', {
-      'parentId': parentId,
-      'count': items.length,
-    });
     return items;
   }
   

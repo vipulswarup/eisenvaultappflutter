@@ -4,6 +4,7 @@ import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/screens/browse/browse_screen.dart'; // Add this import
 import 'package:eisenvaultappflutter/screens/browse/widgets/empty_folder_view.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/folder_content_list.dart';
+import 'package:eisenvaultappflutter/screens/login_screen.dart';  // Updated import path
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/utils/file_type_utils.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
@@ -52,15 +53,7 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
     });
     
     try {
-      EVLogger.debug('Loading root offline items');
-      
-      // Pass null as parentId to get top-level items
       final items = await _offlineManager.getOfflineItems(null);
-      
-      EVLogger.debug('Loaded root offline items', {
-        'count': items.length,
-        'items': items.map((item) => item.name).toList(),
-      });
       
       setState(() {
         _items = items;
@@ -91,26 +84,13 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
     });
     
     try {
-      EVLogger.debug('Loading offline folder contents', {
-        'folderId': folder.id,
-        'folderName': folder.name,
-      });
-      
       final items = await _offlineManager.getOfflineItems(folder.id);
-      
-      EVLogger.debug('Loaded offline folder contents', {
-        'folderId': folder.id,
-        'folderName': folder.name,
-        'itemCount': items.length,
-        'items': items.map((item) => item.name).toList(),
-      });
       
       setState(() {
         _items = items;
         _isLoading = false;
         _currentParentId = folder.id;
         
-        // Update navigation stack
         if (_currentParentId == null) {
           _navigationStack = [];
         } else {
@@ -213,8 +193,12 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
   
   void _navigateBack() {
     if (_navigationStack.isEmpty) {
-      // Already at root, close the screen
-      Navigator.of(context).pop();
+      // At root level, navigate back to login screen
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => const LoginScreen(),
+        ),
+      );
       return;
     }
     

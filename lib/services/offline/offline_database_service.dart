@@ -24,54 +24,42 @@ class OfflineDatabaseService {
   
   /// Initialize the database
   Future<Database> _initDatabase() async {
-    // Get the platform-specific database directory
     final dbPath = await getDatabasesPath();
-    // Create the full path for our database file
-    final path = join(dbPath, 'eisenvault_offline.db');
+    final path = join(dbPath, 'offline_database.db');
     
-    EVLogger.debug('Initializing offline database at: $path');
-    
-    // Open the database, creating it if it doesn't exist
     return await openDatabase(
       path,
       version: 1,
-      onCreate: _createDatabase,
+      onCreate: (Database db, int version) async {
+        await db.execute('''
+          CREATE TABLE offline_items (
+            id TEXT PRIMARY KEY,
+            parent_id TEXT,
+            name TEXT,
+            type TEXT,
+            is_department INTEGER,
+            description TEXT,
+            modified_date TEXT,
+            modified_by TEXT,
+            file_path TEXT,
+            sync_status TEXT
+          )
+        ''');
+      },
     );
   }
   
-  /// Create the database schema during first initialization
-  Future<void> _createDatabase(Database db, int version) async {
-    EVLogger.debug('Creating offline database tables');
-    
-    // Create the offline_items table
-    await db.execute('''
-      CREATE TABLE offline_items (
-        id TEXT PRIMARY KEY,
-        parent_id TEXT,
-        name TEXT NOT NULL,
-        type TEXT NOT NULL,
-        is_department INTEGER NOT NULL,
-        description TEXT,
-        modified_date TEXT,
-        modified_by TEXT,
-        file_path TEXT,
-        sync_status TEXT NOT NULL,
-        last_synced INTEGER NOT NULL
-      )
-    ''');
-  }
-  
   /// Insert a browse item into the offline database
-  Future<void> insertItem(BrowseItem item, {
+  Future<void> insertItem(
+    BrowseItem item, {
     String? parentId,
     String? filePath,
     String syncStatus = 'pending',
   }) async {
-    try {
-      final db = await database;
-      
-      // Convert the BrowseItem to a map for database storage
-      final map = {
+    final db = await database;
+    await db.insert(
+      'offline_items',
+      {
         'id': item.id,
         'parent_id': parentId,
         'name': item.name,
@@ -82,56 +70,20 @@ class OfflineDatabaseService {
         'modified_by': item.modifiedBy,
         'file_path': filePath,
         'sync_status': syncStatus,
-        'last_synced': DateTime.now().millisecondsSinceEpoch,
-      };
-      
-      // Insert with conflict strategy to replace existing items
-      await db.insert(
-        'offline_items',
-        map,
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
-      
-      EVLogger.debug('Item inserted into offline database', {
-        'itemId': item.id,
-        'itemName': item.name,
-      });
-    } catch (e) {
-      EVLogger.error('Failed to insert item into offline database', {
-        'error': e.toString(),
-        'itemId': item.id,
-      });
-      rethrow;
-    }
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
   
   /// Update the file path for an item
   Future<void> updateItemFilePath(String itemId, String filePath) async {
-    try {
-      final db = await database;
-      
-      await db.update(
-        'offline_items',
-        {
-          'file_path': filePath,
-          'sync_status': 'synced',
-          'last_synced': DateTime.now().millisecondsSinceEpoch,
-        },
-        where: 'id = ?',
-        whereArgs: [itemId],
-      );
-      
-      EVLogger.debug('Updated file path for offline item', {
-        'itemId': itemId,
-        'filePath': filePath,
-      });
-    } catch (e) {
-      EVLogger.error('Failed to update file path', {
-        'error': e.toString(),
-        'itemId': itemId,
-      });
-      rethrow;
-    }
+    final db = await database;
+    await db.update(
+      'offline_items',
+      {'file_path': filePath},
+      where: 'id = ?',
+      whereArgs: [itemId],
+    );
   }
   
   /// Get a specific item by ID
@@ -190,47 +142,21 @@ class OfflineDatabaseService {
   
   /// Remove an item from offline storage
   Future<void> removeItem(String itemId) async {
-    try {
-      final db = await database;
-      
-      await db.delete(
-        'offline_items',
-        where: 'id = ?',
-        whereArgs: [itemId],
-      );
-      
-      EVLogger.debug('Removed item from offline storage', {
-        'itemId': itemId,
-      });
-    } catch (e) {
-      EVLogger.error('Failed to remove offline item', {
-        'error': e.toString(),
-        'itemId': itemId,
-      });
-      rethrow;
-    }
+    final db = await database;
+    await db.delete(
+      'offline_items',
+      where: 'id = ?',
+      whereArgs: [itemId],
+    );
   }
   
   /// Remove all items belonging to a parent (for folder removal)
-  Future<void> removeItemsWithParent(String parentId) async {
-    try {
-      final db = await database;
-      
-      await db.delete(
-        'offline_items',
-        where: 'parent_id = ?',
-        whereArgs: [parentId],
-      );
-      
-      EVLogger.debug('Removed all items with parent', {
-        'parentId': parentId,
-      });
-    } catch (e) {
-      EVLogger.error('Failed to remove items with parent', {
-        'error': e.toString(),
-        'parentId': parentId,
-      });
-      rethrow;
-    }
+  Future<void> removeItemsByParent(String parentId) async {
+    final db = await database;
+    await db.delete(
+      'offline_items',
+      where: 'parent_id = ?',
+      whereArgs: [parentId],
+    );
   }
 }

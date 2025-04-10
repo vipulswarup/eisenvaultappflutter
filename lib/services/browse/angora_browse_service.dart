@@ -160,7 +160,7 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
           }
         }
       } catch (e) {
-        EVLogger.debug('Item not found as file, trying as folder', {'itemId': itemId});
+        // Item not found as file, continue to try as folder
       }
       
       // Then try as a folder
@@ -182,7 +182,7 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
           }
         }
       } catch (e) {
-        EVLogger.debug('Item not found as folder, trying as department', {'itemId': itemId});
+        // Item not found as folder, continue to try as department
       }
       
       // Finally try as a department

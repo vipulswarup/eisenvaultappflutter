@@ -55,12 +55,6 @@ class OfflineFileService {
         throw Exception('Unsupported content type: ${content.runtimeType}');
       }
       
-      EVLogger.debug('File saved for offline access', {
-        'fileId': fileId,
-        'path': filePath,
-        'contentType': content.runtimeType.toString(),
-      });
-      
       return filePath;
     } catch (e) {
       EVLogger.error('Failed to store file for offline access', {
@@ -79,14 +73,7 @@ class OfflineFileService {
       final file = File(filePath);
       
       if (await file.exists()) {
-        final bytes = await file.readAsBytes();
-        
-        EVLogger.debug('Retrieved offline file content', {
-          'path': filePath,
-          'size': bytes.length,
-        });
-        
-        return bytes;
+        return await file.readAsBytes();
       } else {
         EVLogger.warning('Offline file not found', {
           'path': filePath,

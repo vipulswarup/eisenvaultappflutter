@@ -53,6 +53,8 @@ class SyncService {
   Function(String message)? onSyncProgress;
   Function(String error)? onSyncError;
   
+  Timer? _periodicSyncTimer;
+  
   /// Constructor
   SyncService({
     this.onSyncStarted,
@@ -71,11 +73,6 @@ class SyncService {
     _baseUrl = baseUrl;
     _authToken = authToken;
     
-    EVLogger.debug('Sync service initialized', {
-      'instanceType': instanceType,
-      'baseUrl': baseUrl,
-    });
-    
     // Start monitoring connectivity
     _startMonitoringConnectivity();
   }
@@ -83,32 +80,24 @@ class SyncService {
   /// Start monitoring network connectivity changes
   void _startMonitoringConnectivity() {
     _connectivitySubscription = _connectivity.onConnectivityChanged.listen((result) {
-      // If we're coming back online, start syncing
-      if (result != ConnectivityResult.none) {
-        EVLogger.info('Network connection restored, starting sync');
+      // Consider both ConnectivityResult.none and ConnectivityResult.other as offline states
+      if (result != ConnectivityResult.none && result != ConnectivityResult.other) {
         _notifyProgress('Internet connection restored, syncing offline content...');
-        
-        // Delay sync slightly to ensure connectivity is stable
         Future.delayed(const Duration(seconds: 2), () {
           startSync();
         });
       }
     });
-    
-    EVLogger.debug('Started monitoring connectivity changes');
   }
   
   /// Manually trigger a sync operation
   Future<void> startSync() async {
-    // Check if we have auth details
     if (_instanceType == null || _baseUrl == null || _authToken == null) {
       _notifyError('Cannot sync: authentication details not set');
       return;
     }
     
-    // Prevent multiple syncs running at once
     if (_isSyncing) {
-      EVLogger.debug('Sync already in progress, ignoring request');
       return;
     }
     
@@ -116,9 +105,9 @@ class SyncService {
     _notifySyncStarted();
     
     try {
-      // Check if we're online
       final connectivityResult = await _connectivity.checkConnectivity();
-      if (connectivityResult == ConnectivityResult.none) {
+      // Consider both ConnectivityResult.none and ConnectivityResult.other as offline states
+      if (connectivityResult == ConnectivityResult.none || connectivityResult == ConnectivityResult.other) {
         _notifyError('Cannot sync: device is offline');
         _isSyncing = false;
         return;
@@ -190,7 +179,6 @@ class SyncService {
     String? currentModifiedDate,
     String? filePath,
   }) async {
-    // Skip if we don't have a file path
     if (filePath == null) {
       EVLogger.warning('Document has no file path, skipping sync', {
         'itemId': itemId,
@@ -199,60 +187,38 @@ class SyncService {
     }
     
     try {
-      // Get document service
       final documentService = DocumentServiceFactory.getService(
         _instanceType!,
         _baseUrl!,
         _authToken!,
       );
       
-      // Get latest metadata from server
       final browseService = BrowseServiceFactory.getService(
         _instanceType!,
         _baseUrl!,
         _authToken!,
       );
       
-      // Get the item details directly using the new method
       final latestMetadata = await browseService.getItemDetails(itemId);
       
       if (latestMetadata == null) {
         EVLogger.warning('Document no longer exists on server', {
           'itemId': itemId,
         });
-        // Handle deleted documents - could mark them as deleted in UI
         return;
       }
       
-      // Check if document has been modified since we downloaded it
       final String? serverModifiedDate = latestMetadata.modifiedDate;
       
       if (serverModifiedDate != null && currentModifiedDate != null) {
         final DateTime serverDate = DateTime.parse(serverModifiedDate);
         final DateTime localDate = DateTime.parse(currentModifiedDate);
         
-        // If server version is newer, download the updated content
         if (serverDate.isAfter(localDate)) {
-          EVLogger.debug('Document has been updated on server, downloading new version', {
-            'itemId': itemId,
-            'localDate': localDate.toString(),
-            'serverDate': serverDate.toString(),
-          });
-          
-          // Download updated content
           final content = await documentService.getDocumentContent(latestMetadata);
-          
-          // Update the stored file
           await _fileService.storeFile(itemId, content);
-          
-          // Update database with new modified date
           await _database.updateItemFilePath(itemId, filePath);
-          
           _notifyProgress('Updated document: ${latestMetadata.name}');
-        } else {
-          EVLogger.debug('Document is up to date', {
-            'itemId': itemId,
-          });
         }
       }
     } catch (e) {
@@ -260,7 +226,6 @@ class SyncService {
         'itemId': itemId,
         'error': e.toString(),
       });
-      // We'll log the error but continue with other documents
     }
   }
   
@@ -278,7 +243,6 @@ class SyncService {
   }
   
   void _notifyProgress(String message) {
-    EVLogger.debug('Sync progress: $message');
     if (onSyncProgress != null) {
       onSyncProgress!(message);
     }
@@ -294,16 +258,22 @@ class SyncService {
   /// Dispose of resources
   void dispose() {
     _connectivitySubscription?.cancel();
-    EVLogger.debug('Sync service disposed');
+    _periodicSyncTimer?.cancel();
   }
 
   // Add this method to SyncService
   void startPeriodicSync({Duration interval = const Duration(hours: 2)}) {
-    Timer.periodic(interval, (_) async {
+    _periodicSyncTimer?.cancel();
+    _periodicSyncTimer = Timer.periodic(interval, (_) async {
       final connectivityResult = await _connectivity.checkConnectivity();
       if (connectivityResult != ConnectivityResult.none) {
         await startSync();
       }
     });
+  }
+
+  void stopPeriodicSync() {
+    _periodicSyncTimer?.cancel();
+    _periodicSyncTimer = null;
   }
 }
