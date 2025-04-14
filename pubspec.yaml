@@ -14,6 +14,7 @@ dependencies:
   # Core Flutter Dependencies
   cupertino_icons: ^1.0.2
   async: ^2.12.0
+  provider: ^6.1.1
   
   # Networking and API
   http: ^1.1.0
@@ -50,6 +51,7 @@ dependencies:
   flutter_secure_storage: ^8.1.0
   connectivity_plus: ^4.0.2
   sqflite: ^2.3.0
+  sqflite_common_ffi: ^2.3.2
   path: ^1.8.3
   intl: ^0.20.2
   flutter_svg: ^2.0.7

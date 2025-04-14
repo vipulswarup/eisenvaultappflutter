@@ -5,10 +5,19 @@ import 'package:eisenvaultappflutter/services/offline/sync_service.dart';
 import 'package:eisenvaultappflutter/widgets/offline_mode_indicator.dart';
 import 'package:flutter/material.dart';
 import 'screens/login_screen.dart';
+// Add imports for web database support
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 void main() async {
   // Ensure Flutter is initialized before using platform channels
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize database factory for web
+  if (kIsWeb) {
+    // Initialize for web
+    databaseFactory = databaseFactoryFfi;
+  }
   
   // Initialize offline database by simply accessing it
   await OfflineDatabaseService.instance.database;
