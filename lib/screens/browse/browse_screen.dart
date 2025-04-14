@@ -287,6 +287,16 @@ class _BrowseScreenState extends State<BrowseScreen> {
                                    _controller.currentFolder!.id != 'root' &&
                                    _controller.currentFolder!.canWrite;
     
+    EVLogger.debug('BrowseScreen build conditions', {
+      'isOffline': _isOffline,
+      'isAtDepartmentsList': isAtDepartmentsList,
+      'currentFolderId': _controller.currentFolder?.id,
+      'currentFolderCanWrite': _controller.currentFolder?.canWrite,
+      'hasWritePermission': hasWritePermission,
+      'isInSelectionMode': _isInSelectionMode,
+      'selectedItemsCount': _selectedItems.length,
+    });
+    
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: EVColors.screenBackground,
@@ -444,6 +454,16 @@ class _BrowseScreenState extends State<BrowseScreen> {
   }
   
   Widget _buildFloatingActionButton() {
+    EVLogger.debug('Building FAB', {
+      'isInSelectionMode': _isInSelectionMode,
+      'selectedItemsCount': _selectedItems.length,
+      'isOffline': _isOffline,
+      'hasWritePermission': !_isOffline && 
+                          _controller.currentFolder != null && 
+                          _controller.currentFolder!.id != 'root' &&
+                          _controller.currentFolder!.canWrite,
+    });
+    
     if (_isInSelectionMode && _selectedItems.isNotEmpty) {
       return FloatingActionButton(
         onPressed: () async {
@@ -459,7 +479,8 @@ class _BrowseScreenState extends State<BrowseScreen> {
       onPressed: () {
         _uploadHandler.navigateToUploadScreen();
       },
-      backgroundColor: EVColors.primaryBlue,
+      backgroundColor: EVColors.uploadButtonBackground,
+      foregroundColor: EVColors.uploadButtonForeground,
       child: const Icon(Icons.upload),
     );
   }

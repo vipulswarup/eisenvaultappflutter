@@ -52,6 +52,10 @@ class EVColors {
   static const appBarBackground = Color(0xFF0056A6);  // Deep blue
   static const appBarForeground = Color(0xFFFFFFFF);  // White
   
+  // Upload Button Colors
+  static const uploadButtonBackground = Color(0xFFE6F0F9);  // Light blue background
+  static const uploadButtonForeground = Color(0xFF0056A6);  // Deep blue foreground
+  
   // List Item Colors
   static const listItemBackground = Color(0xFFFFFFFF);  // White
   static const listItemDivider = Color(0xFFEFEFEF);  // Light gray

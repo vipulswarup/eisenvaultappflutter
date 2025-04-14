@@ -184,6 +184,14 @@ class BrowseScreenController extends ChangeNotifier {
     items.clear();
     onStateChanged?.call();
     
+    EVLogger.debug('Loading folder contents', {
+      'folderId': folder.id,
+      'folderName': folder.name,
+      'isOffline': _isOffline,
+      'folderCanWrite': folder.canWrite,
+      'folderAllowableOperations': folder.allowableOperations,
+    });
+    
     try {
       _isOffline = await _offlineManager.isOffline();
       
@@ -204,6 +212,12 @@ class BrowseScreenController extends ChangeNotifier {
           maxItems: _itemsPerPage,
         );
         
+        EVLogger.debug('Loaded items from service', {
+          'count': loadedItems.length,
+          'firstItemCanWrite': loadedItems.isNotEmpty ? loadedItems.first.canWrite : null,
+          'firstItemAllowableOperations': loadedItems.isNotEmpty ? loadedItems.first.allowableOperations : null,
+        });
+        
         for (var item in loadedItems) {
           if (await isItemAvailableOffline(item.id)) {
             _offlineItems.add(item.id);
@@ -219,6 +233,11 @@ class BrowseScreenController extends ChangeNotifier {
       
       setLoading(false);
     } catch (e) {
+      EVLogger.error('Error loading folder contents', {
+        'folderId': folder.id,
+        'error': e.toString(),
+      });
+      
       if (e.toString().contains('SocketException') || e.toString().contains('Failed host lookup')) {
         _isOffline = true;
         try {

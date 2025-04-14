@@ -109,6 +109,21 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
       isFolder = true;
     }
     
+    // Set default permissions for folders and departments
+    List<String>? operations;
+    if (isFolder || item['is_department'] == true) {
+      operations = ['create', 'update', 'delete'];
+    }
+    
+    EVLogger.debug('Mapping Angora item', {
+      'id': item['id'],
+      'name': item['raw_file_name'] ?? item['name'],
+      'isFolder': isFolder,
+      'isDepartment': item['is_department'] == true,
+      'operations': operations,
+      'rawItem': item,
+    });
+    
     return BrowseItem(
       id: item['id'],
       name: item['raw_file_name'] ?? item['name'] ?? 'Unnamed Item',
@@ -118,8 +133,7 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
       // Format dates appropriately
       modifiedDate: item['updated_at'] ?? item['created_at'] ?? '',
       modifiedBy: item['updated_by_name'] ?? item['created_by_name'] ?? '',
-      // Skip permissions for now
-      allowableOperations: null,
+      allowableOperations: operations,
     );
   }
 

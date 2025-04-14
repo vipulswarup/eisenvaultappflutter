@@ -56,76 +56,89 @@ class _LoginFormState extends State<LoginForm> {
     // Get screen dimensions
     final size = MediaQuery.of(context).size;
     final isSmallScreen = size.height < 700;
+    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
     
+    // Calculate logo height based on screen size and keyboard visibility
     final logoHeight = isSmallScreen 
-      ? size.height * 0.40
-      : size.height * 0.50;
+      ? size.height * 0.30  // Reduced from 0.40
+      : size.height * 0.35; // Reduced from 0.50
       
-    final screenPadding = isSmallScreen 
-      ? const EdgeInsets.all(16.0)  
-      : const EdgeInsets.all(24.0);
+    final screenPadding = EdgeInsets.only(
+      left: 24.0,
+      right: 24.0,
+      top: 24.0,
+      bottom: 24.0 + bottomPadding, // Add keyboard height to bottom padding
+    );
     
     final elementSpacing = isSmallScreen ? 12.0 : 16.0;
 
     return Center(
       child: SingleChildScrollView(
         padding: screenPadding,
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Image.asset(
-                'assets/images/eisenvault_logo.png',
-                height: logoHeight,
-              ),                  
-              SizedBox(height: elementSpacing),
-             
-              DropdownButtonFormField<String>(
-                value: _selectedVersion,
-                decoration: InputDecoration(
-                  labelText: 'Instance Type',
-                  prefixIcon: Icon(Icons.dns, color: EVColors.textFieldPrefixIcon),
-                  filled: true,
-                  fillColor: EVColors.textFieldFill,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: size.height - screenPadding.top - screenPadding.bottom,
+          ),
+          child: IntrinsicHeight(
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Image.asset(
+                    'assets/images/eisenvault_logo.png',
+                    height: logoHeight,
+                  ),                  
+                  SizedBox(height: elementSpacing * 2), // Increased spacing after logo
+                 
+                  DropdownButtonFormField<String>(
+                    value: _selectedVersion,
+                    decoration: InputDecoration(
+                      labelText: 'Instance Type',
+                      prefixIcon: Icon(Icons.dns, color: EVColors.textFieldPrefixIcon),
+                      filled: true,
+                      fillColor: EVColors.textFieldFill,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      labelStyle: TextStyle(color: EVColors.textFieldLabel),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'Classic', child: Text('Classic')),
+                      DropdownMenuItem(value: 'Angora', child: Text('Angora')),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedVersion = value!;
+                        if (_devMode) {
+                          _updateDevCredentials(_selectedVersion);
+                        }
+                      });
+                    },
                   ),
-                  labelStyle: TextStyle(color: EVColors.textFieldLabel),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                ),
-                items: const [
-                  DropdownMenuItem(value: 'Classic', child: Text('Classic')),
-                  DropdownMenuItem(value: 'Angora', child: Text('Angora')),
+                  SizedBox(height: elementSpacing),
+                  _buildTextField(
+                    controller: _urlController,
+                    label: 'Server URL',
+                    hint: 'https://your-instance.eisenvault.com',
+                    icon: Icons.link,
+                  ),
+                  SizedBox(height: elementSpacing),
+                  _buildTextField(
+                    controller: _usernameController,
+                    label: 'Username',
+                    icon: Icons.person,
+                  ),
+                  SizedBox(height: elementSpacing),
+                  _buildPasswordField(),
+                  SizedBox(height: elementSpacing * 2), // Increased spacing before button
+                  _buildLoginButton(),
+                  SizedBox(height: elementSpacing), // Add bottom spacing
                 ],
-                onChanged: (value) {
-                  setState(() {
-                    _selectedVersion = value!;
-                    if (_devMode) {
-                      _updateDevCredentials(_selectedVersion);
-                    }
-                  });
-                },
               ),
-              SizedBox(height: elementSpacing),
-              _buildTextField(
-                controller: _urlController,
-                label: 'Server URL',
-                hint: 'https://your-instance.eisenvault.com',
-                icon: Icons.link,
-              ),
-              SizedBox(height: elementSpacing),
-              _buildTextField(
-                controller: _usernameController,
-                label: 'Username',
-                icon: Icons.person,
-              ),
-              SizedBox(height: elementSpacing),
-              _buildPasswordField(),
-              SizedBox(height: elementSpacing * 1.5),
-              _buildLoginButton(),
-            ],
+            ),
           ),
         ),
       ),
