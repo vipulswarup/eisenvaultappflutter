@@ -196,19 +196,6 @@ class OfflineManager {
     }
   }
   
-  /// Clear saved credentials
-  Future<void> clearCredentials() async {
-    try {
-      await _secureStorage.delete(key: 'instanceType');
-      await _secureStorage.delete(key: 'baseUrl');
-      await _secureStorage.delete(key: 'authToken');
-      await _secureStorage.delete(key: 'username');
-    } catch (e) {
-      EVLogger.error('Failed to clear credentials', e);
-      rethrow;
-    }
-  }
-
   /// Check if the device is currently offline
   Future<bool> isOffline() async {
     if (forceOfflineMode) {
