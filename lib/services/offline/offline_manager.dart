@@ -20,6 +20,8 @@ import 'package:eisenvaultappflutter/services/offline/offline_exception.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_metadata_provider.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_sync_provider.dart' as sync;
 import 'package:eisenvaultappflutter/utils/logger.dart';
+import 'package:eisenvaultappflutter/services/offline/download_manager.dart';
+import 'package:eisenvaultappflutter/services/offline/download_progress.dart';
 
 /// Central manager for offline functionality
 /// 
@@ -244,143 +246,110 @@ class OfflineManager {
     }
   }
   
-  /// Keep an item offline by downloading its content and storing metadata
-  Future<void> keepOffline(BrowseItem item) async {
+  /// Keep an item available for offline access
+  Future<bool> keepOffline(BrowseItem item) async {
     try {
-      EVLogger.debug('Starting keepOffline process', {
-        'itemId': item.id,
-        'itemName': item.name,
-        'itemType': item.type
-      });
-
       // Create an OfflineItem from the BrowseItem
       final offlineItem = OfflineItem.fromBrowseItem(item);
       
-      // Save the metadata first
+      // Save metadata
       await _metadata.saveItem(offlineItem);
       
-      // If it's a folder, recursively process its contents
-      if (item.type == 'folder' || item.isDepartment) {
-        await _recursivelyKeepFolderOffline(item);
-      } else {
-        // For files, download and store the content
-        EVLogger.debug('Downloading content for file', {'itemId': item.id});
+      if (item.type == 'folder') {
+        // For folders, we need to recursively download contents
+        final downloadManager = DownloadManager();
+        downloadManager.startDownload();
         
         try {
-          final content = await _sync.downloadContent(item.id);
-          if (content.isEmpty) {
-            throw Exception('Downloaded content is empty');
+          // Get folder contents
+          final contents = await _sync.getFolderContents(item.id);
+          final totalFiles = contents.where((item) => item.type != 'folder').length;
+          var currentFileIndex = 0;
+          
+          // Process each item in the folder
+          for (final content in contents) {
+            if (content.type == 'folder') {
+              // Recursively handle subfolders
+              await keepOffline(content);
+            } else {
+              // Download file content
+              currentFileIndex++;
+              final progress = DownloadProgress(
+                fileName: content.name,
+                progress: 0,
+                totalFiles: totalFiles,
+                currentFileIndex: currentFileIndex,
+              );
+              downloadManager.updateProgress(progress);
+              
+              try {
+                // Download content using sync provider
+                final fileContent = await _sync.downloadContent(content.id);
+                
+                // Store the file content
+                final filePath = await _storage.storeFile(content.id, fileContent);
+                
+                // Create and save offline item for the file
+                final fileOfflineItem = OfflineItem.fromBrowseItem(content);
+                final updatedFileItem = fileOfflineItem.copyWith(filePath: filePath);
+                await _metadata.saveItem(updatedFileItem);
+                
+                // Update progress to 100% for this file
+                downloadManager.updateProgress(progress.copyWith(progress: 1.0));
+              } catch (e) {
+                EVLogger.error('Error downloading file in folder', {
+                  'fileName': content.name,
+                  'error': e.toString()
+                });
+                // Continue with next file even if one fails
+              }
+            }
           }
           
-          EVLogger.debug('Content downloaded successfully', {
-            'itemId': item.id,
-            'contentSize': content.length
-          });
+          downloadManager.completeDownload();
+          _eventController.add(OfflineEvent('item_added', 'Folder added to offline storage', offlineItem));
+          return true;
+        } catch (e) {
+          downloadManager.completeDownload();
+          rethrow;
+        }
+      } else {
+        // For files, we need to download the content
+        final progress = DownloadProgress(
+          fileName: item.name,
+          progress: 0,
+          totalFiles: 1,
+          currentFileIndex: 1,
+        );
+        
+        final downloadManager = DownloadManager();
+        downloadManager.startDownload();
+        downloadManager.updateProgress(progress);
+        
+        try {
+          // Download content using sync provider
+          final content = await _sync.downloadContent(item.id);
           
-          // Store the file and get its path
+          // Store the file content
           final filePath = await _storage.storeFile(item.id, content);
           
-          EVLogger.debug('File stored successfully', {
-            'itemId': item.id,
-            'filePath': filePath
-          });
-          
-          // Update the offline item with the file path
+          // Update metadata with file path
           final updatedItem = offlineItem.copyWith(filePath: filePath);
           await _metadata.saveItem(updatedItem);
           
-          // Verify the file exists
-          final exists = await _fileService.fileExists(filePath);
-          if (!exists) {
-            throw Exception('File was not stored properly');
-          }
+          // Update progress to 100%
+          downloadManager.updateProgress(progress.copyWith(progress: 1.0));
+          downloadManager.completeDownload();
+          
+          _eventController.add(OfflineEvent('item_added', 'Item added to offline storage', updatedItem));
+          return true;
         } catch (e) {
-          // If file download or storage fails, clean up metadata
-          await _metadata.deleteMetadata(item.id);
-          EVLogger.error('Failed to download or store file', {
-            'itemId': item.id,
-            'error': e.toString()
-          });
+          downloadManager.completeDownload();
           rethrow;
         }
       }
     } catch (e) {
-      EVLogger.error('Error in keepOffline', {
-        'itemId': item.id,
-        'itemName': item.name,
-        'error': e.toString()
-      });
-      rethrow;
-    }
-  }
-
-  /// Recursively keep a folder and its contents available offline
-  Future<void> _recursivelyKeepFolderOffline(BrowseItem folder) async {
-    EVLogger.debug('Starting recursive offline process for folder', {
-      'folderId': folder.id,
-      'folderName': folder.name,
-      'isDepartment': folder.isDepartment,
-    });
-
-    try {
-      // Get children from the sync provider
-      final children = await _sync.getFolderContents(folder.id);
-      
-      if (children.isEmpty) {
-        EVLogger.debug('No children found in folder', {
-          'folderId': folder.id,
-          'folderName': folder.name,
-        });
-        return;
-      }
-
-      EVLogger.debug('Processing children', {
-        'count': children.length,
-        'folderId': folder.id,
-      });
-
-      // Process each child item
-      for (var child in children) {
-        try {
-          // Create an OfflineItem from the child
-          final offlineItem = OfflineItem.fromBrowseItem(child);
-          await _metadata.saveItem(offlineItem);
-
-          if (child.type == 'folder' || child.isDepartment) {
-            // Recursively process folders
-            await _recursivelyKeepFolderOffline(child);
-          } else {
-            // Download and store file content
-            final content = await _sync.downloadContent(child.id);
-            if (content.isEmpty) {
-              throw Exception('Downloaded content is empty');
-            }
-
-            final filePath = await _storage.storeFile(child.id, content);
-            final updatedItem = offlineItem.copyWith(filePath: filePath);
-            await _metadata.saveItem(updatedItem);
-          }
-        } catch (e) {
-          EVLogger.error('Error processing child item', {
-            'childId': child.id,
-            'childName': child.name,
-            'error': e.toString(),
-          });
-          // Continue with next item rather than failing entire process
-        }
-      }
-
-      EVLogger.debug('Completed recursive offline process', {
-        'folderId': folder.id,
-        'folderName': folder.name,
-        'totalItems': children.length,
-      });
-    } catch (e) {
-      EVLogger.error('Error in recursive offline process', {
-        'folderId': folder.id,
-        'folderName': folder.name,
-        'error': e.toString(),
-      });
+      EVLogger.error('Error keeping item offline', e);
       rethrow;
     }
   }
@@ -588,7 +557,7 @@ class _DatabaseMetadataAdapter implements OfflineMetadataProvider {
         id: item.id,
         name: item.name,
         type: item.type,
-        isDepartment: item.isDepartment,
+        isDepartment: item.type == 'department',
         description: item.description,
         modifiedDate: item.modifiedDate?.toIso8601String(),
         modifiedBy: item.modifiedBy,
