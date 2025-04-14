@@ -19,13 +19,18 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _forceOfflineMode = false;
   final Connectivity _connectivity = Connectivity();
   late StreamSubscription<ConnectivityResult> _connectivitySubscription;
-  final OfflineManager _offlineManager = OfflineManager.createDefault();
+  late OfflineManager _offlineManager;
 
   @override
   void initState() {
     super.initState();
+    _initOfflineManager();
     _checkConnectivity();
     _setupConnectivityListener();
+  }
+
+  Future<void> _initOfflineManager() async {
+    _offlineManager = await OfflineManager.createDefault();
   }
 
   Future<void> _checkConnectivity() async {

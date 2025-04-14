@@ -23,7 +23,7 @@ class OfflineSettingsScreen extends StatefulWidget {
 }
 
 class _OfflineSettingsScreenState extends State<OfflineSettingsScreen> {
-  final OfflineManager _offlineManager = OfflineManager.createDefault();
+  late OfflineManager _offlineManager;
   final SyncService _syncService = SyncService();
   
   String _storageUsage = "Calculating...";
@@ -35,6 +35,11 @@ class _OfflineSettingsScreenState extends State<OfflineSettingsScreen> {
   @override
   void initState() {
     super.initState();
+    _initOfflineManager();
+  }
+
+  Future<void> _initOfflineManager() async {
+    _offlineManager = await OfflineManager.createDefault();
     _initSyncService();
     _loadStorageUsage();
     _loadAvailableStorage();

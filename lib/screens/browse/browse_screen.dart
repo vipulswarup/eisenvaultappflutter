@@ -134,7 +134,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
   final Set<String> _selectedItems = {};
 
   // Offline manager
-  final OfflineManager _offlineManager = OfflineManager.createDefault();
+  late OfflineManager _offlineManager;
 
   // Global key for scaffold
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -242,99 +242,106 @@ class _BrowseScreenState extends State<BrowseScreen> {
   @override
   void initState() {
     super.initState();
-    
-    _deleteService = DeleteService(
-      repositoryType: widget.instanceType,
-      baseUrl: widget.baseUrl,
-      authToken: widget.authToken,
-      customerHostname: widget.customerHostname,
-    );
-    
-    _deleteHandler = DeleteHandler(
-      context: context,
-      repositoryType: widget.instanceType,
-      baseUrl: widget.baseUrl,
-      authToken: widget.authToken,
-      deleteService: _deleteService,
-      onDeleteSuccess: () {
-        _refreshCurrentFolder();
-      },
-    );
-    
-    _batchDeleteHandler = BatchDeleteHandler(
-      context: context,
-      instanceType: widget.instanceType,
-      baseUrl: widget.baseUrl,
-      authToken: widget.authToken,
-      deleteService: _deleteService,
-      getSelectedItems: () => _controller?.items.where((item) => _selectedItems.contains(item.id)).toList() ?? [],
-      onDeleteSuccess: () {
-        _refreshCurrentFolder();
-      },
-      clearSelectionMode: () {
-        setState(() {
-          _isInSelectionMode = false;
-          _selectedItems.clear();
-        });
-      },
-    );
-    
-    // Initialize controller with context
-    _controller = BrowseScreenController(
-      baseUrl: widget.baseUrl,
-      authToken: widget.authToken,
-      instanceType: widget.instanceType,
-      onStateChanged: () {
-        if (mounted) setState(() {});
-      },
-      context: context,
-      scaffoldKey: _scaffoldKey,
-      offlineManager: _offlineManager,
-    );
-    
-    // Initialize handlers
-    _fileTapHandler = FileTapHandler(
-      context: context,
-      instanceType: widget.instanceType,
-      baseUrl: widget.baseUrl,
-      authToken: widget.authToken,
-    );
-    
-    _authHandler = AuthHandler(
-      context: context,
-      instanceType: widget.instanceType,
-      baseUrl: widget.baseUrl,
-    );
-    
-    _uploadHandler = UploadNavigationHandler(
-      context: context,
-      instanceType: widget.instanceType,
-      baseUrl: widget.baseUrl,
-      authToken: widget.authToken,
-      refreshCurrentFolder: _refreshCurrentFolder,
-      controller: _controller!,
-    );
+    _initOfflineManager().then((_) {
+      _initConnectivityListener();
+      
+      _deleteService = DeleteService(
+        repositoryType: widget.instanceType,
+        baseUrl: widget.baseUrl,
+        authToken: widget.authToken,
+        customerHostname: widget.customerHostname,
+      );
+      
+      _deleteHandler = DeleteHandler(
+        context: context,
+        repositoryType: widget.instanceType,
+        baseUrl: widget.baseUrl,
+        authToken: widget.authToken,
+        deleteService: _deleteService,
+        onDeleteSuccess: () {
+          _refreshCurrentFolder();
+        },
+      );
+      
+      _batchDeleteHandler = BatchDeleteHandler(
+        context: context,
+        instanceType: widget.instanceType,
+        baseUrl: widget.baseUrl,
+        authToken: widget.authToken,
+        deleteService: _deleteService,
+        getSelectedItems: () => _controller?.items.where((item) => _selectedItems.contains(item.id)).toList() ?? [],
+        onDeleteSuccess: () {
+          _refreshCurrentFolder();
+        },
+        clearSelectionMode: () {
+          setState(() {
+            _isInSelectionMode = false;
+            _selectedItems.clear();
+          });
+        },
+      );
+      
+      // Initialize controller with context
+      _controller = BrowseScreenController(
+        baseUrl: widget.baseUrl,
+        authToken: widget.authToken,
+        instanceType: widget.instanceType,
+        onStateChanged: () {
+          if (mounted) setState(() {});
+        },
+        context: context,
+        scaffoldKey: _scaffoldKey,
+        offlineManager: _offlineManager,
+      );
+      
+      // Initialize handlers
+      _fileTapHandler = FileTapHandler(
+        context: context,
+        instanceType: widget.instanceType,
+        baseUrl: widget.baseUrl,
+        authToken: widget.authToken,
+      );
+      
+      _authHandler = AuthHandler(
+        context: context,
+        instanceType: widget.instanceType,
+        baseUrl: widget.baseUrl,
+      );
+      
+      _uploadHandler = UploadNavigationHandler(
+        context: context,
+        instanceType: widget.instanceType,
+        baseUrl: widget.baseUrl,
+        authToken: widget.authToken,
+        refreshCurrentFolder: _refreshCurrentFolder,
+        controller: _controller!,
+      );
 
-    _searchHandler = SearchNavigationHandler(
-      context: context,
-      baseUrl: widget.baseUrl,
-      authToken: widget.authToken,
-      instanceType: widget.instanceType,
-      navigateToFolder: _controller!.navigateToFolder,
-      openDocument: (document) {
-        _fileTapHandler.handleFileTap(document);
-      },
-    );
-    
-    // Check initial connectivity
-    _checkConnectivity();
-    
-    // Start listening to connectivity changes
-    _connectivitySubscription = 
-        _connectivity.onConnectivityChanged.listen(_updateConnectionStatus);
-    
-    // Load initial content
-    _refreshCurrentFolder();
+      _searchHandler = SearchNavigationHandler(
+        context: context,
+        baseUrl: widget.baseUrl,
+        authToken: widget.authToken,
+        instanceType: widget.instanceType,
+        navigateToFolder: _controller!.navigateToFolder,
+        openDocument: (document) {
+          _fileTapHandler.handleFileTap(document);
+        },
+      );
+      
+      // Check initial connectivity
+      _checkConnectivity();
+      
+      // Start listening to connectivity changes
+      _connectivitySubscription = 
+          _connectivity.onConnectivityChanged.listen(_updateConnectionStatus);
+      
+      // Load initial content
+      _refreshCurrentFolder();
+    });
+  }
+
+  Future<void> _initOfflineManager() async {
+    _offlineManager = await OfflineManager.createDefault();
   }
 
   @override
@@ -644,15 +651,72 @@ class _BrowseScreenState extends State<BrowseScreen> {
   void _handleBatchOfflineToggle() async {
     if (_controller == null) return;
     
-    for (final itemId in _selectedItems) {
-      final item = _controller!.items.firstWhere((item) => item.id == itemId);
-      await _controller!.toggleOfflineAvailability(item);
+    try {
+      int successCount = 0;
+      int failureCount = 0;
+      
+      for (final itemId in _selectedItems) {
+        try {
+          final item = _controller!.items.firstWhere((item) => item.id == itemId);
+          await _controller!.toggleOfflineAvailability(item);
+          successCount++;
+        } catch (e) {
+          EVLogger.error('Error keeping item offline', {
+            'itemId': itemId,
+            'error': e.toString()
+          });
+          failureCount++;
+        }
+      }
+      
+      // Show appropriate message based on results
+      if (mounted) {
+        if (successCount > 0 && failureCount == 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Successfully kept $successCount items offline'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else if (successCount > 0 && failureCount > 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Kept $successCount items offline, but $failureCount failed'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to keep items offline: ${failureCount > 1 ? "Server error" : "Check your connection"}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+      
+      setState(() {
+        _isInSelectionMode = false;
+        _selectedItems.clear();
+      });
+    } catch (e) {
+      // Show error message to user
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().contains('storage space') 
+              ? 'Not enough storage space available. Free up space and try again.'
+              : 'Error keeping items offline: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
-    
-    setState(() {
-      _isInSelectionMode = false;
-      _selectedItems.clear();
-    });
+  }
+
+  void _initConnectivityListener() {
+    _connectivitySubscription = 
+        _connectivity.onConnectivityChanged.listen(_updateConnectionStatus);
   }
 
   @override

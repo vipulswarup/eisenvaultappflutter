@@ -16,7 +16,7 @@ class FileTapHandler {
   final String baseUrl;
   final String authToken;
   final AngoraBaseService? angoraBaseService;
-  final OfflineManager _offlineManager = OfflineManager.createDefault();
+  late OfflineManager _offlineManager;
   
   FileTapHandler({
     required this.context,
@@ -24,7 +24,13 @@ class FileTapHandler {
     required this.baseUrl,
     required this.authToken,
     this.angoraBaseService,
-  });
+  }) {
+    _initOfflineManager();
+  }
+  
+  Future<void> _initOfflineManager() async {
+    _offlineManager = await OfflineManager.createDefault();
+  }
   
   /// Gets the file type based on file extension
   FileType getFileType(String fileName) {

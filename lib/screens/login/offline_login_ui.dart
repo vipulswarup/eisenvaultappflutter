@@ -23,7 +23,11 @@ class _OfflineLoginUIState extends State<OfflineLoginUI> {
   @override
   void initState() {
     super.initState();
-    _offlineManager = OfflineManager.createDefault();
+    _initOfflineManager();
+  }
+
+  Future<void> _initOfflineManager() async {
+    _offlineManager = await OfflineManager.createDefault();
   }
 
   @override

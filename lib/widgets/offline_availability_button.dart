@@ -13,7 +13,7 @@ class OfflineAvailabilityButton extends StatefulWidget {
   final String authToken;
   final bool isAvailableOffline;
   final Function(bool) onAvailabilityChanged;
-  final String? parentId; // Add parent ID parameter
+  final String? parentId;
 
   const OfflineAvailabilityButton({
     Key? key,
@@ -23,7 +23,7 @@ class OfflineAvailabilityButton extends StatefulWidget {
     required this.authToken,
     required this.isAvailableOffline,
     required this.onAvailabilityChanged,
-    this.parentId, // Add this parameter
+    this.parentId,
   }) : super(key: key);
 
   @override
@@ -31,8 +31,18 @@ class OfflineAvailabilityButton extends StatefulWidget {
 }
 
 class _OfflineAvailabilityButtonState extends State<OfflineAvailabilityButton> {
-  final OfflineManager _offlineManager = OfflineManager.createDefault();
+  late OfflineManager _offlineManager;
   bool _isProcessing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initOfflineManager();
+  }
+
+  Future<void> _initOfflineManager() async {
+    _offlineManager = await OfflineManager.createDefault();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -98,29 +108,10 @@ class _OfflineAvailabilityButtonState extends State<OfflineAvailabilityButton> {
           }
         }
 
-        // Create browse service for recursive folder download
-        final browseService = isFolder 
-            ? BrowseServiceFactory.getService(  // Use the correct method name
-                widget.instanceType,
-                widget.baseUrl,
-                widget.authToken,
-              )
-            : null;
-
-        // Make available offline with parent ID
-        final result = await _offlineManager.keepOffline(
-          widget.item,
-          parentId: widget.parentId, // Pass parent ID
-          recursiveForFolders: isFolder,
-          browseService: browseService,
-        );
-
-        if (result) {
-          _showMessage('Added to offline storage');
-          widget.onAvailabilityChanged(true);
-        } else {
-          _showMessage('Failed to add to offline storage', isError: true);
-        }
+        // Make available offline
+        await _offlineManager.keepOffline(widget.item);
+        _showMessage('Added to offline storage');
+        widget.onAvailabilityChanged(true);
       }
     } catch (e) {
       EVLogger.error('Error toggling offline availability', {

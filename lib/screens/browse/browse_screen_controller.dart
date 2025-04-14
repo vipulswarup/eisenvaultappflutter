@@ -540,11 +540,8 @@ class BrowseScreenController extends ChangeNotifier {
         _offlineItems.remove(item.id);
       } else {
         // Add to offline
-        final success = await _offlineManager.keepOffline(item);
-        
-        if (success) {
-          _offlineItems.add(item.id);
-        }
+        await _offlineManager.keepOffline(item);
+        _offlineItems.add(item.id);
       }
       
       // Notify listeners of the change

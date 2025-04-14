@@ -1,18 +1,25 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
 
 import 'package:eisenvaultappflutter/models/browse_item.dart';
+import 'package:eisenvaultappflutter/services/offline/offline_item.dart';
+import 'package:eisenvaultappflutter/services/offline/offline_core.dart' show OfflineStorageProvider, OfflineEvent;
+import 'package:eisenvaultappflutter/services/offline/offline_storage_provider.dart' show LocalStorageProvider;
+import 'package:eisenvaultappflutter/services/offline/offline_database_service.dart';
 import 'package:eisenvaultappflutter/services/browse/browse_service_factory.dart';
 import 'package:eisenvaultappflutter/services/document/document_service.dart';
-import 'package:eisenvaultappflutter/services/offline/offline_database_service.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_file_service.dart';
-import 'package:eisenvaultappflutter/services/offline/offline_storage_provider.dart';
+import 'package:eisenvaultappflutter/services/offline/offline_config.dart';
+import 'package:eisenvaultappflutter/services/offline/offline_exception.dart';
+import 'package:eisenvaultappflutter/services/offline/offline_metadata_provider.dart';
+import 'package:eisenvaultappflutter/services/offline/offline_sync_provider.dart' as sync;
 import 'package:eisenvaultappflutter/utils/logger.dart';
-import 'package:eisenvaultappflutter/services/offline/offline_core.dart';
 
 /// Central manager for offline functionality
 /// 
@@ -21,7 +28,7 @@ import 'package:eisenvaultappflutter/services/offline/offline_core.dart';
 class OfflineManager {
   final OfflineStorageProvider _storage;
   final OfflineMetadataProvider _metadata;
-  final OfflineSyncProvider _sync;
+  final sync.OfflineSyncProvider _sync;
   final OfflineConfig _config;
   
   // Services for database and file operations
@@ -33,6 +40,11 @@ class OfflineManager {
   
   // Secure storage for credentials
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  
+  // Authentication details
+  String? _instanceType;
+  String? _baseUrl;
+  String? _authToken;
   
   // Storage keys for credentials
   static const String _keyInstanceType = 'offline_instance_type';
@@ -57,28 +69,51 @@ class OfflineManager {
   Stream<bool> get onConnectivityChanged => _connectivityStream.stream;
   
   /// Factory method to create an OfflineManager with default providers
-  static OfflineManager createDefault() {
+  static Future<OfflineManager> createDefault({
+    OfflineConfig? config,
+    sync.OfflineSyncProvider? syncProvider,
+  }) async {
+    final storage = FlutterSecureStorage();
+    final instanceType = await storage.read(key: _keyInstanceType);
+    final baseUrl = await storage.read(key: _keyBaseUrl);
+    final authToken = await storage.read(key: _keyAuthToken);
+
+    if (instanceType == null || baseUrl == null || authToken == null) {
+      throw Exception('Missing required credentials for offline sync');
+    }
+
+    final provider = syncProvider ?? _DefaultSyncProvider(
+      instanceType: instanceType,
+      baseUrl: baseUrl,
+      authToken: authToken,
+    );
+
     return OfflineManager(
       storage: LocalStorageProvider(),
       metadata: _DatabaseMetadataAdapter(OfflineDatabaseService.instance),
-      sync: _createDefaultSyncProvider(),
+      sync: provider,
+      config: config ?? const OfflineConfig(),
     );
   }
   
   /// Create a default sync provider
-  static OfflineSyncProvider _createDefaultSyncProvider() {
-    return _DefaultSyncProvider();
+  sync.OfflineSyncProvider _createDefaultSyncProvider() {
+    return _DefaultSyncProvider(
+      instanceType: _instanceType ?? '',
+      baseUrl: _baseUrl ?? '',
+      authToken: _authToken ?? ''
+    );
   }
   
   OfflineManager({
     required OfflineStorageProvider storage,
     required OfflineMetadataProvider metadata,
-    required OfflineSyncProvider sync,
-    OfflineConfig? config,
+    required sync.OfflineSyncProvider sync,
+    required OfflineConfig config,
   }) : _storage = storage,
        _metadata = metadata,
        _sync = sync,
-       _config = config ?? const OfflineConfig() {
+       _config = config {
     _initConnectivityMonitoring();
     _initConnectivityListener();
   }
@@ -106,13 +141,24 @@ class OfflineManager {
     required String instanceType,
     required String baseUrl,
     required String authToken,
-    required String username,
   }) async {
     try {
-      await _secureStorage.write(key: 'instanceType', value: instanceType);
-      await _secureStorage.write(key: 'baseUrl', value: baseUrl);
-      await _secureStorage.write(key: 'authToken', value: authToken);
-      await _secureStorage.write(key: 'username', value: username);
+      _instanceType = instanceType;
+      _baseUrl = baseUrl;
+      _authToken = authToken;
+      
+      // Initialize sync provider with credentials
+      if (_sync is _DefaultSyncProvider) {
+        (_sync as _DefaultSyncProvider)
+          .._instanceType = instanceType
+          .._baseUrl = baseUrl
+          .._authToken = authToken;
+      }
+      
+      await _secureStorage.write(key: _keyInstanceType, value: instanceType);
+      await _secureStorage.write(key: _keyBaseUrl, value: baseUrl);
+      await _secureStorage.write(key: _keyAuthToken, value: authToken);
+      await _secureStorage.write(key: _keyUsername, value: _instanceType);
     } catch (e) {
       EVLogger.error('Failed to save credentials', e);
       rethrow;
@@ -198,75 +244,66 @@ class OfflineManager {
     }
   }
   
-  /// Keep an item available offline
-  /// 
-  /// @param item The item to keep offline
-  /// @param parentId The parent ID of the item (for maintaining hierarchy)
-  /// @param recursiveForFolders Whether to recursively download folder contents
-  /// @param browseService Optional browse service for recursive folder download
-  Future<bool> keepOffline(
-    BrowseItem item, {
-    String? parentId,
-    bool recursiveForFolders = true,
-    dynamic browseService,
-  }) async {
+  /// Keep an item offline by downloading its content and storing metadata
+  Future<void> keepOffline(BrowseItem item) async {
     try {
-      // Check storage space
-      final usedSpace = await _storage.getStorageUsed();
-      if (usedSpace >= _config.maxStorageBytes) {
-        _eventController.add(const OfflineEvent(
-          'error',
-          'Not enough storage space for offline content',
-        ));
-        return false;
+      // Create an OfflineItem from the BrowseItem
+      final offlineItem = OfflineItem.fromBrowseItem(item);
+      
+      // Save the metadata first
+      await _metadata.saveItem(offlineItem);
+      
+      // If it's a folder, recursively process its contents
+      if (item.type == 'folder') {
+        await _recursivelyKeepFolderOffline(item);
+      } else {
+        // For files, download the content
+        final content = await _sync.downloadContent(item.id);
+        final filePath = await _storage.storeFile(item.id, content);
+        
+        // Update the offline item with the file path
+        final updatedItem = offlineItem.copyWith(filePath: filePath);
+        await _metadata.saveItem(updatedItem);
       }
-      
-      // Store metadata first
-      await _metadata.storeMetadata(item.id, {
-        'id': item.id,
-        'name': item.name,
-        'type': item.type,
-        'is_department': item.isDepartment,
-        'description': item.description,
-        'modified_date': item.modifiedDate,
-        'modified_by': item.modifiedBy,
-        'parent_id': parentId, // Important: Store parent ID for hierarchy
-        'status': OfflineStatus.pending.toString(),
+    } catch (e) {
+      EVLogger.error('Error keeping item offline', {
+        'itemId': item.id,
+        'itemName': item.name,
+        'error': e.toString(),
       });
+      rethrow;
+    }
+  }
+
+  /// Recursively process folder contents
+  Future<void> _recursivelyKeepFolderOffline(BrowseItem folder) async {
+    try {
+      final browseService = BrowseServiceFactory.getService(
+        _instanceType ?? '',
+        _baseUrl ?? '',
+        _authToken ?? '',
+      );
       
-      // If it's a folder and recursive download is enabled, download its contents
-      if ((item.type == 'folder' || item.isDepartment) && 
-          recursiveForFolders && 
-          browseService != null) {
+      final children = await browseService.getChildren(folder);
+      
+      for (final child in children) {
         try {
-          // Get folder contents
-          final contents = await browseService.getFolderContents(item.id);
-          
-          // Keep each item offline
-          for (final childItem in contents.items) {
-            await keepOffline(
-              childItem,
-              parentId: item.id,
-              recursiveForFolders: true,
-              browseService: browseService,
-            );
-          }
+          await keepOffline(child);
         } catch (e) {
-          EVLogger.error('Failed to recursively download folder contents', {
-            'folderId': item.id,
+          EVLogger.error('Error keeping child offline', {
+            'parentId': folder.id,
+            'childId': child.id,
             'error': e.toString(),
           });
-          // Continue with the current item even if recursive download fails
+          // Continue with other children even if one fails
         }
       }
-      
-      // Start sync for this item
-      await _sync.startSync();
-      
-      return true;
     } catch (e) {
-      EVLogger.error('Failed to keep item offline', e);
-      return false;
+      EVLogger.error('Error recursively keeping folder offline', {
+        'folderId': folder.id,
+        'error': e.toString(),
+      });
+      rethrow;
     }
   }
   
@@ -289,7 +326,7 @@ class OfflineManager {
         id: data['id'],
         name: data['name'],
         type: data['type'],
-        isDepartment: data['is_department'] == true,
+        isDepartment: data['is_department'] == 1,
         description: data['description'],
         modifiedDate: data['modified_date'],
         modifiedBy: data['modified_by'],
@@ -360,9 +397,31 @@ class OfflineManager {
 }
 
 /// Default implementation of OfflineSyncProvider
-class _DefaultSyncProvider implements OfflineSyncProvider {
+class _DefaultSyncProvider implements sync.OfflineSyncProvider {
   final _eventController = StreamController<OfflineEvent>.broadcast();
+  String _instanceType;
+  String _baseUrl;
+  String _authToken;
   
+  _DefaultSyncProvider({
+    required String instanceType,
+    required String baseUrl,
+    required String authToken,
+  }) : _instanceType = instanceType,
+       _baseUrl = baseUrl,
+       _authToken = authToken;
+       
+  // Add setters for updating credentials
+  void updateCredentials({
+    required String instanceType,
+    required String baseUrl,
+    required String authToken,
+  }) {
+    _instanceType = instanceType;
+    _baseUrl = baseUrl;
+    _authToken = authToken;
+  }
+
   @override
   Future<void> startSync() async {
     // Default implementation
@@ -376,6 +435,62 @@ class _DefaultSyncProvider implements OfflineSyncProvider {
   @override
   Stream<OfflineEvent> get syncEvents => _eventController.stream;
   
+  @override
+  Future<Uint8List> downloadContent(String itemId) async {
+    try {
+      final browseService = BrowseServiceFactory.getService(
+        _instanceType,
+        _baseUrl,
+        _authToken,
+      );
+      
+      final item = await browseService.getItemDetails(itemId);
+      if (item == null) {
+        throw Exception('Item not found');
+      }
+      
+      final documentService = DocumentServiceFactory.getService(
+        _instanceType,
+        _baseUrl,
+        _authToken,
+      );
+      
+      final content = await documentService.getDocumentContent(item);
+      if (content is String) {
+        // If content is a file path, read the file
+        return await File(content).readAsBytes();
+      } else if (content is Uint8List) {
+        return content;
+      } else {
+        throw Exception('Unexpected content type');
+      }
+    } catch (e) {
+      EVLogger.error('Error downloading content', e);
+      rethrow;
+    }
+  }
+  
+  @override
+  Future<List<BrowseItem>> getFolderContents(String folderId) async {
+    try {
+      final browseService = BrowseServiceFactory.getService(
+        _instanceType,
+        _baseUrl,
+        _authToken,
+      );
+      
+      final folder = await browseService.getItemDetails(folderId);
+      if (folder == null) {
+        throw Exception('Folder not found');
+      }
+      
+      return await browseService.getChildren(folder);
+    } catch (e) {
+      EVLogger.error('Error getting folder contents', e);
+      rethrow;
+    }
+  }
+  
   void dispose() {
     _eventController.close();
   }
@@ -388,24 +503,21 @@ class _DatabaseMetadataAdapter implements OfflineMetadataProvider {
   _DatabaseMetadataAdapter(this._database);
   
   @override
-  Future<void> storeMetadata(String itemId, Map<String, dynamic> metadata) async {
-    // Create a BrowseItem from the metadata
-    final item = BrowseItem(
-      id: metadata['id'],
-      name: metadata['name'],
-      type: metadata['type'],
-      isDepartment: metadata['is_department'] == true,
-      description: metadata['description'],
-      modifiedDate: metadata['modified_date'],
-      modifiedBy: metadata['modified_by'],
-    );
-    
+  Future<void> saveItem(OfflineItem item) async {
     // Insert the item into the database
     await _database.insertItem(
-      item,
-      parentId: metadata['parent_id'],
-      filePath: metadata['file_path'],
-      syncStatus: metadata['status'] ?? 'pending',
+      BrowseItem(
+        id: item.id,
+        name: item.name,
+        type: item.type,
+        isDepartment: item.isDepartment,
+        description: item.description,
+        modifiedDate: item.modifiedDate?.toIso8601String(),
+        modifiedBy: item.modifiedBy,
+      ),
+      parentId: item.parentId,
+      filePath: item.filePath,
+      syncStatus: 'pending',
     );
   }
   

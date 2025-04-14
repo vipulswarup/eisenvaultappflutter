@@ -27,7 +27,7 @@ class OfflineBrowseScreen extends StatefulWidget {
 }
 
 class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
-  final OfflineManager _offlineManager = OfflineManager.createDefault();
+  late OfflineManager _offlineManager;
   
   List<BrowseItem> _items = [];
   bool _isLoading = true;
@@ -37,6 +37,11 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
   @override
   void initState() {
     super.initState();
+    _initOfflineManager();
+  }
+  
+  Future<void> _initOfflineManager() async {
+    _offlineManager = await OfflineManager.createDefault();
     _loadRootItems();
     
     // Debug: Dump database contents to help diagnose issues

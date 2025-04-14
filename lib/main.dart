@@ -17,17 +17,22 @@ void main() async {
   final syncService = SyncService();
   
   // Try to initialize with saved credentials
-  final offlineManager = OfflineManager.createDefault();
-  final credentials = await offlineManager.getSavedCredentials();
-  if (credentials != null) {
-    syncService.initialize(
-      instanceType: credentials['instanceType']!,
-      baseUrl: credentials['baseUrl']!,
-      authToken: credentials['authToken']!,
-    );
-    
-    // Start periodic sync
-    syncService.startPeriodicSync();
+  try {
+    final offlineManager = await OfflineManager.createDefault();
+    final credentials = await offlineManager.getSavedCredentials();
+    if (credentials != null) {
+      syncService.initialize(
+        instanceType: credentials['instanceType']!,
+        baseUrl: credentials['baseUrl']!,
+        authToken: credentials['authToken']!,
+      );
+      
+      // Start periodic sync
+      syncService.startPeriodicSync();
+    }
+  } catch (e) {
+    // If there are no saved credentials, just continue without offline support
+    print('No saved credentials for offline support: $e');
   }
   
   runApp(MyApp(syncService: syncService));
