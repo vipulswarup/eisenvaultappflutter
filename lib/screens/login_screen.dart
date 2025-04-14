@@ -16,7 +16,6 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   bool _isOfflineMode = false;
-  bool _forceOfflineMode = false;
   final Connectivity _connectivity = Connectivity();
   late StreamSubscription<ConnectivityResult> _connectivitySubscription;
   late OfflineManager _offlineManager;
@@ -59,7 +58,7 @@ class _LoginScreenState extends State<LoginScreen> {
     // Consider both ConnectivityResult.none and ConnectivityResult.other as offline states
     final isNowOffline = result == ConnectivityResult.none || result == ConnectivityResult.other;
     
-    if (isNowOffline || _forceOfflineMode) {
+    if (isNowOffline) {
       EVLogger.debug('Device is offline - switching to offline mode');
       if (mounted) {
         setState(() {
@@ -87,38 +86,16 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: EVColors.screenBackground,
-      // Add AppBar with offline toggle
       appBar: AppBar(
         backgroundColor: EVColors.appBarBackground,
         foregroundColor: EVColors.appBarForeground,
         title: const Text('EisenVault Login'),
-        actions: [
-          // Add offline mode toggle
-          Row(
-            children: [
-              const Text('Test Offline Mode', 
-                style: TextStyle(fontSize: 14),
-              ),
-              Switch(
-                value: _forceOfflineMode,
-                activeColor: Colors.orange,
-                onChanged: (value) {
-                  setState(() {
-                    _forceOfflineMode = value;
-                    _isOfflineMode = value;
-                  });
-                },
-              ),
-            ],
-          ),
-        ],
       ),
       body: SafeArea(
         child: _isOfflineMode 
           ? OfflineLoginUI(
               onTryOnlineLogin: () {
                 setState(() {
-                  _forceOfflineMode = false;
                   _isOfflineMode = false;
                 });
               },

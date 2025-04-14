@@ -139,8 +139,6 @@ class _BrowseScreenState extends State<BrowseScreen> {
   // Global key for scaffold
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  bool _forceOfflineMode = false;
-
   // Define _refreshCurrentFolder first to avoid being referenced before declaration
   Future<void> _refreshCurrentFolder() async {
     if (!mounted) return; // Check if widget is still mounted
@@ -196,7 +194,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
     
     final wasOffline = _isOffline;
     // Consider both ConnectivityResult.none and ConnectivityResult.other as offline states
-    final isNowOffline = _forceOfflineMode || result == ConnectivityResult.none || result == ConnectivityResult.other;
+    final isNowOffline = result == ConnectivityResult.none || result == ConnectivityResult.other;
     
     if (wasOffline != isNowOffline) {
       setState(() {
@@ -405,26 +403,6 @@ class _BrowseScreenState extends State<BrowseScreen> {
               },
             ),
         actions: [
-          // Add offline mode toggle
-          Row(
-            children: [
-              const Text('Test Offline', 
-                style: TextStyle(fontSize: 12),
-              ),
-              Switch(
-                value: _forceOfflineMode,
-                activeColor: Colors.orange,
-                onChanged: (value) {
-                  setState(() {
-                    _forceOfflineMode = value;
-                    _updateConnectionStatus(value 
-                      ? ConnectivityResult.none 
-                      : ConnectivityResult.mobile);
-                  });
-                },
-              ),
-            ],
-          ),
           // Selection mode actions
           if (_isInSelectionMode) ...[
             IconButton(
