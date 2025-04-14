@@ -1,8 +1,11 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/utils/file_type_utils.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
+import 'package:eisenvaultappflutter/utils/file_utils.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:open_file/open_file.dart';
@@ -10,83 +13,88 @@ import 'package:open_file/open_file.dart';
 
 class GenericFilePreviewScreen extends StatelessWidget {
   final String title;
-  final dynamic fileContent; // Path (String) or bytes (Uint8List)
-  final FileType fileType;
+  final dynamic fileContent; // Can be a File path (String) or bytes (Uint8List)
+  final String mimeType;
 
   const GenericFilePreviewScreen({
-    super.key,
+    Key? key,
     required this.title,
     required this.fileContent,
-    required this.fileType,
-  });
+    required this.mimeType,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(title),
-        actions: [
-          // Action to share the file
-          if (!kIsWeb)
-            IconButton(
-              icon: const Icon(Icons.share),
-              onPressed: () => _shareFile(context),
-            ),
-        ],
+        backgroundColor: EVColors.appBarBackground,
+        foregroundColor: EVColors.appBarForeground,
       ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // File type icon
-              Icon(
-                _getFileTypeIcon(),
-                size: 80,
-                color: _getFileTypeColor(),
-              ),
-              const SizedBox(height: 24),
-              
-              // File name
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              
-              // File type
-              Text(
-                'File Type: ${FileTypeUtils.getFileTypeString(fileType)}',
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
-                ),
-              ),
-              const SizedBox(height: 40),
-              
-              // Action buttons
-              ElevatedButton.icon(
-                icon: const Icon(Icons.open_in_new),
-                label: const Text('Open with External App'),
-                onPressed: () => _openWithExternalApp(context),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      body: _buildPreview(),
     );
   }
 
+  Widget _buildPreview() {
+    try {
+      if (fileContent is Uint8List) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.file_present, size: 64),
+              const SizedBox(height: 16),
+              Text('File Type: ${FileUtils.getFileTypeFromMimeType(mimeType)}'),
+              const SizedBox(height: 8),
+              Text('Size: ${(fileContent as Uint8List).length} bytes'),
+              const SizedBox(height: 16),
+              const Text('Preview not available for this file type'),
+            ],
+          ),
+        );
+      } else if (fileContent is String) {
+        final file = File(fileContent as String);
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.file_present, size: 64),
+              const SizedBox(height: 16),
+              Text('File Type: ${FileUtils.getFileTypeFromMimeType(mimeType)}'),
+              const SizedBox(height: 8),
+              FutureBuilder<int>(
+                future: file.length(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasData) {
+                    return Text('Size: ${snapshot.data} bytes');
+                  }
+                  return const Text('Calculating size...');
+                },
+              ),
+              const SizedBox(height: 16),
+              const Text('Preview not available for this file type'),
+            ],
+          ),
+        );
+      }
+
+      EVLogger.error('Unsupported file content type', {
+        'type': fileContent.runtimeType.toString()
+      });
+      
+      return const Center(
+        child: Text('Error: File content format not supported'),
+      );
+    } catch (e) {
+      EVLogger.error('Error displaying file preview', e);
+      return Center(
+        child: Text('Error displaying file preview: ${e.toString()}'),
+      );
+    }
+  }
+
   IconData _getFileTypeIcon() {
-    switch (fileType) {
+    switch (FileTypeUtils.getFileTypeFromMimeType(mimeType)) {
       case FileType.spreadsheet:
         return Icons.table_chart;
       case FileType.document:
@@ -99,7 +107,7 @@ class GenericFilePreviewScreen extends StatelessWidget {
   }
 
   Color _getFileTypeColor() {
-    switch (fileType) {
+    switch (FileTypeUtils.getFileTypeFromMimeType(mimeType)) {
       case FileType.spreadsheet:
         return Colors.green;
       case FileType.document:
@@ -151,7 +159,9 @@ class GenericFilePreviewScreen extends StatelessWidget {
         SnackBar(content: Text('Error opening file: ${e.toString()}')),
       );
     }
-  }  Future<void> _shareFile(BuildContext context) async {
+  }
+
+  Future<void> _shareFile(BuildContext context) async {
     try {
       if (kIsWeb) {
         ScaffoldMessenger.of(context).showSnackBar(

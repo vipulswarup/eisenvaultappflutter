@@ -247,6 +247,12 @@ class OfflineManager {
   /// Keep an item offline by downloading its content and storing metadata
   Future<void> keepOffline(BrowseItem item) async {
     try {
+      EVLogger.debug('Starting keepOffline process', {
+        'itemId': item.id,
+        'itemName': item.name,
+        'itemType': item.type
+      });
+
       // Create an OfflineItem from the BrowseItem
       final offlineItem = OfflineItem.fromBrowseItem(item);
       
@@ -254,53 +260,125 @@ class OfflineManager {
       await _metadata.saveItem(offlineItem);
       
       // If it's a folder, recursively process its contents
-      if (item.type == 'folder') {
+      if (item.type == 'folder' || item.isDepartment) {
         await _recursivelyKeepFolderOffline(item);
       } else {
-        // For files, download the content
-        final content = await _sync.downloadContent(item.id);
-        final filePath = await _storage.storeFile(item.id, content);
+        // For files, download and store the content
+        EVLogger.debug('Downloading content for file', {'itemId': item.id});
         
-        // Update the offline item with the file path
-        final updatedItem = offlineItem.copyWith(filePath: filePath);
-        await _metadata.saveItem(updatedItem);
+        try {
+          final content = await _sync.downloadContent(item.id);
+          if (content.isEmpty) {
+            throw Exception('Downloaded content is empty');
+          }
+          
+          EVLogger.debug('Content downloaded successfully', {
+            'itemId': item.id,
+            'contentSize': content.length
+          });
+          
+          // Store the file and get its path
+          final filePath = await _storage.storeFile(item.id, content);
+          
+          EVLogger.debug('File stored successfully', {
+            'itemId': item.id,
+            'filePath': filePath
+          });
+          
+          // Update the offline item with the file path
+          final updatedItem = offlineItem.copyWith(filePath: filePath);
+          await _metadata.saveItem(updatedItem);
+          
+          // Verify the file exists
+          final exists = await _fileService.fileExists(filePath);
+          if (!exists) {
+            throw Exception('File was not stored properly');
+          }
+        } catch (e) {
+          // If file download or storage fails, clean up metadata
+          await _metadata.deleteMetadata(item.id);
+          EVLogger.error('Failed to download or store file', {
+            'itemId': item.id,
+            'error': e.toString()
+          });
+          rethrow;
+        }
       }
     } catch (e) {
-      EVLogger.error('Error keeping item offline', {
+      EVLogger.error('Error in keepOffline', {
         'itemId': item.id,
         'itemName': item.name,
-        'error': e.toString(),
+        'error': e.toString()
       });
       rethrow;
     }
   }
 
-  /// Recursively process folder contents
+  /// Recursively keep a folder and its contents available offline
   Future<void> _recursivelyKeepFolderOffline(BrowseItem folder) async {
+    EVLogger.debug('Starting recursive offline process for folder', {
+      'folderId': folder.id,
+      'folderName': folder.name,
+      'isDepartment': folder.isDepartment,
+    });
+
     try {
-      final browseService = BrowseServiceFactory.getService(
-        _instanceType ?? '',
-        _baseUrl ?? '',
-        _authToken ?? '',
-      );
+      // Get children from the sync provider
+      final children = await _sync.getFolderContents(folder.id);
       
-      final children = await browseService.getChildren(folder);
-      
-      for (final child in children) {
+      if (children.isEmpty) {
+        EVLogger.debug('No children found in folder', {
+          'folderId': folder.id,
+          'folderName': folder.name,
+        });
+        return;
+      }
+
+      EVLogger.debug('Processing children', {
+        'count': children.length,
+        'folderId': folder.id,
+      });
+
+      // Process each child item
+      for (var child in children) {
         try {
-          await keepOffline(child);
+          // Create an OfflineItem from the child
+          final offlineItem = OfflineItem.fromBrowseItem(child);
+          await _metadata.saveItem(offlineItem);
+
+          if (child.type == 'folder' || child.isDepartment) {
+            // Recursively process folders
+            await _recursivelyKeepFolderOffline(child);
+          } else {
+            // Download and store file content
+            final content = await _sync.downloadContent(child.id);
+            if (content.isEmpty) {
+              throw Exception('Downloaded content is empty');
+            }
+
+            final filePath = await _storage.storeFile(child.id, content);
+            final updatedItem = offlineItem.copyWith(filePath: filePath);
+            await _metadata.saveItem(updatedItem);
+          }
         } catch (e) {
-          EVLogger.error('Error keeping child offline', {
-            'parentId': folder.id,
+          EVLogger.error('Error processing child item', {
             'childId': child.id,
+            'childName': child.name,
             'error': e.toString(),
           });
-          // Continue with other children even if one fails
+          // Continue with next item rather than failing entire process
         }
       }
-    } catch (e) {
-      EVLogger.error('Error recursively keeping folder offline', {
+
+      EVLogger.debug('Completed recursive offline process', {
         'folderId': folder.id,
+        'folderName': folder.name,
+        'totalItems': children.length,
+      });
+    } catch (e) {
+      EVLogger.error('Error in recursive offline process', {
+        'folderId': folder.id,
+        'folderName': folder.name,
         'error': e.toString(),
       });
       rethrow;

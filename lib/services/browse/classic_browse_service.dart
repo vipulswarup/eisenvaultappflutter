@@ -243,25 +243,19 @@ class ClassicBrowseService implements BrowseService {
   }
 
   /// Gets detailed information about a specific item by its ID
-  /// This is particularly useful for synchronization operations
   @override
   Future<BrowseItem?> getItemDetails(String itemId) async {
     try {
-      // Add more include parameters to ensure all necessary data is included
+      // First try without aspects and with minimal parameters
       final url = Uri.parse(
-        _baseService.buildUrl('api/-default-/public/alfresco/versions/1/nodes/$itemId?include=path,properties,allowableOperations,aspectNames')
+        _baseService.buildUrl('api/-default-/public/alfresco/versions/1/nodes/$itemId')
       );
       
       // Create headers with explicit Accept header for JSON
       final headers = Map<String, String>.from(_baseService.createHeaders());
       headers['Accept'] = 'application/json';
       
-      // Print the API call in curl format for debugging
-      final curlCommand = 'curl -X GET "${url.toString()}" \\\n'
-          '${headers.entries.map((e) => '  -H "${e.key}: ${e.value}"').join(' \\\n')}';
-      
-      EVLogger.debug('API call in curl format', {
-        'curl': curlCommand,
+      EVLogger.debug('Getting item details', {
         'url': url.toString(),
         'headers': headers,
       });
@@ -275,57 +269,33 @@ class ClassicBrowseService implements BrowseService {
       EVLogger.debug('API response', {
         'statusCode': response.statusCode,
         'headers': response.headers,
-        'body': response.body.substring(0, response.body.length > 500 ? 500 : response.body.length) + 
-               (response.body.length > 500 ? '...' : ''),
+        'body': response.body.substring(0, response.body.length > 500 ? 500 : response.body.length),
       });
       
       if (response.statusCode == 200) {
-        // Try to parse the JSON response
-        try {
-          final data = json.decode(response.body);
-          final entry = data['entry'];
-          
-          // Convert the API response to a BrowseItem
-          return _mapAlfrescoBrowseItem(entry);
-        } catch (parseError) {
-          // If JSON parsing fails, try a fallback approach
-          EVLogger.warning('Failed to parse JSON response, using fallback approach', {
-            'itemId': itemId,
-            'error': parseError.toString(),
-          });
-          
-          // Try a simpler API call without the problematic parameters
-          return _getItemDetailsFallback(itemId);
-        }
-      } else if (response.statusCode == 404) {
-        // Item not found
-        return null;
+        final data = json.decode(response.body);
+        final entry = data['entry'];
+        
+        // Map the response to a BrowseItem
+        return BrowseItem(
+          id: entry['id'],
+          name: entry['name'],
+          type: entry['isFolder'] == true ? 'folder' : 'document',
+          description: entry['properties']?['cm:description'],
+          modifiedDate: entry['modifiedAt'],
+          modifiedBy: entry['modifiedByUser']?['displayName'],
+          isDepartment: entry['nodeType'] == 'st:site',
+          allowableOperations: entry['allowableOperations'] != null
+              ? List<String>.from(entry['allowableOperations'])
+              : null,
+        );
       } else if (response.statusCode == 500) {
-        // Check if the error is related to aspects
-        try {
-          final errorData = json.decode(response.body);
-          if (errorData['error'] != null && 
-              errorData['error']['briefSummary'] != null &&
-              errorData['error']['briefSummary'].toString().contains('namespace prefix is not registered for uri aspecttest')) {
-            // This is an aspect-related error, use the fallback approach
-            EVLogger.warning('Aspect-related error detected, using fallback approach', {
-              'itemId': itemId,
-              'error': errorData['error']['briefSummary'],
-            });
-            return _getItemDetailsFallback(itemId);
-          }
-        } catch (e) {
-          // If we can't parse the error JSON, continue with the normal error handling
-        }
-        
-        // If we get here, it's a different 500 error
-        EVLogger.error('Failed to get item details', {
+        // Try the fallback method for any 500 error
+        EVLogger.warning('Got 500 error, trying fallback method', {
           'itemId': itemId,
-          'statusCode': response.statusCode,
-          'response': response.body,
+          'error': response.body,
         });
-        
-        throw Exception('Failed to get item details: ${response.statusCode}');
+        return await _getItemDetailsFallback(itemId);
       } else {
         EVLogger.error('Failed to get item details', {
           'itemId': itemId,
@@ -341,51 +311,69 @@ class ClassicBrowseService implements BrowseService {
         'error': e.toString(),
       });
       
-      // Rethrow to be handled by caller
-      rethrow;
+      // Try fallback method for any error
+      try {
+        return await _getItemDetailsFallback(itemId);
+      } catch (fallbackError) {
+        EVLogger.error('Fallback method also failed', {
+          'itemId': itemId,
+          'error': fallbackError.toString(),
+        });
+        throw Exception('Failed to get item details: Item not found or inaccessible');
+      }
     }
   }
   
   /// Fallback method for getting item details when the main method fails
-  /// Uses a simpler API call with fewer parameters
   Future<BrowseItem?> _getItemDetailsFallback(String itemId) async {
     try {
-      // Use a simpler URL with fewer include parameters
+      // Try an even simpler URL with no query parameters
       final url = Uri.parse(
-        _baseService.buildUrl('api/-default-/public/alfresco/versions/1/nodes/$itemId?include=allowableOperations')
+        _baseService.buildUrl('api/-default-/public/alfresco/versions/1/nodes/$itemId/content')
       );
       
-      final response = await http.get(
+      final headers = Map<String, String>.from(_baseService.createHeaders());
+      headers['Accept'] = '*/*';
+      
+      // First check if we can access the content
+      final response = await http.head(
         url,
-        headers: _baseService.createHeaders(),
+        headers: headers,
       );
       
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final entry = data['entry'];
-        
-        // Create a basic BrowseItem with the available information
-        return BrowseItem(
-          id: entry['id'],
-          name: entry['name'],
-          type: entry['isFolder'] == true ? 'folder' : 'document',
-          description: entry['properties']?['cm:description'],
-          modifiedDate: entry['modifiedAt'],
-          modifiedBy: entry['modifiedByUser']?['displayName'],
-          isDepartment: entry['nodeType'] == 'st:site',
-          allowableOperations: entry['allowableOperations'] != null
-              ? List<String>.from(entry['allowableOperations'])
-              : null,
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        // If we can access the content, the item exists. Get basic metadata
+        final metadataUrl = Uri.parse(
+          _baseService.buildUrl('api/-default-/public/alfresco/versions/1/nodes/$itemId')
         );
-      } else {
-        EVLogger.error('Fallback method failed to get item details', {
-          'itemId': itemId,
-          'statusCode': response.statusCode,
-        });
-        return null;
+        
+        final metadataResponse = await http.get(
+          metadataUrl,
+          headers: {'Accept': 'application/json', ...headers},
+        );
+        
+        if (metadataResponse.statusCode == 200) {
+          final data = json.decode(metadataResponse.body);
+          final entry = data['entry'];
+          
+          // Create a basic BrowseItem with minimal information
+          return BrowseItem(
+            id: entry['id'],
+            name: entry['name'],
+            type: entry['isFolder'] == true ? 'folder' : 'document',
+            modifiedDate: entry['modifiedAt'],
+            modifiedBy: entry['modifiedByUser']?['displayName'],
+          );
+        }
       }
+      
+      EVLogger.error('Fallback method failed to get item details', {
+        'itemId': itemId,
+        'statusCode': response.statusCode,
+      });
+      return null;
     } catch (e) {
-      EVLogger.error('Error in fallback method for getting item details', {
+      EVLogger.error('Error in fallback method', {
         'itemId': itemId,
         'error': e.toString(),
       });

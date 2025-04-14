@@ -88,21 +88,30 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
           canDebug: false,
           maxPageWidth: 700,
           actions: [],
-
         );
       }
 
-      // For mobile/desktop, use file path
-      if (!kIsWeb && widget.pdfContent is String) {
+      // For mobile/desktop platforms
+      if (widget.pdfContent is String) {
         return SfPdfViewer.file(
           File(widget.pdfContent as String),
           key: _pdfViewerKey,
           controller: _pdfViewerController,
         );
+      } else if (widget.pdfContent is Uint8List) {
+        return SfPdfViewer.memory(
+          widget.pdfContent as Uint8List,
+          key: _pdfViewerKey,
+          controller: _pdfViewerController,
+        );
       }
 
+      EVLogger.error('Unsupported PDF content type', {
+        'type': widget.pdfContent.runtimeType.toString()
+      });
+      
       return const Center(
-        child: Text('Error: PDF content format not supported on this platform'),
+        child: Text('Error: PDF content format not supported'),
       );
     } catch (e) {
       EVLogger.error('Error displaying PDF', e);

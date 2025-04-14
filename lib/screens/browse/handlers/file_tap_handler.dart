@@ -117,12 +117,14 @@ class FileTapHandler {
       case FileType.document:
       case FileType.spreadsheet:
       case FileType.presentation:
+        // Convert file type to appropriate MIME type
+        String mimeType = _getMimeTypeFromFileType(fileName, fileType);
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (context) => GenericFilePreviewScreen(
               title: fileName,
               fileContent: fileContent,
-              fileType: fileType,
+              mimeType: mimeType,
             ),
           ),
         );
@@ -136,6 +138,51 @@ class FileTapHandler {
             behavior: SnackBarBehavior.floating,
           ),
         );
+    }
+  }
+
+  /// Helper method to convert FileType to MIME type
+  String _getMimeTypeFromFileType(String fileName, FileType fileType) {
+    final extension = fileName.toLowerCase().split('.').last;
+    
+    switch (fileType) {
+      case FileType.document:
+        switch (extension) {
+          case 'doc':
+            return 'application/msword';
+          case 'docx':
+            return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+          case 'odt':
+            return 'application/vnd.oasis.opendocument.text';
+          default:
+            return 'application/octet-stream';
+        }
+      case FileType.spreadsheet:
+        switch (extension) {
+          case 'xls':
+            return 'application/vnd.ms-excel';
+          case 'xlsx':
+            return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+          case 'ods':
+            return 'application/vnd.oasis.opendocument.spreadsheet';
+          case 'csv':
+            return 'text/csv';
+          default:
+            return 'application/octet-stream';
+        }
+      case FileType.presentation:
+        switch (extension) {
+          case 'ppt':
+            return 'application/vnd.ms-powerpoint';
+          case 'pptx':
+            return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+          case 'odp':
+            return 'application/vnd.oasis.opendocument.presentation';
+          default:
+            return 'application/octet-stream';
+        }
+      default:
+        return 'application/octet-stream';
     }
   }
 }

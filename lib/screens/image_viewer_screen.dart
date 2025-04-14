@@ -1,11 +1,13 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 
 class ImageViewerScreen extends StatelessWidget {
   final String title;
-  final dynamic imageContent; // Path (String) or bytes (Uint8List)
+  final dynamic imageContent; // Can be a File path (String) or bytes (Uint8List)
 
   const ImageViewerScreen({
     Key? key,
@@ -18,6 +20,16 @@ class ImageViewerScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(title),
+        backgroundColor: EVColors.appBarBackground,
+        foregroundColor: EVColors.appBarForeground,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.zoom_in),
+            onPressed: () {
+              // TODO: Implement zoom functionality
+            },
+          ),
+        ],
       ),
       body: Center(
         child: _buildImageView(),
@@ -27,22 +39,42 @@ class ImageViewerScreen extends StatelessWidget {
 
   Widget _buildImageView() {
     try {
-      if (kIsWeb) {
-        // For web, imageContent should be bytes
-        if (imageContent is! Uint8List) {
-          return const Text('Invalid image data format for web');
-        }
-        return Image.memory(imageContent);
-      } else {
-        // For other platforms, imageContent should be a file path
-        if (imageContent is! String) {
-          return const Text('Invalid image data format');
-        }
-        return Image.file(File(imageContent));
+      if (imageContent is Uint8List) {
+        return Image.memory(
+          imageContent as Uint8List,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) {
+            EVLogger.error('Error displaying image from memory', error);
+            return const Center(
+              child: Text('Error: Invalid image data'),
+            );
+          },
+        );
+      } else if (imageContent is String) {
+        return Image.file(
+          File(imageContent as String),
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) {
+            EVLogger.error('Error displaying image from file', error);
+            return const Center(
+              child: Text('Error: Could not load image file'),
+            );
+          },
+        );
       }
+
+      EVLogger.error('Unsupported image content type', {
+        'type': imageContent.runtimeType.toString()
+      });
+      
+      return const Center(
+        child: Text('Error: Image content format not supported'),
+      );
     } catch (e) {
       EVLogger.error('Error displaying image', e);
-      return Text('Error displaying image: ${e.toString()}');
+      return Center(
+        child: Text('Error displaying image: ${e.toString()}'),
+      );
     }
   }
 }
