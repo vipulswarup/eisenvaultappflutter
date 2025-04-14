@@ -418,6 +418,49 @@ class _BrowseScreenState extends State<BrowseScreen> {
               ),
             ],
           ),
+          // Selection mode actions
+          if (_isInSelectionMode) ...[
+            IconButton(
+              icon: const Icon(Icons.select_all),
+              tooltip: 'Select All',
+              onPressed: () {
+                setState(() {
+                  if (_selectedItems.length == _controller!.items.length) {
+                    // If all items are selected, deselect all
+                    _selectedItems.clear();
+                  } else {
+                    // Select all items
+                    _selectedItems.addAll(_controller!.items.map((item) => item.id));
+                  }
+                });
+              },
+            ),
+          ],
+          // Toggle selection mode
+          IconButton(
+            icon: Icon(_isInSelectionMode ? Icons.close : Icons.checklist),
+            onPressed: () {
+              setState(() {
+                _isInSelectionMode = !_isInSelectionMode;
+                if (!_isInSelectionMode) {
+                  _selectedItems.clear();
+                }
+              });
+            },
+          ),
+          // Show selected items count when in selection mode
+          if (_isInSelectionMode && _selectedItems.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Center(
+                child: Text(
+                  '${_selectedItems.length} selected',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
           if (!_isOffline) // Only show search in online mode
             IconButton(
               icon: const Icon(Icons.search),
@@ -530,36 +573,88 @@ class _BrowseScreenState extends State<BrowseScreen> {
     // Check if controller is disposed before using it
     if (_controller == null) return const SizedBox.shrink();
     
-    EVLogger.debug('Building FAB', {
+    // Check if user has write permission for the current folder
+    final bool hasWritePermission = !_isOffline && // No write operations in offline mode
+                                   _controller!.currentFolder != null && 
+                                   _controller!.currentFolder!.id != 'root' &&
+                                   _controller!.currentFolder!.canWrite;
+    
+    EVLogger.debug('FAB visibility conditions', {
       'isInSelectionMode': _isInSelectionMode,
       'selectedItemsCount': _selectedItems.length,
       'isOffline': _isOffline,
-      'hasWritePermission': !_isOffline && 
-                          _controller!.currentFolder != null && 
-                          _controller!.currentFolder!.id != 'root' &&
-                          _controller!.currentFolder!.canWrite,
+      'currentFolderNull': _controller!.currentFolder == null,
+      'currentFolderId': _controller!.currentFolder?.id,
+      'currentFolderCanWrite': _controller!.currentFolder?.canWrite,
+      'currentFolderAllowableOperations': _controller!.currentFolder?.allowableOperations,
+      'hasWritePermission': hasWritePermission,
     });
     
+    // Show selection mode FAB with popup menu when items are selected
     if (_isInSelectionMode && _selectedItems.isNotEmpty) {
-      return FloatingActionButton(
-        onPressed: () async {
-          await _batchDeleteHandler.handleBatchDelete();
+      return PopupMenuButton<String>(
+        child: FloatingActionButton(
+          onPressed: null, // The PopupMenuButton handles the press
+          backgroundColor: EVColors.uploadButtonBackground,
+          foregroundColor: EVColors.uploadButtonForeground,
+          child: const Icon(Icons.more_vert),
+        ),
+        itemBuilder: (context) => [
+          const PopupMenuItem(
+            value: 'delete',
+            child: ListTile(
+              leading: Icon(Icons.delete),
+              title: Text('Delete'),
+            ),
+          ),
+          const PopupMenuItem(
+            value: 'offline',
+            child: ListTile(
+              leading: Icon(Icons.offline_pin),
+              title: Text('Keep Offline'),
+            ),
+          ),
+        ],
+        onSelected: (value) {
+          switch (value) {
+            case 'delete':
+              _batchDeleteHandler.handleBatchDelete();
+              break;
+            case 'offline':
+              _handleBatchOfflineToggle();
+              break;
+          }
         },
-        backgroundColor: Colors.red,
-        child: const Icon(Icons.delete),
       );
     }
-  
-    // For upload when not in selection mode
-    return FloatingActionButton(
-      onPressed: () {
-        _uploadHandler.navigateToUploadScreen();
-      },
-      backgroundColor: EVColors.uploadButtonBackground,
-      foregroundColor: EVColors.uploadButtonForeground,
-      child: const Icon(Icons.upload),
-    );
+    
+    // Show upload FAB when not in selection mode and has write permission
+    if (!_isInSelectionMode && hasWritePermission) {
+      return FloatingActionButton(
+        onPressed: () => _uploadHandler.navigateToUploadScreen(),
+        backgroundColor: EVColors.uploadButtonBackground,
+        foregroundColor: EVColors.uploadButtonForeground,
+        child: const Icon(Icons.upload_file),
+      );
+    }
+    
+    return const SizedBox.shrink(); // Return empty widget instead of null
   }
+
+  void _handleBatchOfflineToggle() async {
+    if (_controller == null) return;
+    
+    for (final itemId in _selectedItems) {
+      final item = _controller!.items.firstWhere((item) => item.id == itemId);
+      await _controller!.toggleOfflineAvailability(item);
+    }
+    
+    setState(() {
+      _isInSelectionMode = false;
+      _selectedItems.clear();
+    });
+  }
+
   @override
   void dispose() {
     _connectivitySubscription.cancel();

@@ -95,28 +95,11 @@ class FolderContentList extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (item.type != 'folder' && !item.isDepartment) // Only show for files
-                IconButton(
-                  icon: Icon(
-                    isAvailableOffline ? Icons.offline_pin : Icons.offline_pin_outlined,
-                    color: isAvailableOffline ? Colors.green : Colors.grey,
-                  ),
-                  onPressed: () {
-                    if (onOfflineToggle != null) {
-                      onOfflineToggle!(item);
-                    }
-                  },
-                ),
-              Checkbox(
-                value: isSelected,
-                onChanged: (value) {
-                  onItemSelected?.call(item.id, value ?? false);
-                },
-              ),
-            ],
+          trailing: Checkbox(
+            value: isSelected,
+            onChanged: (value) {
+              onItemSelected?.call(item.id, value ?? false);
+            },
           ),
           onTap: () {
             onItemSelected?.call(item.id, !isSelected);
