@@ -30,6 +30,7 @@ class BrowseScreenController extends ChangeNotifier {
   List<BrowseItem> navigationStack = [];
   BrowseItem? currentFolder;
   bool _isOffline = false;
+  bool _disposed = false; // Add a flag to track if the controller has been disposed
   
   // Callback for state updates
   final Function()? onStateChanged;
@@ -87,6 +88,8 @@ class BrowseScreenController extends ChangeNotifier {
   
   /// Helper method to safely notify listeners
   void _notifyListeners() {
+    if (_disposed) return; // Don't notify if disposed
+    
     if (onStateChanged != null) {
       onStateChanged!();
     }
@@ -95,6 +98,7 @@ class BrowseScreenController extends ChangeNotifier {
   
   /// Debounced version of state change notification
   void notifyStateChanged() {
+    if (_disposed) return; // Don't notify if disposed
     _debouncer.value = null; // Trigger the debouncer
   }
   
@@ -494,6 +498,7 @@ class BrowseScreenController extends ChangeNotifier {
   /// Properly clean up resources when controller is no longer needed
   @override
   void dispose() {
+    _disposed = true; // Mark as disposed
     // Cancel any ongoing network requests
     _cancelToken?.cancel("Controller disposed");
     

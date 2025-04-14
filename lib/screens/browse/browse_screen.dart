@@ -11,6 +11,7 @@ import 'package:eisenvaultappflutter/screens/browse/handlers/search_navigation_h
 import 'package:eisenvaultappflutter/screens/browse/widgets/breadcrumb_navigation.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_drawer.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/folder_content_list.dart';
+import 'package:eisenvaultappflutter/screens/document_upload_screen.dart';
 import 'package:eisenvaultappflutter/services/delete/delete_service.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
@@ -41,24 +42,75 @@ class UploadNavigationHandler {
   final String instanceType;
   final String baseUrl;
   final String authToken;
-  final BrowseItem? currentFolder;
   final Function() refreshCurrentFolder;
+  final BrowseScreenController controller;
 
   UploadNavigationHandler({
     required this.context,
     required this.instanceType,
     required this.baseUrl,
     required this.authToken,
-    required this.currentFolder,
     required this.refreshCurrentFolder,
+    required this.controller,
   });
 
   /// Navigate to the upload screen to add files to the current folder
   Future<void> navigateToUploadScreen() async {
-    // Method implementation...
-  }
+    // Get the current folder from the controller
+    final currentFolder = controller.currentFolder;
+    
+    if (currentFolder == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a folder to upload files'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
- 
+    // Get the correct parent folder ID
+    String parentFolderId;
+
+    if (instanceType.toLowerCase() == 'angora') {
+      // For Angora, we use the current folder ID directly
+      parentFolderId = currentFolder.id;
+    } else {
+      // For Alfresco/Classic, handle documentLibrary ID
+      if (currentFolder.isDepartment) {
+        if (currentFolder.documentLibraryId != null) {
+          parentFolderId = currentFolder.documentLibraryId!;
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Cannot upload at this level. Please navigate to a subfolder.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+      } else {
+        parentFolderId = currentFolder.id;
+      }
+    }
+
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DocumentUploadScreen(
+          repositoryType: instanceType,
+          parentFolderId: parentFolderId,
+          baseUrl: baseUrl,
+          authToken: authToken,
+        ),
+      ),
+    );
+
+    // If upload was successful, refresh the current folder
+    if (result == true) {
+      refreshCurrentFolder();
+    }
+  }
 }
 
 class _BrowseScreenState extends State<BrowseScreen> {
@@ -68,7 +120,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
   late StreamSubscription<ConnectivityResult> _connectivitySubscription;
   
   // Controller and handlers
-  late BrowseScreenController _controller;
+  late BrowseScreenController? _controller;
   late FileTapHandler _fileTapHandler;
   late AuthHandler _authHandler;
   late DeleteHandler _deleteHandler;
@@ -91,47 +143,57 @@ class _BrowseScreenState extends State<BrowseScreen> {
 
   // Define _refreshCurrentFolder first to avoid being referenced before declaration
   Future<void> _refreshCurrentFolder() async {
+    if (!mounted) return; // Check if widget is still mounted
+    
     if (_isOffline) {
       // In offline mode, load offline content
       await _loadOfflineContent();
     } else {
-      if (_controller.currentFolder != null) {
-        await _controller.loadFolderContents(_controller.currentFolder!);
+      if (_controller?.currentFolder != null) {
+        await _controller!.loadFolderContents(_controller!.currentFolder!);
       } else {
-        await _controller.loadDepartments();
+        await _controller!.loadDepartments();
       }
     }
   }
 
   Future<void> _loadOfflineContent() async {
+    if (!mounted) return; // Check if widget is still mounted
+    
     try {
       setState(() {
-        _controller.isLoading = true;
+        _controller?.isLoading = true;
       });
 
       // Get offline items for current folder
       // If we're at the root level (no current folder), use null as parentId
       // Otherwise use the current folder's ID
-      final String? parentId = _controller.currentFolder?.id == 'root' 
+      final String? parentId = _controller?.currentFolder?.id == 'root' 
           ? null 
-          : _controller.currentFolder?.id;
+          : _controller?.currentFolder?.id;
           
       final items = await _offlineManager.getOfflineItems(parentId);
       
+      if (!mounted) return; // Check again after async operation
+      
       setState(() {
-        _controller.items = items;
-        _controller.isLoading = false;
-        _controller.errorMessage = null;
+        _controller?.items = items;
+        _controller?.isLoading = false;
+        _controller?.errorMessage = null;
       });
     } catch (e) {
+      if (!mounted) return; // Check if widget is still mounted
+      
       setState(() {
-        _controller.isLoading = false;
-        _controller.errorMessage = 'Failed to load offline content: ${e.toString()}';
+        _controller?.isLoading = false;
+        _controller?.errorMessage = 'Failed to load offline content: ${e.toString()}';
       });
     }
   }
   
   void _updateConnectionStatus(ConnectivityResult result) {
+    if (!mounted) return; // Check if widget is still mounted
+    
     final wasOffline = _isOffline;
     // Consider both ConnectivityResult.none and ConnectivityResult.other as offline states
     final isNowOffline = _forceOfflineMode || result == ConnectivityResult.none || result == ConnectivityResult.other;
@@ -205,7 +267,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
       baseUrl: widget.baseUrl,
       authToken: widget.authToken,
       deleteService: _deleteService,
-      getSelectedItems: () => _controller.items.where((item) => _selectedItems.contains(item.id)).toList(),
+      getSelectedItems: () => _controller?.items.where((item) => _selectedItems.contains(item.id)).toList() ?? [],
       onDeleteSuccess: () {
         _refreshCurrentFolder();
       },
@@ -249,8 +311,8 @@ class _BrowseScreenState extends State<BrowseScreen> {
       instanceType: widget.instanceType,
       baseUrl: widget.baseUrl,
       authToken: widget.authToken,
-      currentFolder: _controller.currentFolder,
       refreshCurrentFolder: _refreshCurrentFolder,
+      controller: _controller!,
     );
 
     _searchHandler = SearchNavigationHandler(
@@ -258,7 +320,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
       baseUrl: widget.baseUrl,
       authToken: widget.authToken,
       instanceType: widget.instanceType,
-      navigateToFolder: _controller.navigateToFolder,
+      navigateToFolder: _controller!.navigateToFolder,
       openDocument: (document) {
         _fileTapHandler.handleFileTap(document);
       },
@@ -277,21 +339,30 @@ class _BrowseScreenState extends State<BrowseScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Check if controller is disposed before using it
+    if (_controller == null) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    
     // Determine when to show back arrow vs hamburger menu
-    final bool isAtDepartmentsList = _controller.currentFolder == null || 
-                                     _controller.currentFolder!.id == 'root';
+    final bool isAtDepartmentsList = _controller!.currentFolder == null || 
+                                     _controller!.currentFolder!.id == 'root';
     
     // Check if user has write permission for the current folder
     final bool hasWritePermission = !_isOffline && // No write operations in offline mode
-                                   _controller.currentFolder != null && 
-                                   _controller.currentFolder!.id != 'root' &&
-                                   _controller.currentFolder!.canWrite;
+                                   _controller!.currentFolder != null && 
+                                   _controller!.currentFolder!.id != 'root' &&
+                                   _controller!.currentFolder!.canWrite;
     
     EVLogger.debug('BrowseScreen build conditions', {
       'isOffline': _isOffline,
       'isAtDepartmentsList': isAtDepartmentsList,
-      'currentFolderId': _controller.currentFolder?.id,
-      'currentFolderCanWrite': _controller.currentFolder?.canWrite,
+      'currentFolderId': _controller!.currentFolder?.id,
+      'currentFolderCanWrite': _controller!.currentFolder?.canWrite,
       'hasWritePermission': hasWritePermission,
       'isInSelectionMode': _isInSelectionMode,
       'selectedItemsCount': _selectedItems.length,
@@ -314,15 +385,15 @@ class _BrowseScreenState extends State<BrowseScreen> {
           : IconButton(
               icon: const Icon(Icons.arrow_back),
               onPressed: () {
-                if (_controller.navigationStack.isEmpty) {
-                  _controller.loadDepartments();
-                } else if (_controller.navigationStack.length == 1) {
+                if (_controller!.navigationStack.isEmpty) {
+                  _controller!.loadDepartments();
+                } else if (_controller!.navigationStack.length == 1) {
                   // If only one item in stack, go back to departments
-                  _controller.loadDepartments();
+                  _controller!.loadDepartments();
                 } else {
                   // Navigate to the parent folder (one level up)
-                  int parentIndex = _controller.navigationStack.length - 2;
-                  _controller.navigateToBreadcrumb(parentIndex);
+                  int parentIndex = _controller!.navigationStack.length - 2;
+                  _controller!.navigateToBreadcrumb(parentIndex);
                 }
               },
             ),
@@ -393,29 +464,29 @@ class _BrowseScreenState extends State<BrowseScreen> {
             ),
           
           // Breadcrumb navigation
-          if (_controller.navigationStack.isNotEmpty)
+          if (_controller!.navigationStack.isNotEmpty)
             BreadcrumbNavigation(
-              navigationStack: _controller.navigationStack,
-              currentFolder: _controller.currentFolder,
-              onRootTap: () => _controller.loadDepartments(),
-              onBreadcrumbTap: (index) => _controller.navigateToBreadcrumb(index),
+              navigationStack: _controller!.navigationStack,
+              currentFolder: _controller!.currentFolder,
+              onRootTap: () => _controller!.loadDepartments(),
+              onBreadcrumbTap: (index) => _controller!.navigateToBreadcrumb(index),
             ),
           
           // Main content
           Expanded(
-            child: _controller.isLoading
+            child: _controller!.isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : _controller.errorMessage != null
+                : _controller!.errorMessage != null
                     ? Center(
                         child: Text(
-                          _controller.errorMessage!,
+                          _controller!.errorMessage!,
                           style: const TextStyle(color: Colors.red),
                         ),
                       )
                     : RefreshIndicator(
                         onRefresh: _refreshCurrentFolder,
                         child: FolderContentList(
-                          items: _controller.items,
+                          items: _controller!.items,
                           selectionMode: _isInSelectionMode,
                           selectedItems: _selectedItems,
                           onItemSelected: (itemId, selected) {
@@ -428,7 +499,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
                             });
                           },
                           onFolderTap: (folder) {
-                            _controller.navigateToFolder(folder);
+                            _controller!.navigateToFolder(folder);
                           },
                           onFileTap: (file) {
                             _fileTapHandler.handleFileTap(file);
@@ -436,11 +507,11 @@ class _BrowseScreenState extends State<BrowseScreen> {
                           onDeleteTap: !_isOffline ? _deleteHandler.showDeleteConfirmation : null, // Disable delete in offline mode
                           showDeleteOption: hasWritePermission && !_isOffline,
                           onRefresh: _refreshCurrentFolder,
-                          onLoadMore: _controller.loadMoreItems,
-                          isLoadingMore: _controller.isLoadingMore,
-                          hasMoreItems: _controller.hasMoreItems,
-                          isItemAvailableOffline: _controller.isItemAvailableOffline,
-                          onOfflineToggle: !_isOffline ? _controller.toggleOfflineAvailability : null, // Disable offline toggle in offline mode
+                          onLoadMore: _controller!.loadMoreItems,
+                          isLoadingMore: _controller!.isLoadingMore,
+                          hasMoreItems: _controller!.hasMoreItems,
+                          isItemAvailableOffline: _controller!.isItemAvailableOffline,
+                          onOfflineToggle: !_isOffline ? _controller!.toggleOfflineAvailability : null, // Disable offline toggle in offline mode
                         ),
                       ),
           ),
@@ -454,14 +525,19 @@ class _BrowseScreenState extends State<BrowseScreen> {
   }
   
   Widget _buildFloatingActionButton() {
+    if (!mounted) return const SizedBox.shrink(); // Return empty widget if not mounted
+    
+    // Check if controller is disposed before using it
+    if (_controller == null) return const SizedBox.shrink();
+    
     EVLogger.debug('Building FAB', {
       'isInSelectionMode': _isInSelectionMode,
       'selectedItemsCount': _selectedItems.length,
       'isOffline': _isOffline,
       'hasWritePermission': !_isOffline && 
-                          _controller.currentFolder != null && 
-                          _controller.currentFolder!.id != 'root' &&
-                          _controller.currentFolder!.canWrite,
+                          _controller!.currentFolder != null && 
+                          _controller!.currentFolder!.id != 'root' &&
+                          _controller!.currentFolder!.canWrite,
     });
     
     if (_isInSelectionMode && _selectedItems.isNotEmpty) {
@@ -487,7 +563,8 @@ class _BrowseScreenState extends State<BrowseScreen> {
   @override
   void dispose() {
     _connectivitySubscription.cancel();
-    _controller.dispose();
+    _controller?.dispose();
+    _controller = null; // Set to null after disposing
     super.dispose();
   }
 }
