@@ -49,53 +49,38 @@ class _BrowseItemTileState extends State<BrowseItemTile> {
   Widget build(BuildContext context) {
     return ListTile(
       leading: _buildLeadingIcon(),
-      title: Row(
-        children: [
-          Expanded(
-            child: Text(
-              widget.item.name,
-              style: const TextStyle(
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          if (widget.isAvailableOffline)
-            Padding(
-              padding: const EdgeInsets.only(left: 8.0),
-              child: Icon(
-                Icons.cloud_done,
-                size: 16,
-                color: Colors.green,
-              ),
-            ),
-        ],
+      title: Text(
+        widget.item.name,
+        style: const TextStyle(
+          fontWeight: FontWeight.w500,
+        ),
       ),
       subtitle: Text(
-        widget.item.modifiedDate != null 
-          ? 'Modified: ${_formatDate(widget.item.modifiedDate!)}'
-          : widget.item.description ?? '',
+        widget.item.modifiedDate != null
+            ? 'Modified: ${_formatDate(widget.item.modifiedDate!)}'
+            : 'Department',
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
+        style: TextStyle(color: Colors.grey[600]),
       ),
-      trailing: widget.selectionMode 
-        ? Checkbox(
-            value: widget.isSelected,
-            onChanged: (value) => widget.onSelectionChanged?.call(value ?? false),
-          )
-        : (widget.showDeleteOption && _hasDeletePermission && widget.onDeleteTap != null)
-            ? IconButton(
-                icon: Icon(Icons.more_vert),
-                onPressed: () => _showOptionsMenu(context),
-              )
-            : const Icon(Icons.chevron_right),
+      trailing: widget.selectionMode
+          ? Checkbox(
+              value: widget.isSelected,
+              onChanged: (value) => widget.onSelectionChanged?.call(value ?? false),
+            )
+          : (widget.showDeleteOption && _hasDeletePermission && widget.onDeleteTap != null)
+              ? IconButton(
+                  icon: Icon(Icons.more_vert),
+                  onPressed: () => _showOptionsMenu(context),
+                )
+              : const Icon(Icons.chevron_right),
       onTap: widget.selectionMode
-        ? () => widget.onSelectionChanged?.call(!widget.isSelected)
-        : widget.onTap,
+          ? () => widget.onSelectionChanged?.call(!widget.isSelected)
+          : widget.onTap,
     );
   }
 
   void _showOptionsMenu(BuildContext context) async {
-    // Check permissions only when needed and not already loaded
     if (widget.showDeleteOption && !_permissionsLoaded && widget.onDeleteTap != null) {
       setState(() {
         _isCheckingPermission = true;
@@ -108,16 +93,16 @@ class _BrowseItemTileState extends State<BrowseItemTile> {
               widget.baseUrl!,
               widget.authToken!,
             );
-            
+
             final result = await permissionService.hasPermission(widget.item.id, 'delete');
-            
+
             if (mounted) {
               setState(() {
                 _hasDeletePermission = result;
                 _isCheckingPermission = false;
                 _permissionsLoaded = true;
               });
-              
+
               _displayOptionsMenu(context);
             }
           }
@@ -196,10 +181,7 @@ class _BrowseItemTileState extends State<BrowseItemTile> {
   }
 
   Widget _buildLeadingIcon() {
-    
-    
     if (widget.item.isDepartment) {
-      // Department/Site icon
       return Container(
         width: 40,
         height: 40,
@@ -214,7 +196,6 @@ class _BrowseItemTileState extends State<BrowseItemTile> {
         ),
       );
     } else if (widget.item.type == 'folder') {
-      // Folder icon
       return Container(
         width: 40,
         height: 40,
@@ -229,9 +210,7 @@ class _BrowseItemTileState extends State<BrowseItemTile> {
         ),
       );
     } else {
-      // Document icon - determine icon based on file extension
       IconData iconData = _getDocumentIcon(widget.item.name);
-      
       return Container(
         width: 40,
         height: 40,
@@ -250,7 +229,6 @@ class _BrowseItemTileState extends State<BrowseItemTile> {
 
   IconData _getDocumentIcon(String fileName) {
     final extension = fileName.split('.').last.toLowerCase();
-    
     switch (extension) {
       case 'pdf':
         return Icons.picture_as_pdf;
