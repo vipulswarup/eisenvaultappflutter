@@ -332,6 +332,8 @@ class BrowseScreenController extends ChangeNotifier {
       isLoading = false;
       _notifyListeners();
       EVLogger.debug('loadDepartments completed');
+      EVLogger.debug('loadDepartments completed, isLoading set to ''$isLoading');
+
     }
   }
 

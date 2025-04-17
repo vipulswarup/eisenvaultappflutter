@@ -1,9 +1,133 @@
-Below are the last remaining files.
-After considering these, please tell me in detail, how the offline sync and offline file storage in this app works. And review the code for obvious issues.
+Study the below files and add them to your context. Don't take any action on code etc. Wait for more files.
+@config/dev_credentials.dart
+@config/dev_credentials_template.dart
+@list_files.sh
+@constants/colors.dart
+@paths.txt
+@utils/file_utils.dart
+@utils/file_type_utils.dart
+@utils/logger.dart
+@utils/curl_logger.dart
+@utils/html_stub.dart
+@models/.DS_Store
+@models/browse_item.dart
+@models/search/search_result.dart
+@models/upload_progress.dart
+@models/failed_upload.dart
+@models/upload/batch_upload_models.dart
+@models/upload/.DS_Store
+@screens/document_upload_screen.dart
+@screens/generic_file_preview_screen.dart
 
 
+Study the below files and add them to your context. Don't take any action on code etc. Wait for more files.
+@screens/pdf_viewer_screen.dart
+@screens/search/search_screen_controller.dart
+@screens/search/search_screen.dart
+@screens/search/widgets/search_sort_options.dart
+@screens/search/widgets/search_result_item.dart
+@screens/search/widgets/search_loading_indicator.dart
+@screens/search/widgets/empty_search_results.dart
+@screens/search/widgets/search_app_bar.dart
+@screens/login_screen.dart
+@screens/image_viewer_screen.dart
+@screens/browse/state/browse_screen_state.dart
+@screens/browse/components/action_button_builder.dart
+@screens/browse/browse_screen.dart
+@screens/browse/browse_screen_controller.dart
+@screens/browse/handlers/search_navigation_handler.dart
+@screens/browse/handlers/file_tap_handler.dart
+@screens/browse/handlers/delete_handler.dart
+@screens/browse/handlers/batch_delete_handler.dart
+@screens/browse/handlers/upload_navigation_handler.dart
+@screens/browse/handlers/auth_handler.dart
 
-@file_upload_progress_list.dart:
+
+Study the below files and add them to your context. Don't take any action on code etc. Wait for more files.
+@screens/browse/widgets/browse_app_bar.dart
+@screens/browse/widgets/file_upload_progress_list.dart
+@screens/browse/widgets/failed_upload_list.dart
+@screens/browse/widgets/browse_actions.dart
+@screens/browse/widgets/delete_confirmation_dialog.dart
+@screens/browse/widgets/breadcrumb_navigation.dart
+@screens/browse/widgets/download_progress_indicator.dart
+@screens/browse/widgets/browse_drawer.dart
+@screens/browse/widgets/error_view.dart
+@screens/browse/widgets/browse_content.dart
+@screens/browse/widgets/folder_content_list.dart
+@screens/browse/widgets/browse_navigation.dart
+@screens/browse/widgets/empty_folder_view.dart
+@screens/login/login_form.dart
+@screens/login/login_handler.dart
+@screens/login/offline_login_ui.dart
+@screens/offline/offline_settings_screen.dart
+@screens/offline/offline_browse_screen.dart
+@main.dart
+@services/delete_service.dart
+
+
+Study the below files and add them to your context. Don't take any action on code etc. Wait for more files.
+@services/delete/delete_provider_interface.dart
+@services/delete/classic_delete_provider.dart
+@services/delete/delete_service.dart
+@services/delete/angora_delete_provider.dart
+@services/delete/delete_provider_factory.dart
+@services/connectivity/network_status_provider.dart
+@services/auth/classic_auth_service.dart
+@services/auth/persistent_auth_service.dart
+@services/auth/angora_auth_service.dart
+@services/document/document_service.dart
+@services/permissions/permission_service.dart
+@services/permissions/classic_permission_service.dart
+@services/permissions/angora_permission_service.dart
+@services/permissions/permission_service_factory.dart
+@services/search/search_service.dart
+@services/search/classic_search_service.dart
+@services/search/angora_search_service.dart
+@services/search/search_service_factory.dart
+@services/api/angora/angora_document_service.dart
+@services/api/classic_base_service.dart
+
+
+Study the below files and add them to your context. Don't take any action on code etc. Wait for more files.
+@services/api/base_service.dart
+@services/api/angora_base_service.dart
+@services/browse/angora_browse_service.dart
+@services/browse/classic_browse_service.dart
+@services/browse/browse_service.dart
+@services/browse/browse_service_factory.dart
+@services/upload/batch_upload_manager.dart
+@services/upload/angora/angora_upload_service.dart
+@services/upload/angora_upload_utils.dart
+@services/upload/angora_upload_service.dart
+@services/upload/classic/alfresco_upload_service.dart
+@services/upload/angora_chunk_uploader.dart
+@services/upload/upload_constants.dart
+@services/upload/base/upload_service.dart
+@services/upload/base/upload_utils.dart
+@services/upload/upload_service_factory.dart
+@services/offline/offline_database_service.dart
+@services/offline/offline_exception.dart
+@services/offline/offline_storage_provider.dart
+@services/offline/offline_sync_provider.dart
+
+Study the below files and add them to your context. Don't take any action on code etc. Wait for more files.
+@services/offline/offline_item.dart
+@services/offline/offline_metadata_provider.dart
+@services/offline/offline_manager.dart
+@services/offline/download_manager.dart
+@services/offline/download_progress.dart
+@services/offline/sync_service.dart
+@services/offline/offline_core.dart
+@services/offline/offline_file_service.dart
+@services/offline/offline_config.dart
+@widgets/offline_mode_indicator.dart
+@widgets/error_display.dart
+@widgets/file_upload_progress_list.dart
 @widgets/failed_upload_list.dart
 @widgets/delete_confirmation_dialog.dart
+@widgets/download_progress_indicator.dart
 @widgets/sync_status_indicator.dart
+@widgets/browse_item_tile.dart
+@widgets/offline_availability_button.dart
+EVLogger.debug('loadDepartments completed, isLoading set to false');
