@@ -1,5 +1,7 @@
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/screens/offline/offline_settings_screen.dart';
+import 'package:eisenvaultappflutter/screens/browse/browse_screen.dart';
+import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:flutter/material.dart';
 
 /// Drawer for the browse screen
@@ -9,6 +11,7 @@ class BrowseDrawer extends StatelessWidget {
   final String authToken;
   final String instanceType;
   final VoidCallback onLogoutTap;
+  final OfflineManager offlineManager;
 
   const BrowseDrawer({
     Key? key,
@@ -17,6 +20,7 @@ class BrowseDrawer extends StatelessWidget {
     required this.authToken,
     required this.instanceType,
     required this.onLogoutTap,
+    required this.offlineManager,
   }) : super(key: key);
 
   @override
@@ -63,6 +67,18 @@ class BrowseDrawer extends StatelessWidget {
             title: const Text('Departments'),
             onTap: () {
               Navigator.pop(context); // Close the drawer
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => BrowseScreen(
+                    baseUrl: baseUrl,
+                    authToken: authToken,
+                    firstName: firstName,
+                    instanceType: instanceType,
+                    customerHostname: '', // Add appropriate hostname if needed
+                  ),
+                ),
+              );
             },
           ),
           ListTile(
@@ -82,13 +98,33 @@ class BrowseDrawer extends StatelessWidget {
               );
             },
           ),
+          ListTile(
+            leading: const Icon(Icons.folder),
+            title: const Text('Offline Content'),
+            onTap: () {
+              Navigator.pop(context); // Close the drawer
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => BrowseScreen(
+                    baseUrl: baseUrl,
+                    authToken: authToken,
+                    firstName: firstName,
+                    instanceType: instanceType,
+                    customerHostname: '', // Add appropriate hostname if needed
+                  ),
+                ),
+              );
+            },
+          ),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout),
             title: const Text('Logout'),
             onTap: () {
               Navigator.pop(context); // Close the drawer
-              onLogoutTap(); // Show logout confirmation
+              offlineManager.clearOfflineContent(); // Clear offline content
+              onLogoutTap(); // Handle logout
             },
           ),
         ],

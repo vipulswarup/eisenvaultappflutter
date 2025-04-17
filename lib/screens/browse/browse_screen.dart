@@ -404,21 +404,13 @@ class _BrowseScreenState extends State<BrowseScreen> {
                 _controller!.handleBackNavigation();
               },
             ),
-            drawer: Consumer<BrowseScreenState>(
-              builder: (context, state, child) {
-                final bool showDrawer = !state.isOffline && 
-                    (state.controller?.currentFolder == null || 
-                     state.controller?.currentFolder?.id == 'root');
-                
-                if (!showDrawer) return const SizedBox.shrink();
-                return BrowseDrawer(
-                  firstName: widget.firstName,
-                  baseUrl: widget.baseUrl,
-                  authToken: widget.authToken,
-                  instanceType: widget.instanceType,
-                  onLogoutTap: _authHandler.showLogoutConfirmation,
-                );
-              },
+            drawer: BrowseDrawer(
+              firstName: widget.firstName,
+              baseUrl: widget.baseUrl,
+              authToken: widget.authToken,
+              instanceType: widget.instanceType,
+              onLogoutTap: _authHandler.showLogoutConfirmation,
+              offlineManager: _offlineManager, // Pass the offlineManager here
             ),
             body: Column(
               children: [
