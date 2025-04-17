@@ -58,7 +58,7 @@ class BrowseActions extends StatelessWidget {
   }
 
   bool _canShowUploadFAB(BrowseScreenState state) {
-    final currentFolder = state.controller.currentFolder;
+    final currentFolder = state.controller?.currentFolder;
     return currentFolder != null && 
            currentFolder.id != 'root' && 
            currentFolder.canWrite;

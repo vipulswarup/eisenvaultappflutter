@@ -17,8 +17,10 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   bool _isOfflineMode = false;
   final Connectivity _connectivity = Connectivity();
-  late StreamSubscription<ConnectivityResult> _connectivitySubscription;
+  StreamSubscription<ConnectivityResult>? _connectivitySubscription;
   late OfflineManager _offlineManager;
+  bool _isCheckingConnectivity = false;
+  Timer? _debounceTimer;
 
   @override
   void initState() {
@@ -33,26 +35,41 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _checkConnectivity() async {
+    if (_isCheckingConnectivity) return;
+    
     try {
+      _isCheckingConnectivity = true;
       EVLogger.debug('Starting connectivity check');
       final result = await _connectivity.checkConnectivity();
       EVLogger.debug('Connectivity check result', {'result': result.toString()});
       _updateConnectionStatus(result);
     } catch (e) {
       EVLogger.error('Error checking connectivity', e);
+    } finally {
+      _isCheckingConnectivity = false;
     }
   }
 
   Future<void> _setupConnectivityListener() async {
+    // Cancel any existing subscription
+    _connectivitySubscription?.cancel();
+    
     EVLogger.debug('Setting up connectivity listener');
     _connectivitySubscription = _connectivity.onConnectivityChanged.listen((result) {
       EVLogger.debug('Connectivity changed', {'result': result.toString()});
-      _updateConnectionStatus(result);
+      
+      // Debounce connectivity changes to prevent rapid state updates
+      _debounceTimer?.cancel();
+      _debounceTimer = Timer(const Duration(seconds: 1), () {
+        _updateConnectionStatus(result);
+      });
     });
     EVLogger.debug('Connectivity listener setup complete');
   }
 
   Future<void> _updateConnectionStatus(ConnectivityResult result) async {
+    if (!mounted) return;
+    
     EVLogger.debug('Updating connection status', {'result': result.toString()});
     
     // Consider both ConnectivityResult.none and ConnectivityResult.other as offline states
@@ -111,7 +128,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
-    _connectivitySubscription.cancel();
+    _connectivitySubscription?.cancel();
+    _debounceTimer?.cancel();
     super.dispose();
   }
 }

@@ -370,89 +370,91 @@ class _BrowseScreenState extends State<BrowseScreen> {
           ),
         ),
       ],
-      builder: (context, child) => Scaffold(
-        key: _scaffoldKey,
-        backgroundColor: EVColors.screenBackground,
-        appBar: BrowseAppBar(
-          onDrawerOpen: () => _scaffoldKey.currentState?.openDrawer(),
-          onSearchTap: () => _searchHandler.navigateToSearch(),
-          onLogoutTap: _authHandler.showLogoutConfirmation,
-        ),
-        drawer: Consumer<BrowseScreenState>(
-          builder: (context, state, child) {
-            final bool showDrawer = !state.isOffline && 
-                (state.controller.currentFolder == null || 
-                 state.controller.currentFolder!.id == 'root');
-            
-            if (!showDrawer) return const SizedBox.shrink();
-            return BrowseDrawer(
-              firstName: widget.firstName,
-              baseUrl: widget.baseUrl,
-              authToken: widget.authToken,
-              instanceType: widget.instanceType,
-              onLogoutTap: _authHandler.showLogoutConfirmation,
-            );
-          },
-        ),
-        body: Column(
-          children: [
-            Consumer<BrowseScreenState>(
-              builder: (context, state, child) {
-                if (state.isOffline) {
-                  return Container(
-                    width: double.infinity,
-                    color: Colors.orange.withOpacity(0.1),
-                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                    child: Row(
-                      children: [
-                        Icon(Icons.offline_pin, color: Colors.orange[700], size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Offline Mode - Showing available offline content',
-                            style: TextStyle(
-                              color: Colors.orange[900],
-                              fontWeight: FontWeight.w500,
+      builder: (context, child) => MouseRegion(
+        child: Scaffold(
+          key: _scaffoldKey,
+          backgroundColor: EVColors.screenBackground,
+          appBar: BrowseAppBar(
+            onDrawerOpen: () => _scaffoldKey.currentState?.openDrawer(),
+            onSearchTap: () => _searchHandler.navigateToSearch(),
+            onLogoutTap: _authHandler.showLogoutConfirmation,
+          ),
+          drawer: Consumer<BrowseScreenState>(
+            builder: (context, state, child) {
+              final bool showDrawer = !state.isOffline && 
+                  (state.controller?.currentFolder == null || 
+                   state.controller?.currentFolder?.id == 'root');
+              
+              if (!showDrawer) return const SizedBox.shrink();
+              return BrowseDrawer(
+                firstName: widget.firstName,
+                baseUrl: widget.baseUrl,
+                authToken: widget.authToken,
+                instanceType: widget.instanceType,
+                onLogoutTap: _authHandler.showLogoutConfirmation,
+              );
+            },
+          ),
+          body: Column(
+            children: [
+              Consumer<BrowseScreenState>(
+                builder: (context, state, child) {
+                  if (state.isOffline) {
+                    return Container(
+                      width: double.infinity,
+                      color: Colors.orange.withOpacity(0.1),
+                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                      child: Row(
+                        children: [
+                          Icon(Icons.offline_pin, color: Colors.orange[700], size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Offline Mode - Showing available offline content',
+                              style: TextStyle(
+                                color: Colors.orange[900],
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-                return const SizedBox.shrink();
-              },
-            ),
-            const BrowseNavigation(),
-            Expanded(
-              child: Stack(
-                children: [
-                  BrowseContent(
-                    onFolderTap: (folder) => _controller!.navigateToFolder(folder),
-                    onFileTap: (file) => _fileTapHandler.handleFileTap(file),
-                    onDeleteTap: (item) => _deleteHandler.showDeleteConfirmation(item),
-                  ),
-                  const Positioned(
-                    bottom: 16,
-                    right: 16,
-                    child: DownloadProgressIndicator(),
-                  ),
-                ],
+                        ],
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
               ),
-            ),
-          ],
-        ),
-        floatingActionButton: Consumer<BrowseScreenState>(
-          builder: (context, state, child) {
-            return BrowseActions(
-              onUploadTap: () => _uploadHandler.navigateToUploadScreen(),
-              onBatchDeleteTap: () {
-                if (state.selectedItems.isNotEmpty) {
-                  _batchDeleteHandler.handleBatchDelete();
-                }
-              },
-            );
-          },
+              const BrowseNavigation(),
+              Expanded(
+                child: Stack(
+                  children: [
+                    BrowseContent(
+                      onFolderTap: (folder) => _controller!.navigateToFolder(folder),
+                      onFileTap: (file) => _fileTapHandler.handleFileTap(file),
+                      onDeleteTap: (item) => _deleteHandler.showDeleteConfirmation(item),
+                    ),
+                    const Positioned(
+                      bottom: 16,
+                      right: 16,
+                      child: DownloadProgressIndicator(),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          floatingActionButton: Consumer<BrowseScreenState>(
+            builder: (context, state, child) {
+              return BrowseActions(
+                onUploadTap: () => _uploadHandler.navigateToUploadScreen(),
+                onBatchDeleteTap: () {
+                  if (state.selectedItems.isNotEmpty) {
+                    _batchDeleteHandler.handleBatchDelete();
+                  }
+                },
+              );
+            },
+          ),
         ),
       ),
     );

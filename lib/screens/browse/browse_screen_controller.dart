@@ -88,12 +88,21 @@ class BrowseScreenController extends ChangeNotifier {
   
   /// Helper method to safely notify listeners
   void _notifyListeners() {
-    if (_disposed) return; // Don't notify if disposed
+    EVLogger.debug('_notifyListeners called', {'disposed': _disposed});
+    if (_disposed) {
+      EVLogger.debug('_notifyListeners skipped - controller is disposed');
+      return; // Don't notify if disposed
+    }
     
     if (onStateChanged != null) {
+      EVLogger.debug('Calling onStateChanged callback');
       onStateChanged!();
+      EVLogger.debug('onStateChanged callback completed');
     }
+    
+    EVLogger.debug('Calling notifyListeners');
     notifyListeners();
+    EVLogger.debug('notifyListeners completed');
   }
   
   /// Debounced version of state change notification
@@ -177,65 +186,50 @@ class BrowseScreenController extends ChangeNotifier {
 
   /// Loads folder contents with pagination reset
   Future<void> loadFolderContents(BrowseItem folder) async {
-    _cancelToken?.cancel("New request started");
-    _cancelToken = CancelToken();
-
-    currentFolder = folder;
-    setLoading(true);
-    errorMessage = null;
-    _currentPage = 0;
-    _hasMoreItems = !_isOffline;
-    items.clear();
-    onStateChanged?.call();
-    
-    EVLogger.debug('Loading folder contents', {
-      'folderId': folder.id,
-      'folderName': folder.name,
-      'isOffline': _isOffline,
-      'folderCanWrite': folder.canWrite,
-      'folderAllowableOperations': folder.allowableOperations,
-    });
+    if (isLoading == true) return;
     
     try {
-      _isOffline = await _offlineManager.isOffline();
+      isLoading = true;
+      _notifyListeners();
       
-      if (_isOffline) {
+      // Cache offline status to avoid repeated checks
+      final isOffline = _offlineManager.isOffline;
+      
+      if (isOffline == true) {
         final offlineItems = await _offlineManager.getOfflineItems(folder.id);
         items = offlineItems;
-        _hasMoreItems = false;
-      } else {
-        final browseService = BrowseServiceFactory.getService(
-          instanceType, 
-          baseUrl, 
-          authToken
-        );
+        currentFolder = folder;
+        _notifyListeners();
+        return;
+      }
+      
+      final browseService = BrowseServiceFactory.getService(
+        instanceType, 
+        baseUrl, 
+        authToken
+      );
 
-        final loadedItems = await browseService.getChildren(
-          folder,
-          skipCount: 0,
-          maxItems: _itemsPerPage,
-        );
-        
-        EVLogger.debug('Loaded items from service', {
-          'count': loadedItems.length,
-          'firstItemCanWrite': loadedItems.isNotEmpty ? loadedItems.first.canWrite : null,
-          'firstItemAllowableOperations': loadedItems.isNotEmpty ? loadedItems.first.allowableOperations : null,
-        });
-        
-        for (var item in loadedItems) {
-          if (await isItemAvailableOffline(item.id)) {
-            _offlineItems.add(item.id);
-          }
-        }
-        
-        items = loadedItems;
-        
-        if (loadedItems.length < _itemsPerPage) {
-          _hasMoreItems = false;
+      final result = await browseService.getChildren(
+        folder,
+        skipCount: 0,
+        maxItems: _itemsPerPage,
+      );
+      
+      EVLogger.debug('Loaded items from service', {
+        'count': result.length,
+        'firstItemCanWrite': result.isNotEmpty ? result.first.canWrite : null,
+        'firstItemAllowableOperations': result.isNotEmpty ? result.first.allowableOperations : null,
+      });
+      
+      for (var item in result) {
+        if (await isItemAvailableOffline(item.id)) {
+          _offlineItems.add(item.id);
         }
       }
       
-      setLoading(false);
+      items = result;
+      currentFolder = folder;
+      _notifyListeners();
     } catch (e) {
       EVLogger.error('Error loading folder contents', {
         'folderId': folder.id,
@@ -247,8 +241,8 @@ class BrowseScreenController extends ChangeNotifier {
         try {
           final offlineItems = await _offlineManager.getOfflineItems(folder.id);
           items = offlineItems;
-          _hasMoreItems = false;
-          setLoading(false);
+          currentFolder = folder;
+          _notifyListeners();
           if (onStateChanged != null) {
             ScaffoldMessenger.of(_getContext()).showSnackBar(
               const SnackBar(
@@ -259,12 +253,17 @@ class BrowseScreenController extends ChangeNotifier {
           }
         } catch (offlineError) {
           errorMessage = 'Failed to load offline content: ${offlineError.toString()}';
-          setLoading(false);
+          currentFolder = folder;
+          _notifyListeners();
         }
       } else if (e is! DioException || (e is DioException && e.type != DioExceptionType.cancel)) {
         errorMessage = 'Failed to load contents: ${e.toString()}';
-        setLoading(false);
+        currentFolder = folder;
+        _notifyListeners();
       }
+    } finally {
+      isLoading = false;
+      _notifyListeners();
     }
   }
 
@@ -274,25 +273,32 @@ class BrowseScreenController extends ChangeNotifier {
 
   /// Loads top-level departments/folders
   Future<void> loadDepartments() async {
+    EVLogger.debug('Starting loadDepartments');
     isLoading = true;
     errorMessage = null;
     _currentPage = 0;
     _hasMoreItems = !_isOffline;
     _notifyListeners();
+    EVLogger.debug('Initial state set in loadDepartments');
 
     try {
       _isOffline = await _offlineManager.isOffline();
+      EVLogger.debug('Offline status checked', {'isOffline': _isOffline});
       
       if (_isOffline) {
+        EVLogger.debug('Loading offline items for departments');
         final offlineItems = await _offlineManager.getOfflineItems(null);
+        EVLogger.debug('Retrieved offline items', {'count': offlineItems.length});
         items = offlineItems;
         _hasMoreItems = false;
       } else {
+        EVLogger.debug('Loading online departments');
         final browseService = BrowseServiceFactory.getService(
           instanceType, 
           baseUrl, 
           authToken
         );
+        EVLogger.debug('Browse service created');
 
         final rootItem = BrowseItem(
           id: 'root',
@@ -300,117 +306,32 @@ class BrowseScreenController extends ChangeNotifier {
           type: 'folder',
           isDepartment: instanceType == 'Angora',
         );
+        EVLogger.debug('Root item created', {'id': rootItem.id, 'isDepartment': rootItem.isDepartment});
 
+        EVLogger.debug('Calling getChildren on browse service');
         final loadedItems = await browseService.getChildren(
           rootItem,
           skipCount: 0,
           maxItems: _itemsPerPage,
         );
-      
-        items = [];
-        for (var department in loadedItems) {
-          if (instanceType.toLowerCase() == 'angora') {
-            BrowseItem item = BrowseItem(
-              id: department.id,
-              name: department.name,
-              type: 'folder',
-              isDepartment: true,
-              documentLibraryId: department.id,
-              allowableOperations: ['create', 'update', 'delete'],
-            );
-            
-            items.add(item);
-          } else {
-            try {
-              final docLibId = await _fetchDocumentLibraryId(department.id);
-              
-              List<String> siteOperations = [];
-              
-              try {
-                final nodeResponse = await http.get(
-                  Uri.parse('$baseUrl/api/-default-/public/alfresco/versions/1/nodes/$docLibId?include=allowableOperations'),
-                  headers: {'Authorization': authToken},
-                );
-                
-                if (nodeResponse.statusCode == 200) {
-                  final nodeData = json.decode(nodeResponse.body);
-                  
-                  if (nodeData['entry'].containsKey('allowableOperations')) {
-                    final operations = nodeData['entry']['allowableOperations'];
-                    
-                    List<String> ops = [];
-                    if (operations is List) {
-                      for (var op in operations) {
-                        ops.add(op.toString());
-                      }
-                      
-                      siteOperations = ops;
-                    }
-                  }
-                } else {
-                  EVLogger.error('Failed to get node details', {
-                    'status': nodeResponse.statusCode
-                  });
-                }
-              } catch (e) {
-                EVLogger.error('Error checking node permissions', {'error': e.toString()});
-                siteOperations = ['create'];
-              }
-
-              BrowseItem item = BrowseItem(
-                id: department.id,
-                name: department.name,
-                type: 'folder',
-                isDepartment: true,
-                documentLibraryId: docLibId,
-                allowableOperations: siteOperations,
-              );
-              
-              items.add(item);
-            } catch (e) {
-              EVLogger.error('Error fetching document library', {
-                'siteId': department.id,
-                'error': e.toString()
-              });
-              continue;
-            }
-          }
-        }
         
+        EVLogger.debug('Retrieved sites', {'count': loadedItems.length});
+        
+        EVLogger.debug('Setting items and updating UI');
+        items = loadedItems;
         if (loadedItems.length < _itemsPerPage) {
           _hasMoreItems = false;
         }
-        
-        isLoading = false;
-        currentFolder = rootItem;
-        navigationStack = [];
-        _notifyListeners();
+        EVLogger.debug('Items set and UI updated');
       }
     } catch (e) {
-      if (e.toString().contains('SocketException') || e.toString().contains('Failed host lookup')) {
-        _isOffline = true;
-        try {
-          final offlineItems = await _offlineManager.getOfflineItems(null);
-          items = offlineItems;
-          _hasMoreItems = false;
-          isLoading = false;
-          if (onStateChanged != null) {
-            ScaffoldMessenger.of(_getContext()).showSnackBar(
-              const SnackBar(
-                content: Text('You are offline. Showing available offline content.'),
-                backgroundColor: Colors.orange,
-              ),
-            );
-          }
-        } catch (offlineError) {
-          errorMessage = 'Failed to load offline content: ${offlineError.toString()}';
-          isLoading = false;
-        }
-      } else {
-        errorMessage = 'Failed to load departments: ${e.toString()}';
-        isLoading = false;
-      }
+      EVLogger.error('Error loading departments', e);
+      errorMessage = 'Failed to load departments: ${e.toString()}';
+    } finally {
+      EVLogger.debug('Finishing loadDepartments');
+      isLoading = false;
       _notifyListeners();
+      EVLogger.debug('loadDepartments completed');
     }
   }
 

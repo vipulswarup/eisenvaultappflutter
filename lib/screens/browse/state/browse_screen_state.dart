@@ -1,178 +1,253 @@
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/material.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/screens/browse/browse_screen_controller.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
+import 'package:flutter/material.dart';
 
+/// State management class for the Browse Screen
+/// Handles the UI state and coordinates with the controller
 class BrowseScreenState extends ChangeNotifier {
-  final BuildContext context;
-  final String baseUrl;
-  final String authToken;
-  final String instanceType;
-  final GlobalKey<ScaffoldState> scaffoldKey;
+  // Controller reference
+  BrowseScreenController? controller;
   
-  // State variables
-  bool isOffline = false;
-  bool isInSelectionMode = false;
-  final Set<String> selectedItems = {};
+  // Selection mode state
+  bool _isInSelectionMode = false;
+  final Set<String> _selectedItems = {};
   
-  // Controllers and managers
-  late BrowseScreenController controller;
-  late OfflineManager offlineManager;
+  // Offline state
+  bool _isOffline = false;
+  
+  // Connectivity monitoring
   final Connectivity _connectivity = Connectivity();
   late StreamSubscription<ConnectivityResult> _connectivitySubscription;
   
+  // Constructor that properly initializes the controller
   BrowseScreenState({
-    required this.context,
-    required this.baseUrl,
-    required this.authToken,
-    required this.instanceType,
-    required this.scaffoldKey,
-  });
-
-  Future<void> initialize() async {
-    // Initialize offline manager
-    offlineManager = await OfflineManager.createDefault();
-    
-    // Initialize controller
-    controller = BrowseScreenController(
-      baseUrl: baseUrl,
-      authToken: authToken,
-      instanceType: instanceType,
-      onStateChanged: notifyListeners,
-      context: context,
-      scaffoldKey: scaffoldKey,
-      offlineManager: offlineManager,
-    );
-    
-    // Initialize connectivity monitoring
-    await _initConnectivityListener();
-    
-    // Load initial content
-    await controller.loadDepartments();
+    required BuildContext context,
+    required String baseUrl,
+    required String authToken,
+    required String instanceType,
+    required GlobalKey<ScaffoldState> scaffoldKey,
+  }) {
+    // Initialize the OfflineManager first
+    _initializeController(context, baseUrl, authToken, instanceType, scaffoldKey);
   }
-
-  Future<void> _initConnectivityListener() async {
-    // Check initial connectivity
-    await _checkConnectivity();
-    
-    // Listen for connectivity changes
+  
+  Future<void> _initializeController(
+    BuildContext context,
+    String baseUrl,
+    String authToken,
+    String instanceType,
+    GlobalKey<ScaffoldState> scaffoldKey,
+  ) async {
+    try {
+      final offlineManager = await OfflineManager.createDefault();
+      
+      // Create the controller with the OfflineManager
+      controller = BrowseScreenController(
+        baseUrl: baseUrl,
+        authToken: authToken,
+        instanceType: instanceType,
+        onStateChanged: () {
+          notifyListeners();
+        },
+        context: context,
+        scaffoldKey: scaffoldKey,
+        offlineManager: offlineManager,
+      );
+      
+      // Initialize connectivity monitoring
+      _initConnectivityMonitoring();
+      
+      // Check initial connectivity
+      await _checkConnectivity();
+      
+      // Notify listeners that controller is ready
+      notifyListeners();
+      
+      EVLogger.debug('BrowseScreenState initialized', {
+        'baseUrl': baseUrl,
+        'instanceType': instanceType,
+      });
+    } catch (e) {
+      EVLogger.error('Error initializing BrowseScreenState', e);
+    }
+  }
+  
+  /// Initialize connectivity monitoring
+  void _initConnectivityMonitoring() {
     _connectivitySubscription = _connectivity.onConnectivityChanged.listen(_updateConnectionStatus);
   }
-
+  
+  /// Check initial connectivity
   Future<void> _checkConnectivity() async {
     try {
       final result = await _connectivity.checkConnectivity();
-      await _updateConnectionStatus(result);
+      _updateConnectionStatus(result);
     } catch (e) {
       EVLogger.error('Error checking connectivity', e);
       // If we can't check connectivity, assume we're offline
-      await _updateConnectionStatus(ConnectivityResult.none);
+      _updateConnectionStatus(ConnectivityResult.none);
     }
   }
-
-  Future<void> _updateConnectionStatus(ConnectivityResult result) async {
-    final wasOffline = isOffline;
+  
+  /// Update connection status
+  void _updateConnectionStatus(ConnectivityResult result) {
     // Consider both ConnectivityResult.none and ConnectivityResult.other as offline states
     final isNowOffline = result == ConnectivityResult.none || result == ConnectivityResult.other;
     
-    if (wasOffline != isNowOffline) {
-      isOffline = isNowOffline;
-      notifyListeners();
-      
-      if (isNowOffline) {
-        EVLogger.debug('Device went offline - loading offline content');
-        await _loadOfflineContent();
-      } else {
-        EVLogger.debug('Device went online - refreshing content');
-        await refreshCurrentFolder();
+    if (_isOffline != isNowOffline) {
+      _isOffline = isNowOffline;
+      // Only notify if controller is initialized
+      if (isControllerInitialized) {
+        controller?.setOfflineMode(isNowOffline);
+        // Only refresh if we're going from offline to online
+        if (!isNowOffline) {
+          refreshCurrentView();
+        }
       }
-      
-      _showConnectivitySnackBar(isNowOffline);
-    }
-  }
-
-  void _showConnectivitySnackBar(bool isOffline) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(isOffline 
-          ? 'You are offline. Showing available offline content.' 
-          : 'Back online. Refreshing content...'),
-        backgroundColor: isOffline ? Colors.orange : Colors.green,
-      ),
-    );
-  }
-
-  Future<void> _loadOfflineContent() async {
-    try {
-      controller.isLoading = true;
-      notifyListeners();
-
-      final String? parentId = controller.currentFolder?.id == 'root' 
-          ? null 
-          : controller.currentFolder?.id;
-          
-      final items = await offlineManager.getOfflineItems(parentId);
-      
-      controller.items = items;
-      controller.isLoading = false;
-      controller.errorMessage = null;
-      notifyListeners();
-    } catch (e) {
-      controller.isLoading = false;
-      controller.errorMessage = 'Failed to load offline content: ${e.toString()}';
       notifyListeners();
     }
   }
-
-  Future<void> refreshCurrentFolder() async {
-    if (isOffline) {
-      await _loadOfflineContent();
-    } else {
-      if (controller.currentFolder != null) {
-        await controller.loadFolderContents(controller.currentFolder!);
-      } else {
-        await controller.loadDepartments();
-      }
-    }
-  }
-
+  
+  /// Toggle selection mode
   void toggleSelectionMode() {
-    isInSelectionMode = !isInSelectionMode;
-    if (!isInSelectionMode) {
-      selectedItems.clear();
+    _isInSelectionMode = !_isInSelectionMode;
+    if (!_isInSelectionMode) {
+      _selectedItems.clear();
     }
     notifyListeners();
   }
-
+  
+  /// Toggle item selection
   void toggleItemSelection(String itemId) {
-    if (selectedItems.contains(itemId)) {
-      selectedItems.remove(itemId);
+    if (_selectedItems.contains(itemId)) {
+      _selectedItems.remove(itemId);
     } else {
-      selectedItems.add(itemId);
+      _selectedItems.add(itemId);
     }
     notifyListeners();
   }
-
-  void selectAll() {
-    if (selectedItems.length == controller.items.length) {
-      selectedItems.clear();
-    } else {
-      selectedItems.addAll(controller.items.map((item) => item.id));
+  
+  /// Check if an item is selected
+  bool isItemSelected(String itemId) {
+    return _selectedItems.contains(itemId);
+  }
+  
+  /// Get the count of selected items
+  int get selectedItemCount => _selectedItems.length;
+  
+  /// Get the set of selected items
+  Set<String> get selectedItems => _selectedItems;
+  
+  /// Check if in selection mode
+  bool get isInSelectionMode => _isInSelectionMode;
+  
+  /// Check if offline
+  bool get isOffline => _isOffline;
+  
+  /// Set offline mode
+  void setOfflineMode(bool offline) {
+    if (_isOffline != offline) {
+      _isOffline = offline;
+      // Only call controller methods if controller is initialized
+      if (isControllerInitialized) {
+        controller?.setOfflineMode(offline);
+      }
+      notifyListeners();
     }
+  }
+  
+  /// Check if controller is initialized
+  bool get isControllerInitialized => controller != null;
+  
+  /// Get selected browse items
+  List<BrowseItem> getSelectedBrowseItems() {
+    if (!isControllerInitialized) return [];
+    return controller?.items.where((item) => _selectedItems.contains(item.id)).toList() ?? [];
+  }
+  
+  /// Clear selection
+  void clearSelection() {
+    _selectedItems.clear();
     notifyListeners();
   }
-
-  List<BrowseItem> getSelectedItems() {
-    return controller.items.where((item) => selectedItems.contains(item.id)).toList();
+  
+  /// Exit selection mode
+  void exitSelectionMode() {
+    _isInSelectionMode = false;
+    _selectedItems.clear();
+    notifyListeners();
+  }
+  
+  /// Refresh the current view
+  Future<void> refreshCurrentView() async {
+    EVLogger.debug('BrowseScreenState.refreshCurrentView called');
+    if (!isControllerInitialized) {
+      EVLogger.debug('BrowseScreenState.refreshCurrentView skipped - controller not initialized');
+      return;
+    }
+    
+    if (controller?.currentFolder != null) {
+      EVLogger.debug('BrowseScreenState.refreshCurrentView - loading folder contents', 
+          {'folderId': controller!.currentFolder!.id});
+      await controller?.loadFolderContents(controller!.currentFolder!);
+    } else {
+      EVLogger.debug('BrowseScreenState.refreshCurrentView - loading departments');
+      await controller?.loadDepartments();
+    }
+    EVLogger.debug('BrowseScreenState.refreshCurrentView completed');
+  }
+  
+  /// Handle back button press
+  /// Returns true if the back button press was handled, false otherwise
+  bool handleBackButton() {
+    // If controller is not initialized, can't handle back
+    if (!isControllerInitialized) return false;
+    
+    // If in selection mode, exit selection mode
+    if (_isInSelectionMode) {
+      exitSelectionMode();
+      return true;
+    }
+    
+    // If we have a navigation stack, go back
+    if (controller?.navigationStack.isNotEmpty ?? false) {
+      final previousFolder = controller!.navigationStack.last;
+      controller!.navigationStack.removeLast();
+      controller!.loadFolderContents(previousFolder);
+      return true;
+    }
+    
+    // If we're not at the root level, go to root
+    if (controller?.currentFolder != null && controller!.currentFolder!.id != 'root') {
+      controller!.loadDepartments();
+      return true;
+    }
+    
+    // Can't handle back button press
+    return false;
+  }
+  
+  @override
+  void dispose() {
+    // Cancel connectivity subscription
+    _connectivitySubscription.cancel();
+    
+    // Clean up controller if initialized
+    if (isControllerInitialized) {
+      controller?.dispose();
+    }
+    
+    super.dispose();
   }
 
   @override
-  void dispose() {
-    _connectivitySubscription.cancel();
-    controller.dispose();
-    super.dispose();
+  void notifyListeners() {
+    EVLogger.debug('BrowseScreenState.notifyListeners called');
+    super.notifyListeners();
+    EVLogger.debug('BrowseScreenState.notifyListeners completed');
   }
-} 
+}

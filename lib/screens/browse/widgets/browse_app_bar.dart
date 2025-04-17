@@ -19,8 +19,8 @@ class BrowseAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     return Consumer<BrowseScreenState>(
       builder: (context, state, child) {
-        final bool isAtRoot = state.controller.currentFolder == null || 
-                            state.controller.currentFolder!.id == 'root';
+        final bool isAtRoot = state.controller?.currentFolder == null || 
+                            state.controller?.currentFolder?.id == 'root';
         
         return AppBar(
           title: Text(state.isOffline ? 'Offline Mode' : 'Departments'),
@@ -34,13 +34,13 @@ class BrowseAppBar extends StatelessWidget implements PreferredSizeWidget {
             : IconButton(
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () {
-                  if (state.controller.navigationStack.isEmpty) {
-                    state.controller.loadDepartments();
-                  } else if (state.controller.navigationStack.length == 1) {
-                    state.controller.loadDepartments();
+                  if (state.controller?.navigationStack.isEmpty ?? true) {
+                    state.controller?.loadDepartments();
+                  } else if (state.controller?.navigationStack.length == 1) {
+                    state.controller?.loadDepartments();
                   } else {
-                    final parentIndex = state.controller.navigationStack.length - 2;
-                    state.controller.navigateToBreadcrumb(parentIndex);
+                    final parentIndex = state.controller?.navigationStack.length ?? 0 - 2;
+                    state.controller?.navigateToBreadcrumb(parentIndex);
                   }
                 },
               ),
@@ -50,12 +50,21 @@ class BrowseAppBar extends StatelessWidget implements PreferredSizeWidget {
               IconButton(
                 icon: const Icon(Icons.select_all),
                 tooltip: 'Select All',
-                onPressed: state.selectAll,
+                onPressed: () {
+                  // Replace the missing selectAll method with direct implementation
+                  if (state.isControllerInitialized) {
+                    for (var item in state.controller?.items ?? []) {
+                      if (!state.selectedItems.contains(item.id)) {
+                        state.toggleItemSelection(item.id);
+                      }
+                    }
+                  }
+                },
               ),
             ],
             
             // Toggle selection mode
-            if (!state.isOffline && state.controller.items.isNotEmpty)
+            if (!state.isOffline && (state.controller?.items.isNotEmpty ?? false))
               IconButton(
                 icon: Icon(state.isInSelectionMode ? Icons.close : Icons.checklist),
                 onPressed: state.toggleSelectionMode,
