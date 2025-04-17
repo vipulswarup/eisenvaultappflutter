@@ -35,6 +35,26 @@ class EVColors {
   // Alert Message Colors
   static const alertSuccess = Color(0xFF5CB85C);  // Green
   static const alertFailure = Color(0xFFD9534F);  // Error red
+  
+  // Status Colors (Adding these new colors)
+  static const statusError = Color(0xFFD9534F);  // Error red
+  static const statusErrorBackground = Color(0xFFF2DEDE);  // Light red background
+  static const statusWarning = Color(0xFFF0AD4E);  // Warning orange
+  static const statusWarningBackground = Color(0xFFFCF8E3);  // Light orange background
+  static const statusSuccess = Color(0xFF5CB85C);  // Success green
+  static const statusSuccessBackground = Color(0xFFDFF0D8);  // Light green background
+  static const statusInfo = Color(0xFF5BC0DE);  // Info blue
+  static const statusInfoBackground = Color(0xFFD9EDF7);  // Light blue background
+  
+  // Offline Mode Colors
+  static const offlineIndicator = Color(0xFFF0AD4E);  // Warning orange
+  static const offlineBackground = Color(0xFFFFF3CD);  // Light orange background
+  static const offlineText = Color(0xFF856404);  // Dark orange text
+  
+  // Online Mode Colors
+  static const onlineIndicator = Color(0xFF5CB85C);  // Success green
+  static const onlineBackground = Color(0xFFDFF0D8);  // Light green background
+  static const onlineText = Color(0xFF3C763D);  // Dark green text
 
   // RadioListTile Colors
   static const radioActive = Color(0xFF0056A6);  // Deep blue

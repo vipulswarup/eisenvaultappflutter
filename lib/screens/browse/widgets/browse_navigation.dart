@@ -1,88 +1,80 @@
+import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
-import '../state/browse_screen_state.dart';
-import 'package:eisenvaultappflutter/utils/logger.dart';
+import '../browse_screen_controller.dart';
 
 class BrowseNavigation extends StatelessWidget {
   const BrowseNavigation({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<BrowseScreenState>(
-      builder: (context, state, child) {
-        // Check if controller is initialized
-        if (!state.isControllerInitialized) {
+    return Consumer<BrowseScreenController>(
+      builder: (context, controller, child) {
+        // Add debug logging to see the navigation state
+        EVLogger.debug('BrowseNavigation build', {
+          'currentFolder': controller.currentFolder?.name,
+          'navigationStackSize': controller.navigationStack.length,
+          'navigationStack': controller.navigationStack.map((item) => item.name).toList(),
+        });
+
+        // Only show breadcrumb if we're in a folder (not at root)
+        if (controller.currentFolder == null || controller.currentFolder?.id == 'root') {
           return const SizedBox.shrink();
         }
-        
-        try {
-          // If navigationStack is empty, don't show anything
-          if (state.controller?.navigationStack.isEmpty ?? true) {
-            return const SizedBox.shrink();
-          }
 
-          return Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  // Root item
-                  InkWell(
-                    onTap: () => state.controller?.loadDepartments(),
-                    child: const Text(
-                      'Departments',
-                      style: TextStyle(fontWeight: FontWeight.w500),
-                    ),
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          color: Colors.white,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                // Home/Root button - style it like a link
+                InkWell(
+                  onTap: () {
+                    controller.loadDepartments();
+                  },
+                  child: Row(
+                    children: [
+                      const Icon(Icons.home, size: 16),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Home',
+                        style: TextStyle(color: EVColors.primaryBlue), // Use the same color as other links
+                      ),
+                    ],
                   ),
-                  
-                  // Navigation stack items
-                  ...List.generate((state.controller?.navigationStack.length ?? 0) * 2 - 1, (index) {
-                    if (index.isOdd) {
-                      return const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 4),
-                        child: Icon(Icons.chevron_right, size: 16, color: Colors.grey),
-                      );
-                    }
-                    
-                    final folderIndex = index ~/ 2;
-                    // Safely access the folder
-                    if (folderIndex >= (state.controller?.navigationStack.length ?? 0)) {
-                      return const SizedBox.shrink();
-                    }
-                    
-                    final folder = state.controller?.navigationStack[folderIndex];
-                    if (folder == null) {
-                      return const SizedBox.shrink();
-                    }
-                    
-                    final isLast = folderIndex == (state.controller?.navigationStack.length ?? 0) - 1;
-                    
-                    return InkWell(
-                      onTap: () {
-                        if (!isLast) {
-                          state.controller?.navigateToBreadcrumb(folderIndex);
-                        }
-                      },
-                      child: Text(
-                        folder.name,
-                        style: TextStyle(
-                          fontWeight: isLast ? FontWeight.bold : FontWeight.w500,
-                          color: isLast ? EVColors.primaryBlue : Colors.black87,
+                ),
+                
+                // Show navigation stack items
+                ...List.generate(controller.navigationStack.length, (index) {
+                  return Row(
+                    children: [
+                      const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
+                      InkWell(
+                        onTap: () {
+                          controller.navigateToBreadcrumb(index);
+                        },
+                        child: Text(
+                          controller.navigationStack[index].name,
+                          style: TextStyle(color: EVColors.primaryBlue),
                         ),
                       ),
-                    );
-                  }),
-                ],
-              ),
+                    ],
+                  );
+                }),
+                
+                // Current folder (last item in breadcrumb)
+                const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
+                Text(
+                  controller.currentFolder?.name ?? '',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
             ),
-          );
-        } catch (e) {
-          // Log the error and return an empty widget
-          EVLogger.error('Error in BrowseNavigation', e);
-          return const SizedBox.shrink();
-        }
+          ),
+        );
       },
     );
   }

@@ -21,6 +21,7 @@ import 'package:eisenvaultappflutter/screens/browse/widgets/browse_app_bar.dart'
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_actions.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_content.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_navigation.dart';
+
 /// The main browse screen that displays the repository content
 class BrowseScreen extends StatefulWidget {
   final String baseUrl;
@@ -66,9 +67,9 @@ class UploadNavigationHandler {
     
     if (currentFolder == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a folder to upload files'),
-          backgroundColor: Colors.red,
+        SnackBar(
+          content: const Text('Please select a folder to upload files'),
+          backgroundColor: EVColors.statusError,
         ),
       );
       return;
@@ -87,9 +88,9 @@ class UploadNavigationHandler {
           parentFolderId = currentFolder.documentLibraryId!;
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Cannot upload at this level. Please navigate to a subfolder.'),
-              backgroundColor: Colors.red,
+            SnackBar(
+              content: const Text('Cannot upload at this level. Please navigate to a subfolder.'),
+              backgroundColor: EVColors.statusError,
             ),
           );
           return;
@@ -220,7 +221,9 @@ class _BrowseScreenState extends State<BrowseScreen> {
             content: Text(isNowOffline 
               ? 'You are offline. Showing available offline content.' 
               : 'Back online. Refreshing content...'),
-            backgroundColor: isNowOffline ? Colors.orange : Colors.green,
+            backgroundColor: isNowOffline 
+              ? EVColors.statusWarning 
+              : EVColors.statusSuccess,
           ),
         );
       }
@@ -361,99 +364,132 @@ class _BrowseScreenState extends State<BrowseScreen> {
         ChangeNotifierProvider<BrowseScreenController>.value(value: _controller!),
         ChangeNotifierProvider<DownloadManager>(create: (_) => DownloadManager()),
         ChangeNotifierProvider<BrowseScreenState>(
-          create: (_) => BrowseScreenState(
-            context: context,
-            baseUrl: widget.baseUrl,
-            authToken: widget.authToken,
-            instanceType: widget.instanceType,
-            scaffoldKey: _scaffoldKey,
-          ),
+          create: (_) {
+            final state = BrowseScreenState(
+              context: context,
+              baseUrl: widget.baseUrl,
+              authToken: widget.authToken,
+              instanceType: widget.instanceType,
+              scaffoldKey: _scaffoldKey,
+            );
+            // Explicitly set the controller reference
+            state.controller = _controller;
+            return state;
+          },
         ),
       ],
-      builder: (context, child) => MouseRegion(
-        child: Scaffold(
-          key: _scaffoldKey,
-          backgroundColor: EVColors.screenBackground,
-          appBar: BrowseAppBar(
-            onDrawerOpen: () => _scaffoldKey.currentState?.openDrawer(),
-            onSearchTap: () => _searchHandler.navigateToSearch(),
-            onLogoutTap: _authHandler.showLogoutConfirmation,
-          ),
-          drawer: Consumer<BrowseScreenState>(
-            builder: (context, state, child) {
-              final bool showDrawer = !state.isOffline && 
-                  (state.controller?.currentFolder == null || 
-                   state.controller?.currentFolder?.id == 'root');
-              
-              if (!showDrawer) return const SizedBox.shrink();
-              return BrowseDrawer(
-                firstName: widget.firstName,
-                baseUrl: widget.baseUrl,
-                authToken: widget.authToken,
-                instanceType: widget.instanceType,
-                onLogoutTap: _authHandler.showLogoutConfirmation,
-              );
-            },
-          ),
-          body: Column(
-            children: [
-              Consumer<BrowseScreenState>(
-                builder: (context, state, child) {
-                  if (state.isOffline) {
-                    return Container(
-                      width: double.infinity,
-                      color: Colors.orange.withOpacity(0.1),
-                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                      child: Row(
-                        children: [
-                          Icon(Icons.offline_pin, color: Colors.orange[700], size: 20),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Offline Mode - Showing available offline content',
-                              style: TextStyle(
-                                color: Colors.orange[900],
-                                fontWeight: FontWeight.w500,
+      builder: (context, child) => WillPopScope(
+        onWillPop: () async {
+          // Handle back button press
+          final state = Provider.of<BrowseScreenState>(context, listen: false);
+          return !state.handleBackButton();
+        },
+        child: MouseRegion(
+          child: Scaffold(
+            key: _scaffoldKey,
+            backgroundColor: EVColors.screenBackground,
+            appBar: BrowseAppBar(
+              onDrawerOpen: () => _scaffoldKey.currentState?.openDrawer(),
+              onSearchTap: () => _searchHandler.navigateToSearch(),
+              onLogoutTap: _authHandler.showLogoutConfirmation,
+              // Show back button if we're not at root level or have navigation stack
+              showBackButton: (_controller!.currentFolder != null && 
+                              _controller!.currentFolder!.id != 'root') ||
+                              _controller!.navigationStack.isNotEmpty,
+              onBackPressed: () {
+                // Log the current state for debugging
+                EVLogger.debug('Back button pressed', {
+                  'currentFolder': _controller!.currentFolder?.name,
+                  'navigationStackSize': _controller!.navigationStack.length,
+                  'navigationStack': _controller!.navigationStack.map((item) => item.name).toList(),
+                });
+                
+                // Use the controller's handleBackNavigation method
+                _controller!.handleBackNavigation();
+              },
+            ),
+            drawer: Consumer<BrowseScreenState>(
+              builder: (context, state, child) {
+                final bool showDrawer = !state.isOffline && 
+                    (state.controller?.currentFolder == null || 
+                     state.controller?.currentFolder?.id == 'root');
+                
+                if (!showDrawer) return const SizedBox.shrink();
+                return BrowseDrawer(
+                  firstName: widget.firstName,
+                  baseUrl: widget.baseUrl,
+                  authToken: widget.authToken,
+                  instanceType: widget.instanceType,
+                  onLogoutTap: _authHandler.showLogoutConfirmation,
+                );
+              },
+            ),
+            body: Column(
+              children: [
+                Consumer<BrowseScreenState>(
+                  builder: (context, state, child) {
+                    if (state.isOffline) {
+                      return Container(
+                        width: double.infinity,
+                        color: Colors.orange.withOpacity(0.1),
+                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                        child: Row(
+                          children: [
+                            Icon(Icons.offline_pin, color: Colors.orange[700], size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Offline Mode - Showing available offline content',
+                                style: TextStyle(
+                                  color: Colors.orange[900],
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
-              ),
-              const BrowseNavigation(),
-              Expanded(
-                child: Stack(
-                  children: [
-                    BrowseContent(
-                      onFolderTap: (folder) => _controller!.navigateToFolder(folder),
-                      onFileTap: (file) => _fileTapHandler.handleFileTap(file),
-                      onDeleteTap: (item) => _deleteHandler.showDeleteConfirmation(item),
-                    ),
-                    const Positioned(
-                      bottom: 16,
-                      right: 16,
-                      child: DownloadProgressIndicator(),
-                    ),
-                  ],
+                          ],
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
                 ),
-              ),
-            ],
-          ),
-          floatingActionButton: Consumer<BrowseScreenState>(
-            builder: (context, state, child) {
-              return BrowseActions(
-                onUploadTap: () => _uploadHandler.navigateToUploadScreen(),
-                onBatchDeleteTap: () {
-                  if (state.selectedItems.isNotEmpty) {
-                    _batchDeleteHandler.handleBatchDelete();
-                  }
-                },
-              );
-            },
+                const BrowseNavigation(),
+                Expanded(
+                  child: Stack(
+                    children: [
+                      BrowseContent(
+                        onFolderTap: (folder) {
+                          EVLogger.debug('FOLDER NAVIGATION: onFolderTap called', {
+                            'folderId': folder.id,
+                            'folderName': folder.name,
+                          });
+                          _controller!.navigateToFolder(folder);
+                        },
+                        onFileTap: (file) => _fileTapHandler.handleFileTap(file),
+                        onDeleteTap: (item) => _deleteHandler.showDeleteConfirmation(item),
+                      ),
+                      const Positioned(
+                        bottom: 16,
+                        right: 16,
+                        child: DownloadProgressIndicator(),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            floatingActionButton: Consumer<BrowseScreenState>(
+              builder: (context, state, child) {
+                return BrowseActions(
+                  onUploadTap: () => _uploadHandler.navigateToUploadScreen(),
+                  onBatchDeleteTap: () {
+                    if (state.selectedItems.isNotEmpty) {
+                      _batchDeleteHandler.handleBatchDelete();
+                    }
+                  },
+                );
+              },
+            ),
           ),
         ),
       ),

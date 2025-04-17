@@ -205,29 +205,53 @@ class BrowseScreenState extends ChangeNotifier {
   /// Returns true if the back button press was handled, false otherwise
   bool handleBackButton() {
     // If controller is not initialized, can't handle back
-    if (!isControllerInitialized) return false;
+    if (!isControllerInitialized) {
+      EVLogger.debug('handleBackButton: Controller not initialized');
+      return false;
+    }
+    
+    // Get the current state directly from the controller
+    final currentFolder = controller!.currentFolder;
+    final navigationStack = controller!.navigationStack;
+    
+    EVLogger.debug('handleBackButton: Starting', {
+      'isInSelectionMode': _isInSelectionMode,
+      'navigationStackSize': navigationStack.length,
+      'currentFolder': currentFolder?.name,
+      'currentFolderId': currentFolder?.id,
+    });
     
     // If in selection mode, exit selection mode
     if (_isInSelectionMode) {
       exitSelectionMode();
+      EVLogger.debug('handleBackButton: Exited selection mode');
       return true;
     }
     
     // If we have a navigation stack, go back
-    if (controller?.navigationStack.isNotEmpty ?? false) {
-      final previousFolder = controller!.navigationStack.last;
-      controller!.navigationStack.removeLast();
+    if (navigationStack.isNotEmpty) {
+      final previousFolder = navigationStack.removeLast();
+      EVLogger.debug('handleBackButton: Going back to previous folder', {
+        'previousFolder': previousFolder.name,
+        'remainingStackSize': navigationStack.length
+      });
+      
+      // Load the previous folder's contents
       controller!.loadFolderContents(previousFolder);
       return true;
     }
     
     // If we're not at the root level, go to root
-    if (controller?.currentFolder != null && controller!.currentFolder!.id != 'root') {
+    if (currentFolder != null && currentFolder.id != 'root') {
+      EVLogger.debug('handleBackButton: Going to root from folder', {
+        'currentFolder': currentFolder.name,
+        'currentFolderId': currentFolder.id,
+      });
       controller!.loadDepartments();
       return true;
     }
     
-    // Can't handle back button press
+    EVLogger.debug('handleBackButton: Cannot handle back button');
     return false;
   }
   

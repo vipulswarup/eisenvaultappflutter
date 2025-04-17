@@ -1,7 +1,5 @@
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
-import 'package:eisenvaultappflutter/services/offline/offline_storage_provider.dart';
-import 'package:eisenvaultappflutter/services/offline/offline_database_service.dart';
 import 'package:eisenvaultappflutter/services/api/angora_base_service.dart';
 import 'package:eisenvaultappflutter/services/browse/browse_service_factory.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
@@ -184,83 +182,55 @@ class BrowseScreenController extends ChangeNotifier {
     onStateChanged?.call();
   }
 
-  /// Loads folder contents with pagination reset
+  /// Loads folder contents without changing navigation
   Future<void> loadFolderContents(BrowseItem folder) async {
-    if (isLoading == true) return;
+    if (isLoading) return;
+    
+    EVLogger.debug('FOLDER NAVIGATION: Loading contents for folder', {
+      'folderId': folder.id,
+      'folderName': folder.name,
+    });
     
     try {
       isLoading = true;
+      errorMessage = null;
       _notifyListeners();
       
-      // Cache offline status to avoid repeated checks
-      final isOffline = _offlineManager.isOffline;
+      // Set current folder
+      currentFolder = folder;
       
-      if (isOffline == true) {
+      // Load folder contents
+      if (_isOffline) {
         final offlineItems = await _offlineManager.getOfflineItems(folder.id);
         items = offlineItems;
-        currentFolder = folder;
-        _notifyListeners();
-        return;
+      } else {
+        final browseService = BrowseServiceFactory.getService(
+          instanceType, 
+          baseUrl, 
+          authToken
+        );
+        
+        final result = await browseService.getChildren(
+          folder,
+          skipCount: 0,
+          maxItems: _itemsPerPage,
+        );
+        
+        items = result;
       }
       
-      final browseService = BrowseServiceFactory.getService(
-        instanceType, 
-        baseUrl, 
-        authToken
-      );
-
-      final result = await browseService.getChildren(
-        folder,
-        skipCount: 0,
-        maxItems: _itemsPerPage,
-      );
+      // Reset pagination
+      _currentPage = 0;
+      _hasMoreItems = items.length >= _itemsPerPage;
       
-      EVLogger.debug('Loaded items from service', {
-        'count': result.length,
-        'firstItemCanWrite': result.isNotEmpty ? result.first.canWrite : null,
-        'firstItemAllowableOperations': result.isNotEmpty ? result.first.allowableOperations : null,
+      EVLogger.debug('FOLDER NAVIGATION: Folder contents loaded', {
+        'itemCount': items.length,
       });
-      
-      for (var item in result) {
-        if (await isItemAvailableOffline(item.id)) {
-          _offlineItems.add(item.id);
-        }
-      }
-      
-      items = result;
-      currentFolder = folder;
-      _notifyListeners();
     } catch (e) {
-      EVLogger.error('Error loading folder contents', {
-        'folderId': folder.id,
+      EVLogger.error('FOLDER NAVIGATION: Error loading folder contents', {
         'error': e.toString(),
       });
-      
-      if (e.toString().contains('SocketException') || e.toString().contains('Failed host lookup')) {
-        _isOffline = true;
-        try {
-          final offlineItems = await _offlineManager.getOfflineItems(folder.id);
-          items = offlineItems;
-          currentFolder = folder;
-          _notifyListeners();
-          if (onStateChanged != null) {
-            ScaffoldMessenger.of(_getContext()).showSnackBar(
-              const SnackBar(
-                content: Text('You are offline. Showing available offline content.'),
-                backgroundColor: Colors.orange,
-              ),
-            );
-          }
-        } catch (offlineError) {
-          errorMessage = 'Failed to load offline content: ${offlineError.toString()}';
-          currentFolder = folder;
-          _notifyListeners();
-        }
-      } else if (e is! DioException || (e is DioException && e.type != DioExceptionType.cancel)) {
-        errorMessage = 'Failed to load contents: ${e.toString()}';
-        currentFolder = folder;
-        _notifyListeners();
-      }
+      errorMessage = 'Failed to load folder contents: ${e.toString()}';
     } finally {
       isLoading = false;
       _notifyListeners();
@@ -278,6 +248,11 @@ class BrowseScreenController extends ChangeNotifier {
     errorMessage = null;
     _currentPage = 0;
     _hasMoreItems = !_isOffline;
+    
+    // Clear navigation stack and current folder when going to home
+    navigationStack.clear();
+    currentFolder = null;
+    
     _notifyListeners();
     EVLogger.debug('Initial state set in loadDepartments');
 
@@ -332,8 +307,7 @@ class BrowseScreenController extends ChangeNotifier {
       isLoading = false;
       _notifyListeners();
       EVLogger.debug('loadDepartments completed');
-      EVLogger.debug('loadDepartments completed, isLoading set to ''$isLoading');
-
+      EVLogger.debug('loadDepartments completed, isLoading set to false');
     }
   }
 
@@ -363,44 +337,84 @@ class BrowseScreenController extends ChangeNotifier {
   
   /// Navigates to a specific folder and loads its contents
   Future<void> navigateToFolder(BrowseItem folder) async {
-    isLoading = true;
-    errorMessage = null;
-    _notifyListeners();
-
+    // Don't navigate if we're already loading
+    if (isLoading) return;
+    
+    EVLogger.debug('FOLDER NAVIGATION: Starting navigation to folder', {
+      'folderId': folder.id,
+      'folderName': folder.name,
+      'currentFolderId': currentFolder?.id,
+      'currentFolderName': currentFolder?.name,
+      'navigationStackSize': navigationStack.length,
+    });
+    
     try {
+      // Set loading state
+      isLoading = true;
+      errorMessage = null;
+      _notifyListeners();
+      
+      // Load folder contents first
       if (_isOffline) {
-        // In offline mode, just load offline contents
         final offlineItems = await _offlineManager.getOfflineItems(folder.id);
         items = offlineItems;
+        EVLogger.debug('FOLDER NAVIGATION: Loaded offline items', {
+          'itemCount': items.length
+        });
+      } else {
+        final browseService = BrowseServiceFactory.getService(
+          instanceType, 
+          baseUrl, 
+          authToken
+        );
         
-        // Update navigation stack
-        if (currentFolder?.id == 'root') {
-          navigationStack = [];
-        } else if (currentFolder != null) {
-          navigationStack.add(currentFolder!);
-        }
+        EVLogger.debug('FOLDER NAVIGATION: Fetching children from service');
+        final result = await browseService.getChildren(
+          folder,
+          skipCount: 0,
+          maxItems: _itemsPerPage,
+        );
         
-        currentFolder = folder;
-        isLoading = false;
-        _notifyListeners();
-        return;
+        EVLogger.debug('FOLDER NAVIGATION: Received children from service', {
+          'itemCount': result.length
+        });
+        
+        items = result;
       }
-
-      await loadFolderContents(folder);
       
-      // If navigating from root, start a new navigation stack
-      if (currentFolder?.id == 'root') {
-        navigationStack = [];
-      } 
-      // Otherwise add current folder to navigation stack
-      else if (currentFolder != null) {
+      // Update navigation stack after loading contents
+      if (currentFolder != null && currentFolder!.id != 'root') {
         navigationStack.add(currentFolder!);
+        EVLogger.debug('FOLDER NAVIGATION: Added to navigation stack', {
+          'addedFolder': currentFolder!.name,
+          'stackSize': navigationStack.length
+        });
+      } else if (currentFolder?.id == 'root') {
+        // Clear navigation stack when coming from root
+        navigationStack.clear();
+        EVLogger.debug('FOLDER NAVIGATION: Cleared navigation stack (coming from root)');
       }
       
+      // Set current folder
       currentFolder = folder;
-      _notifyListeners();
+      
+      // Reset pagination
+      _currentPage = 0;
+      _hasMoreItems = items.length >= _itemsPerPage;
+      
+      EVLogger.debug('FOLDER NAVIGATION: Navigation complete', {
+        'currentFolder': currentFolder?.name,
+        'itemCount': items.length,
+        'navigationStackSize': navigationStack.length,
+        'navigationStack': navigationStack.map((item) => item.name).toList(),
+      });
     } catch (e) {
+      EVLogger.error('FOLDER NAVIGATION: Error navigating to folder', {
+        'error': e.toString(),
+      });
       errorMessage = 'Failed to load folder contents: ${e.toString()}';
+    } finally {
+      // Always reset loading state
       isLoading = false;
       _notifyListeners();
     }
@@ -522,5 +536,41 @@ class BrowseScreenController extends ChangeNotifier {
 
   Future<void> _loadOfflineContent() async {
     // Implementation of _loadOfflineContent method
+  }
+
+  /// Handles back navigation
+  /// Returns true if back navigation was handled, false otherwise
+  bool handleBackNavigation() {
+    EVLogger.debug('handleBackNavigation: Starting', {
+      'navigationStackSize': navigationStack.length,
+      'currentFolder': currentFolder?.name,
+      'currentFolderId': currentFolder?.id,
+    });
+    
+    // If we have a navigation stack, go back
+    if (navigationStack.isNotEmpty) {
+      final previousFolder = navigationStack.removeLast();
+      EVLogger.debug('handleBackNavigation: Going back to previous folder', {
+        'previousFolder': previousFolder.name,
+        'remainingStackSize': navigationStack.length
+      });
+      
+      // Load the previous folder's contents
+      loadFolderContents(previousFolder);
+      return true;
+    }
+    
+    // If we're not at the root level, go to root
+    if (currentFolder != null && currentFolder!.id != 'root') {
+      EVLogger.debug('handleBackNavigation: Going to root from folder', {
+        'currentFolder': currentFolder!.name,
+        'currentFolderId': currentFolder!.id,
+      });
+      loadDepartments();
+      return true;
+    }
+    
+    EVLogger.debug('handleBackNavigation: Cannot handle back navigation');
+    return false;
   }
 }
