@@ -39,9 +39,9 @@ class _LoginScreenState extends State<LoginScreen> {
     
     try {
       _isCheckingConnectivity = true;
-      EVLogger.debug('Starting connectivity check');
+      
       final result = await _connectivity.checkConnectivity();
-      EVLogger.debug('Connectivity check result', {'result': result.toString()});
+      
       _updateConnectionStatus(result);
     } catch (e) {
       EVLogger.error('Error checking connectivity', e);
@@ -54,9 +54,9 @@ class _LoginScreenState extends State<LoginScreen> {
     // Cancel any existing subscription
     _connectivitySubscription?.cancel();
     
-    EVLogger.debug('Setting up connectivity listener');
+    
     _connectivitySubscription = _connectivity.onConnectivityChanged.listen((result) {
-      EVLogger.debug('Connectivity changed', {'result': result.toString()});
+    
       
       // Debounce connectivity changes to prevent rapid state updates
       _debounceTimer?.cancel();
@@ -64,19 +64,19 @@ class _LoginScreenState extends State<LoginScreen> {
         _updateConnectionStatus(result);
       });
     });
-    EVLogger.debug('Connectivity listener setup complete');
+    
   }
 
   Future<void> _updateConnectionStatus(ConnectivityResult result) async {
     if (!mounted) return;
     
-    EVLogger.debug('Updating connection status', {'result': result.toString()});
+    
     
     // Consider both ConnectivityResult.none and ConnectivityResult.other as offline states
     final isNowOffline = result == ConnectivityResult.none || result == ConnectivityResult.other;
     
     if (isNowOffline) {
-      EVLogger.debug('Device is offline - switching to offline mode');
+      
       if (mounted) {
         setState(() {
           _isOfflineMode = true;
@@ -90,7 +90,7 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } else {
-      EVLogger.debug('Device is online - switching to online mode');
+      
       if (mounted) {
         setState(() {
           _isOfflineMode = false;

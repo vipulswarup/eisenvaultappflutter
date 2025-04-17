@@ -67,10 +67,7 @@ class BrowseScreenState extends ChangeNotifier {
       // Notify listeners that controller is ready
       notifyListeners();
       
-      EVLogger.debug('BrowseScreenState initialized', {
-        'baseUrl': baseUrl,
-        'instanceType': instanceType,
-      });
+      
     } catch (e) {
       EVLogger.error('Error initializing BrowseScreenState', e);
     }
@@ -184,21 +181,20 @@ class BrowseScreenState extends ChangeNotifier {
   
   /// Refresh the current view
   Future<void> refreshCurrentView() async {
-    EVLogger.debug('BrowseScreenState.refreshCurrentView called');
+    
     if (!isControllerInitialized) {
-      EVLogger.debug('BrowseScreenState.refreshCurrentView skipped - controller not initialized');
+      
       return;
     }
     
     if (controller?.currentFolder != null) {
-      EVLogger.debug('BrowseScreenState.refreshCurrentView - loading folder contents', 
-          {'folderId': controller!.currentFolder!.id});
+      
       await controller?.loadFolderContents(controller!.currentFolder!);
     } else {
-      EVLogger.debug('BrowseScreenState.refreshCurrentView - loading departments');
+      
       await controller?.loadDepartments();
     }
-    EVLogger.debug('BrowseScreenState.refreshCurrentView completed');
+    
   }
   
   /// Handle back button press
@@ -206,7 +202,7 @@ class BrowseScreenState extends ChangeNotifier {
   bool handleBackButton() {
     // If controller is not initialized, can't handle back
     if (!isControllerInitialized) {
-      EVLogger.debug('handleBackButton: Controller not initialized');
+      
       return false;
     }
     
@@ -214,27 +210,19 @@ class BrowseScreenState extends ChangeNotifier {
     final currentFolder = controller!.currentFolder;
     final navigationStack = controller!.navigationStack;
     
-    EVLogger.debug('handleBackButton: Starting', {
-      'isInSelectionMode': _isInSelectionMode,
-      'navigationStackSize': navigationStack.length,
-      'currentFolder': currentFolder?.name,
-      'currentFolderId': currentFolder?.id,
-    });
+    
     
     // If in selection mode, exit selection mode
     if (_isInSelectionMode) {
       exitSelectionMode();
-      EVLogger.debug('handleBackButton: Exited selection mode');
+      
       return true;
     }
     
     // If we have a navigation stack, go back
     if (navigationStack.isNotEmpty) {
       final previousFolder = navigationStack.removeLast();
-      EVLogger.debug('handleBackButton: Going back to previous folder', {
-        'previousFolder': previousFolder.name,
-        'remainingStackSize': navigationStack.length
-      });
+      
       
       // Load the previous folder's contents
       controller!.loadFolderContents(previousFolder);
@@ -243,15 +231,12 @@ class BrowseScreenState extends ChangeNotifier {
     
     // If we're not at the root level, go to root
     if (currentFolder != null && currentFolder.id != 'root') {
-      EVLogger.debug('handleBackButton: Going to root from folder', {
-        'currentFolder': currentFolder.name,
-        'currentFolderId': currentFolder.id,
-      });
+      
       controller!.loadDepartments();
       return true;
     }
     
-    EVLogger.debug('handleBackButton: Cannot handle back button');
+    
     return false;
   }
   
@@ -270,8 +255,8 @@ class BrowseScreenState extends ChangeNotifier {
 
   @override
   void notifyListeners() {
-    EVLogger.debug('BrowseScreenState.notifyListeners called');
+    
     super.notifyListeners();
-    EVLogger.debug('BrowseScreenState.notifyListeners completed');
+    
   }
 }

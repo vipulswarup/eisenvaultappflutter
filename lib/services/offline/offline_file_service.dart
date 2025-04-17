@@ -97,9 +97,7 @@ class OfflineFileService {
       if (await file.exists()) {
         await file.delete();
         
-        EVLogger.debug('Deleted offline file', {
-          'path': filePath,
-        });
+        
         
         return true;
       } else {
@@ -147,10 +145,7 @@ class OfflineFileService {
         }
       }
       
-      EVLogger.debug('Total offline storage used', {
-        'bytes': totalSize,
-        'megabytes': (totalSize / (1024 * 1024)).toStringAsFixed(2),
-      });
+      
       
       return totalSize;
     } catch (e) {

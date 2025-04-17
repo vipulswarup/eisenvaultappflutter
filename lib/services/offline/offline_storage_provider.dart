@@ -52,7 +52,7 @@ class LocalStorageProvider implements OfflineStorageProvider {
     try {
       final file = File(_getFilePath(itemId));
       await file.writeAsBytes(content);
-      EVLogger.debug('Stored file for item', {'itemId': itemId});
+      
       return file.path;
     } catch (e) {
       EVLogger.error('Failed to store file', {'itemId': itemId, 'error': e});
@@ -85,7 +85,7 @@ class LocalStorageProvider implements OfflineStorageProvider {
       final file = File(_getFilePath(itemId));
       if (await file.exists()) {
         await file.delete();
-        EVLogger.debug('Deleted file', {'itemId': itemId});
+        
       }
     } catch (e) {
       EVLogger.error('Failed to delete file', {'itemId': itemId, 'error': e});

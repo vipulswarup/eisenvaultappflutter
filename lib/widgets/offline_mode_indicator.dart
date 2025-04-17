@@ -57,10 +57,7 @@ class _OfflineModeIndicatorState extends State<OfflineModeIndicator> {
       _isOnline = result != ConnectivityResult.none && result != ConnectivityResult.other;
     });
     
-    EVLogger.debug('Connection status changed', {
-      'isOnline': _isOnline,
-      'result': result.toString(),
-    });
+    
     
     if (_isOnline) {
       widget.syncService.startPeriodicSync();

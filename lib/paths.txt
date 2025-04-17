@@ -130,4 +130,4 @@ Study the below files and add them to your context. Don't take any action on cod
 @widgets/sync_status_indicator.dart
 @widgets/browse_item_tile.dart
 @widgets/offline_availability_button.dart
-EVLogger.debug('loadDepartments completed, isLoading set to false');
+

@@ -201,7 +201,7 @@ class BatchDeleteHandler {
       
       // Check each item for delete permission
       for (final item in items) {
-        EVLogger.debug('Checking delete permission for item: ${item.id} - ${item.name}');
+        
         try {
           final hasPermission = await permissionService.hasPermission(item.id, 'delete');
           if (!hasPermission) {

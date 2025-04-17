@@ -115,14 +115,7 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
       operations = ['create', 'update', 'delete'];
     }
     
-    EVLogger.debug('Mapping Angora item', {
-      'id': item['id'],
-      'name': item['raw_file_name'] ?? item['name'],
-      'isFolder': isFolder,
-      'isDepartment': item['is_department'] == true,
-      'operations': operations,
-      'rawItem': item,
-    });
+    
     
     return BrowseItem(
       id: item['id'],

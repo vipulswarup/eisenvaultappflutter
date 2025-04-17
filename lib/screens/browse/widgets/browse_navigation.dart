@@ -12,11 +12,7 @@ class BrowseNavigation extends StatelessWidget {
     return Consumer<BrowseScreenController>(
       builder: (context, controller, child) {
         // Add debug logging to see the navigation state
-        EVLogger.debug('BrowseNavigation build', {
-          'currentFolder': controller.currentFolder?.name,
-          'navigationStackSize': controller.navigationStack.length,
-          'navigationStack': controller.navigationStack.map((item) => item.name).toList(),
-        });
+        
 
         // Only show breadcrumb if we're in a folder (not at root)
         if (controller.currentFolder == null || controller.currentFolder?.id == 'root') {

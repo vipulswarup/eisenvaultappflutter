@@ -24,16 +24,11 @@ class BrowseContent extends StatelessWidget {
       builder: (context, controller, child) {
         final state = Provider.of<BrowseScreenState>(context);
         
-        EVLogger.debug('FOLDER NAVIGATION: BrowseContent rebuild', {
-          'isLoading': controller.isLoading,
-          'hasError': controller.errorMessage != null,
-          'itemCount': controller.items.length,
-          'currentFolder': controller.currentFolder?.name,
-        });
+        
         
         // Show loading indicator
         if (controller.isLoading) {
-          EVLogger.debug('FOLDER NAVIGATION: Showing loading indicator');
+          
           return const Center(child: CircularProgressIndicator());
         }
         

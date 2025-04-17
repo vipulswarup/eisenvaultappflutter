@@ -36,10 +36,10 @@ class DeleteHandler {
     try {
       bool result;
       if (repositoryType.toLowerCase() == 'angora') {
-        EVLogger.debug('Checking delete permission for Angora item: ${item.id}');
+        
         final permissionService = AngoraPermissionService(baseUrl, authToken);
         result = await permissionService.hasPermission(item.id, 'delete');
-        EVLogger.debug('Delete permission result: $result');
+        
       } else {
         result = item.canDelete;
       }
@@ -87,10 +87,7 @@ class DeleteHandler {
 
   /// Main entry point - show delete confirmation for an item
   Future<void> showDeleteConfirmation(BrowseItem item) async {
-    EVLogger.debug('Showing delete confirmation', {
-      'itemId': item.id,
-      'itemName': item.name,
-    });
+    
     try {
       // Show loading indicator while checking permissions
       bool hasPermission = false;

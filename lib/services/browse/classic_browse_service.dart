@@ -255,10 +255,7 @@ class ClassicBrowseService implements BrowseService {
       final headers = Map<String, String>.from(_baseService.createHeaders());
       headers['Accept'] = 'application/json';
       
-      EVLogger.debug('Getting item details', {
-        'url': url.toString(),
-        'headers': headers,
-      });
+      
       
       final response = await http.get(
         url,
@@ -266,11 +263,7 @@ class ClassicBrowseService implements BrowseService {
       );
       
       // Log the response for debugging
-      EVLogger.debug('API response', {
-        'statusCode': response.statusCode,
-        'headers': response.headers,
-        'body': response.body.substring(0, response.body.length > 500 ? 500 : response.body.length),
-      });
+      
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);

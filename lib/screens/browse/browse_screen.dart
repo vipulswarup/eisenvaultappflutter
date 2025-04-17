@@ -208,10 +208,10 @@ class _BrowseScreenState extends State<BrowseScreen> {
       });
       
       if (isNowOffline) {
-        EVLogger.debug('Device went offline - loading offline content');
+        
         _loadOfflineContent();
       } else {
-        EVLogger.debug('Device went online - refreshing content');
+        
         _refreshCurrentFolder();
       }
       
@@ -398,11 +398,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
                               _controller!.navigationStack.isNotEmpty,
               onBackPressed: () {
                 // Log the current state for debugging
-                EVLogger.debug('Back button pressed', {
-                  'currentFolder': _controller!.currentFolder?.name,
-                  'navigationStackSize': _controller!.navigationStack.length,
-                  'navigationStack': _controller!.navigationStack.map((item) => item.name).toList(),
-                });
+                
                 
                 // Use the controller's handleBackNavigation method
                 _controller!.handleBackNavigation();
@@ -459,10 +455,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
                     children: [
                       BrowseContent(
                         onFolderTap: (folder) {
-                          EVLogger.debug('FOLDER NAVIGATION: onFolderTap called', {
-                            'folderId': folder.id,
-                            'folderName': folder.name,
-                          });
+                          
                           _controller!.navigateToFolder(folder);
                         },
                         onFileTap: (file) => _fileTapHandler.handleFileTap(file),

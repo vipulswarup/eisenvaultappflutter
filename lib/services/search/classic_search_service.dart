@@ -49,7 +49,7 @@ class ClassicSearchService implements SearchService {
         'include': ['allowableOperations', 'properties', 'aspectNames']
       };
       
-      EVLogger.debug('Making search request', {'url': searchUrl, 'query': query});
+      
       
       final response = await http.post(
         Uri.parse(searchUrl),

@@ -33,7 +33,7 @@ class AngoraSearchService implements SearchService {
         '&direction=$sortDirection'
       );
       
-      EVLogger.debug('Making search request', {'url': searchUrl, 'query': query});
+      
       
       // Create headers for the search request
       final headers = _angoraService.createHeaders(serviceName: 'service-search');
