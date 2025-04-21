@@ -11,6 +11,7 @@ class DownloadManager extends ChangeNotifier {
   bool _isDownloading = false;
   DownloadProgress? _currentProgress;
   bool _isMinimized = false;
+  bool _isDisposed = false;
 
   // Stream controller for progress updates
   final _progressController = StreamController<DownloadProgress>.broadcast();
@@ -21,18 +22,23 @@ class DownloadManager extends ChangeNotifier {
   bool get isMinimized => _isMinimized;
 
   void startDownload() {
+    if (_isDisposed) return;
     _isDownloading = true;
     _isMinimized = false;
     notifyListeners();
   }
 
   void updateProgress(DownloadProgress progress) {
+    if (_isDisposed) return;
     _currentProgress = progress;
-    _progressController.add(progress);
+    if (!_progressController.isClosed) {
+      _progressController.add(progress);
+    }
     notifyListeners();
   }
 
   void completeDownload() {
+    if (_isDisposed) return;
     _isDownloading = false;
     _currentProgress = null;
     _isMinimized = false;
@@ -40,13 +46,17 @@ class DownloadManager extends ChangeNotifier {
   }
 
   void toggleMinimized() {
+    if (_isDisposed) return;
     _isMinimized = !_isMinimized;
     notifyListeners();
   }
 
   @override
   void dispose() {
-    _progressController.close();
+    _isDisposed = true;
+    if (!_progressController.isClosed) {
+      _progressController.close();
+    }
     super.dispose();
   }
 } 
