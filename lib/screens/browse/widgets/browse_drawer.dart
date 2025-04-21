@@ -31,7 +31,7 @@ class BrowseDrawer extends StatelessWidget {
         padding: EdgeInsets.zero,
         children: [
           DrawerHeader(
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: EVColors.appBarBackground,
             ),
             child: Column(
@@ -68,7 +68,7 @@ class BrowseDrawer extends StatelessWidget {
             title: const Text('Departments'),
             onTap: () {
               Navigator.pop(context); // Close the drawer
-              Navigator.push(
+              Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
                   builder: (context) => BrowseScreen(

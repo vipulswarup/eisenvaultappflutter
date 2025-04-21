@@ -1,11 +1,11 @@
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:flutter/material.dart';
 
-/// Displays breadcrumb navigation for folder hierarchy
+/// Displays breadcrumb navigation for folder hierarchy.
 class BreadcrumbNavigation extends StatelessWidget {
   final List<BrowseItem> navigationStack;
   final BrowseItem? currentFolder;
-  final Function() onRootTap;
+  final VoidCallback onRootTap;
   final Function(int) onBreadcrumbTap;
 
   const BreadcrumbNavigation({
@@ -15,16 +15,17 @@ class BreadcrumbNavigation extends StatelessWidget {
     required this.onRootTap,
     required this.onBreadcrumbTap,
   }) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
-    final breadcrumbText = Colors.black87;
-    final breadcrumbSeparator = Colors.grey;
-    final breadcrumbCurrentText = Colors.blue;
+    const breadcrumbText = Colors.black87;
+    const breadcrumbSeparator = Colors.grey;
+    const breadcrumbCurrentText = Colors.blue;
 
     // Check if the current folder is the same as the last item in the navigation stack
-    final bool isDuplicateFolder = currentFolder != null && 
-                                  navigationStack.isNotEmpty && 
-                                  navigationStack.last.id == currentFolder!.id;
+    final bool isDuplicateFolder = currentFolder != null &&
+        navigationStack.isNotEmpty &&
+        navigationStack.last.id == currentFolder!.id;
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -36,14 +37,14 @@ class BreadcrumbNavigation extends StatelessWidget {
             child: const Text(
               'Departments',
               style: TextStyle(
-                color: Colors.black87,
+                color: breadcrumbText,
                 fontWeight: FontWeight.w500,
               ),
             ),
           ),
           for (int i = 0; i < navigationStack.length; i++) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4),
               child: Icon(
                 Icons.chevron_right,
                 size: 16,
@@ -54,7 +55,7 @@ class BreadcrumbNavigation extends StatelessWidget {
               onTap: () => onBreadcrumbTap(i),
               child: Text(
                 navigationStack[i].name,
-                style: TextStyle(
+                style: const TextStyle(
                   color: breadcrumbText,
                   fontWeight: FontWeight.w500,
                 ),
@@ -63,8 +64,8 @@ class BreadcrumbNavigation extends StatelessWidget {
           ],
           // Only show the current folder if it's not a duplicate of the last navigation stack item
           if (currentFolder != null && currentFolder!.id != 'root' && !isDuplicateFolder) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4),
               child: Icon(
                 Icons.chevron_right,
                 size: 16,
@@ -73,7 +74,7 @@ class BreadcrumbNavigation extends StatelessWidget {
             ),
             Text(
               currentFolder?.name ?? '',
-              style: TextStyle(
+              style: const TextStyle(
                 color: breadcrumbCurrentText,
                 fontWeight: FontWeight.bold,
               ),

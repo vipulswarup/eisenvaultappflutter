@@ -56,10 +56,11 @@ class BrowseActions extends StatelessWidget {
       child: const Icon(Icons.upload_file, color: EVColors.buttonForeground),
     );
   }
+
   bool _canShowUploadFAB(BrowseScreenState state) {
     final currentFolder = state.controller?.currentFolder;
-    return currentFolder != null && 
-           currentFolder.id != 'root' && 
-           currentFolder.canWrite;
+    return currentFolder != null &&
+        currentFolder.id != 'root' &&
+        currentFolder.canWrite;
   }
-} 
+}

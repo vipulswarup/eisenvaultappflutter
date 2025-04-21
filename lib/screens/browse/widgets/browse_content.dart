@@ -5,8 +5,10 @@ import 'package:eisenvaultappflutter/screens/browse/widgets/folder_content_list.
 import '../state/browse_screen_state.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import '../browse_screen_controller.dart';
-import 'browse_navigation.dart';
 
+/// Displays the main content area for browsing folders and files.
+/// This widget does NOT render a breadcrumb/navigation bar.
+/// The parent screen (BrowseScreen) is responsible for rendering the breadcrumb.
 class BrowseContent extends StatelessWidget {
   final Function(BrowseItem) onFolderTap;
   final Function(BrowseItem) onFileTap;
@@ -66,44 +68,31 @@ class BrowseContent extends StatelessWidget {
             ),
           );
         }
-        
-        // Show folder content list
-        return Column(
-          children: [
-            BrowseNavigation(
-              onHomeTap: () => controller.loadDepartments(),
-              onBreadcrumbTap: (index) => controller.navigateToBreadcrumb(index),
-              currentFolderName: controller.currentFolder?.name,
-              navigationStack: controller.navigationStack,
-              currentFolder: controller.currentFolder,
-            ),
-            Expanded(
-              child: FolderContentList(
-                items: controller.items,
-                onFolderTap: onFolderTap,
-                onFileTap: onFileTap,
-                onDeleteTap: onDeleteTap,
-                showDeleteOption: _shouldShowDeleteOption(state, controller),
-                onRefresh: () async {
-                  if (controller.currentFolder != null) {
-                    await controller.loadFolderContents(controller.currentFolder!);
-                  } else {
-                    await controller.loadDepartments();
-                  }
-                },
-                onLoadMore: controller.loadMoreItems,
-                isLoadingMore: controller.isLoadingMore,
-                hasMoreItems: controller.hasMoreItems,
-                selectionMode: state.isInSelectionMode,
-                selectedItems: state.selectedItems,
-                onItemSelected: (itemId, selected) {
-                  state.toggleItemSelection(itemId);
-                },
-                isItemAvailableOffline: controller.isItemAvailableOffline,
-                onOfflineToggle: controller.toggleOfflineAvailability,
-              ),
-            ),
-          ],
+
+        // Show folder content list only (no breadcrumb here!)
+        return FolderContentList(
+          items: controller.items,
+          onFolderTap: onFolderTap,
+          onFileTap: onFileTap,
+          onDeleteTap: onDeleteTap,
+          showDeleteOption: _shouldShowDeleteOption(state, controller),
+          onRefresh: () async {
+            if (controller.currentFolder != null) {
+              await controller.loadFolderContents(controller.currentFolder!);
+            } else {
+              await controller.loadDepartments();
+            }
+          },
+          onLoadMore: controller.loadMoreItems,
+          isLoadingMore: controller.isLoadingMore,
+          hasMoreItems: controller.hasMoreItems,
+          selectionMode: state.isInSelectionMode,
+          selectedItems: state.selectedItems,
+          onItemSelected: (itemId, selected) {
+            state.toggleItemSelection(itemId);
+          },
+          isItemAvailableOffline: controller.isItemAvailableOffline,
+          onOfflineToggle: controller.toggleOfflineAvailability,
         );
       },
     );

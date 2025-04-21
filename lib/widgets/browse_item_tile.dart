@@ -1,11 +1,8 @@
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
-import 'package:eisenvaultappflutter/services/permissions/angora_permission_service.dart';
-import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
-import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:flutter/material.dart';
 
-class BrowseItemTile extends StatefulWidget {
+class BrowseItemTile extends StatelessWidget {
   final BrowseItem item;
   final VoidCallback onTap;
   final Function(BrowseItem)? onDeleteTap;
@@ -36,152 +33,81 @@ class BrowseItemTile extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  _BrowseItemTileState createState() => _BrowseItemTileState();
-}
-
-class _BrowseItemTileState extends State<BrowseItemTile> {
-  bool _isCheckingPermission = false;
-  bool _hasDeletePermission = false;
-  bool _permissionsLoaded = false;
-  bool _isOfflineOperationInProgress = false;
-
-  @override
   Widget build(BuildContext context) {
     return ListTile(
       leading: _buildLeadingIcon(),
       title: Text(
-        widget.item.name,
+        item.name,
         style: const TextStyle(
           fontWeight: FontWeight.w500,
         ),
       ),
       subtitle: Text(
-        widget.item.modifiedDate != null
-            ? 'Modified: ${_formatDate(widget.item.modifiedDate!)}'
-            : 'Department',
+        item.modifiedDate != null
+            ? 'Modified: ${_formatDate(item.modifiedDate!)}'
+            : item.description ?? '',
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: TextStyle(color: Colors.grey[600]),
+        style: TextStyle(color: EVColors.textGrey),
       ),
-      trailing: widget.selectionMode
-          ? Checkbox(
-              value: widget.isSelected,
-              onChanged: (value) => widget.onSelectionChanged?.call(value ?? false),
-            )
-          : (widget.showDeleteOption && _hasDeletePermission && widget.onDeleteTap != null)
-              ? IconButton(
-                  icon: Icon(Icons.more_vert),
-                  onPressed: () => _showOptionsMenu(context),
-                )
-              : const Icon(Icons.chevron_right),
-      onTap: widget.selectionMode
-          ? () => widget.onSelectionChanged?.call(!widget.isSelected)
-          : widget.onTap,
+      trailing: _buildTrailing(context),
+      onTap: selectionMode
+          ? () => onSelectionChanged?.call(!isSelected)
+          : onTap,
     );
   }
 
-  void _showOptionsMenu(BuildContext context) async {
-    if (widget.showDeleteOption && !_permissionsLoaded && widget.onDeleteTap != null) {
-      setState(() {
-        _isCheckingPermission = true;
-      });
-
-      try {
-        if (widget.repositoryType?.toLowerCase() == 'angora') {
-          if (widget.baseUrl != null && widget.authToken != null) {
-            final permissionService = AngoraPermissionService(
-              widget.baseUrl!,
-              widget.authToken!,
-            );
-
-            final result = await permissionService.hasPermission(widget.item.id, 'delete');
-
-            if (mounted) {
-              setState(() {
-                _hasDeletePermission = result;
-                _isCheckingPermission = false;
-                _permissionsLoaded = true;
-              });
-
-              _displayOptionsMenu(context);
-            }
-          }
-        } else {
-          if (!_permissionsLoaded && widget.item.allowableOperations == null) {
-            _hasDeletePermission = widget.item.canDelete;
-            _permissionsLoaded = true;
-          } else {
-            _hasDeletePermission = widget.item.canDelete;
-          }
-          _displayOptionsMenu(context);
-        }
-      } catch (e) {
-        EVLogger.error('Error checking permissions', e);
-      }
-    } else {
-      _displayOptionsMenu(context);
+  Widget _buildTrailing(BuildContext context) {
+    if (selectionMode) {
+      return Checkbox(
+        value: isSelected,
+        onChanged: (value) => onSelectionChanged?.call(value ?? false),
+      );
     }
-  }
-
-  void _displayOptionsMenu(BuildContext context) {
-    final RenderBox button = context.findRenderObject() as RenderBox;
-    final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-    final RelativeRect position = RelativeRect.fromRect(
-      Rect.fromPoints(
-        button.localToGlobal(Offset.zero, ancestor: overlay),
-        button.localToGlobal(button.size.bottomRight(Offset.zero), ancestor: overlay),
-      ),
-      Offset.zero & overlay.size,
-    );
-
-    showMenu(
-      context: context,
-      position: position,
-      items: [
-        PopupMenuItem(
-          enabled: !_isOfflineOperationInProgress,
-          child: Row(
-            children: [
-              Icon(
-                widget.isAvailableOffline ? Icons.cloud_off : Icons.cloud_download,
-                color: _isOfflineOperationInProgress ? Colors.grey : null,
+    if (showDeleteOption || onOfflineToggle != null) {
+      return PopupMenuButton<String>(
+        onSelected: (value) {
+          if (value == 'offline' && onOfflineToggle != null) {
+            onOfflineToggle!(item);
+          } else if (value == 'delete' && onDeleteTap != null) {
+            onDeleteTap!(item);
+          }
+        },
+        itemBuilder: (context) => [
+          if (onOfflineToggle != null)
+            PopupMenuItem<String>(
+              value: 'offline',
+              child: Row(
+                children: [
+                  Icon(
+                    isAvailableOffline ? Icons.cloud_off : Icons.cloud_download,
+                    color: EVColors.iconTeal,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(isAvailableOffline ? 'Remove from Offline' : 'Available Offline'),
+                ],
               ),
-              SizedBox(width: 10),
-              Text(
-                widget.isAvailableOffline ? 'Remove from Offline' : 'Available Offline',
-                style: TextStyle(
-                  color: _isOfflineOperationInProgress ? Colors.grey : null,
-                ),
+            ),
+          if (showDeleteOption && item.canDelete && onDeleteTap != null)
+            PopupMenuItem<String>(
+              value: 'delete',
+              child: Row(
+                children: [
+                  const Icon(Icons.delete, color: EVColors.errorRed),
+                  const SizedBox(width: 10),
+                  const Text('Delete'),
+                ],
               ),
-            ],
-          ),
-          onTap: _isOfflineOperationInProgress ? null : () {
-            widget.onOfflineToggle?.call(widget.item);
-          },
-        ),
-        PopupMenuItem(
-          enabled: _hasDeletePermission && !_isOfflineOperationInProgress,
-          child: Row(
-            children: [
-              Icon(Icons.delete, color: _hasDeletePermission ? Colors.red : Colors.grey),
-              SizedBox(width: 10),
-              Text('Delete', style: TextStyle(
-                color: _hasDeletePermission ? null : Colors.grey
-              )),
-            ],
-          ),
-          onTap: _hasDeletePermission && widget.onDeleteTap != null ? 
-            () => Future.delayed(
-              Duration(milliseconds: 100),
-              () => widget.onDeleteTap!(widget.item),
-            ) : null,
-        ),
-      ],
-    );
+            ),
+        ],
+        icon: const Icon(Icons.more_vert),
+      );
+    }
+    return const Icon(Icons.chevron_right);
   }
 
   Widget _buildLeadingIcon() {
-    if (widget.item.isDepartment) {
+    if (item.isDepartment) {
       return Container(
         width: 40,
         height: 40,
@@ -189,13 +115,13 @@ class _BrowseItemTileState extends State<BrowseItemTile> {
           color: EVColors.departmentIconBackground,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(
+        child: const Icon(
           Icons.business,
           color: EVColors.departmentIconForeground,
           size: 24,
         ),
       );
-    } else if (widget.item.type == 'folder') {
+    } else if (item.type == 'folder') {
       return Container(
         width: 40,
         height: 40,
@@ -203,14 +129,14 @@ class _BrowseItemTileState extends State<BrowseItemTile> {
           color: EVColors.folderIconBackground,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(
+        child: const Icon(
           Icons.folder,
           color: EVColors.folderIconForeground,
           size: 24,
         ),
       );
     } else {
-      IconData iconData = _getDocumentIcon(widget.item.name);
+      final iconData = _getDocumentIcon(item.name);
       return Container(
         width: 40,
         height: 40,
@@ -259,7 +185,7 @@ class _BrowseItemTileState extends State<BrowseItemTile> {
     try {
       final date = DateTime.parse(dateString);
       return '${date.day}/${date.month}/${date.year}';
-    } catch (e) {
+    } catch (_) {
       return dateString;
     }
   }

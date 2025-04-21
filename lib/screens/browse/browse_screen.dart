@@ -31,13 +31,13 @@ class BrowseScreen extends StatefulWidget {
   final String customerHostname;
 
   const BrowseScreen({
-    super.key,
+    Key? key,
     required this.baseUrl,
     required this.authToken,
     required this.firstName,
     required this.instanceType,
     required this.customerHostname,
-  });
+  }) : super(key: key);
 
   @override
   State<BrowseScreen> createState() => _BrowseScreenState();
@@ -126,7 +126,6 @@ class _BrowseScreenState extends State<BrowseScreen> {
   late UploadNavigationHandler _uploadHandler;
   late SearchNavigationHandler _searchHandler;
 
-  bool _isInSelectionMode = false;
   final Set<String> _selectedItems = {};
 
   late OfflineManager _offlineManager;
@@ -228,7 +227,6 @@ class _BrowseScreenState extends State<BrowseScreen> {
       },
       clearSelectionMode: () {
         setState(() {
-          _isInSelectionMode = false;
           _selectedItems.clear();
         });
       },
@@ -340,7 +338,6 @@ class _BrowseScreenState extends State<BrowseScreen> {
                       BrowseContent(
                         onFolderTap: (folder) {
                           _controller!.navigateToFolder(folder);
-                          _refreshCurrentFolder();
                         },
                         onFileTap: (file) => _fileTapHandler.handleFileTap(file),
                         onDeleteTap: (item) => _deleteHandler.showDeleteConfirmation(item),
