@@ -1,12 +1,9 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'dart:io';
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:http/http.dart' as http;
-
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_item.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_core.dart' show OfflineStorageProvider, OfflineEvent;
@@ -16,7 +13,6 @@ import 'package:eisenvaultappflutter/services/browse/browse_service_factory.dart
 import 'package:eisenvaultappflutter/services/document/document_service.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_file_service.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_config.dart';
-import 'package:eisenvaultappflutter/services/offline/offline_exception.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_metadata_provider.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_sync_provider.dart' as sync;
 import 'package:eisenvaultappflutter/utils/logger.dart';
@@ -45,8 +41,7 @@ class OfflineManager {
   
   // Authentication details
   String? _instanceType;
-  String? _baseUrl;
-  String? _authToken;
+  
   
   // Storage keys for credentials
   static const String _keyInstanceType = 'offline_instance_type';
@@ -62,9 +57,6 @@ class OfflineManager {
   
   /// Stream of offline events
   Stream<OfflineEvent> get events => _eventController.stream;
-  
-  /// For testing: force offline mode regardless of actual connectivity
-  static bool forceOfflineMode = false;
   
   final _connectivityStream = StreamController<bool>.broadcast();
   
@@ -98,14 +90,6 @@ class OfflineManager {
     );
   }
   
-  /// Create a default sync provider
-  sync.OfflineSyncProvider _createDefaultSyncProvider() {
-    return _DefaultSyncProvider(
-      instanceType: _instanceType ?? '',
-      baseUrl: _baseUrl ?? '',
-      authToken: _authToken ?? ''
-    );
-  }
   
   OfflineManager({
     required OfflineStorageProvider storage,
@@ -146,12 +130,12 @@ class OfflineManager {
   }) async {
     try {
       _instanceType = instanceType;
-      _baseUrl = baseUrl;
-      _authToken = authToken;
+      
       
       // Initialize sync provider with credentials
       if (_sync is _DefaultSyncProvider) {
-        (_sync as _DefaultSyncProvider)
+        final syncProvider = _sync ;
+        syncProvider
           .._instanceType = instanceType
           .._baseUrl = baseUrl
           .._authToken = authToken;
@@ -198,9 +182,7 @@ class OfflineManager {
   
   /// Check if the device is currently offline
   Future<bool> isOffline() async {
-    if (forceOfflineMode) {
-      return true;
-    }
+
     
     // Check connectivity first
     final result = await _connectivity.checkConnectivity();

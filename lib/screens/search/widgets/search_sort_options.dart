@@ -18,10 +18,10 @@ class SearchSortOptions extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: EVColors.sortOptionBackground,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: EVColors.sortOptionShadow,
             blurRadius: 2,
             offset: const Offset(0, 1),
           ),
@@ -34,6 +34,7 @@ class SearchSortOptions extends StatelessWidget {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
+              color: EVColors.sortOptionText,
             ),
           ),
           const SizedBox(width: 8),
@@ -48,25 +49,25 @@ class SearchSortOptions extends StatelessWidget {
   Widget _buildSortDropdown() {
     return DropdownButton<String>(
       value: currentSortBy,
-      underline: Container(), // Remove the default underline
-      icon: const Icon(Icons.arrow_drop_down, size: 18),
+      underline: Container(),
+      icon: const Icon(Icons.arrow_drop_down, size: 18, color: EVColors.sortOptionIcon),
       isDense: true,
       items: const [
         DropdownMenuItem(
           value: 'name',
-          child: Text('Name'),
+          child: Text('Name', style: TextStyle(color: EVColors.sortOptionText)),
         ),
         DropdownMenuItem(
           value: 'modifiedAt',
-          child: Text('Modified Date'),
+          child: Text('Modified Date', style: TextStyle(color: EVColors.sortOptionText)),
         ),
         DropdownMenuItem(
           value: 'createdAt',
-          child: Text('Created Date'),
+          child: Text('Created Date', style: TextStyle(color: EVColors.sortOptionText)),
         ),
         DropdownMenuItem(
           value: 'type',
-          child: Text('Type'),
+          child: Text('Type', style: TextStyle(color: EVColors.sortOptionText)),
         ),
       ],
       onChanged: (String? value) {
@@ -86,13 +87,14 @@ class SearchSortOptions extends StatelessWidget {
             isAscending ? 'Ascending' : 'Descending',
             style: const TextStyle(
               fontSize: 14,
+              color: EVColors.sortOptionText,
             ),
           ),
           const SizedBox(width: 4),
           Icon(
             isAscending ? Icons.arrow_upward : Icons.arrow_downward,
             size: 18,
-            color: EVColors.primaryBlue,
+            color: EVColors.sortOptionIcon,
           ),
         ],
       ),

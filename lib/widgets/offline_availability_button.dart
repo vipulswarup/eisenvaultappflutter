@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
-import 'package:eisenvaultappflutter/services/browse/browse_service_factory.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 
 /// A button widget that allows users to mark/unmark items for offline availability
@@ -62,7 +61,7 @@ class _OfflineAvailabilityButtonState extends State<OfflineAvailabilityButton> {
         height: 24,
         child: CircularProgressIndicator(
           strokeWidth: 2.0,
-          valueColor: AlwaysStoppedAnimation<Color>(EVColors.primaryBlue),
+          valueColor: AlwaysStoppedAnimation<Color>(EVColors.buttonBackground),
         ),
       );
     }
@@ -72,8 +71,8 @@ class _OfflineAvailabilityButtonState extends State<OfflineAvailabilityButton> {
           ? Icons.offline_pin
           : Icons.offline_pin_outlined,
       color: widget.isAvailableOffline
-          ? EVColors.primaryBlue
-          : Colors.grey,
+          ? EVColors.buttonBackground
+          : EVColors.iconGrey,
     );
   }
 
@@ -156,7 +155,7 @@ class _OfflineAvailabilityButtonState extends State<OfflineAvailabilityButton> {
       SnackBar(
         content: Text(message),
         behavior: SnackBarBehavior.floating,
-        backgroundColor: isError ? Colors.red : Colors.green,
+        backgroundColor: isError ? EVColors.errorRed : EVColors.successGreen,
       ),
     );
   }

@@ -5,73 +5,70 @@ import 'package:eisenvaultappflutter/constants/colors.dart';
 import '../browse_screen_controller.dart';
 
 class BrowseNavigation extends StatelessWidget {
-  const BrowseNavigation({Key? key}) : super(key: key);
+  final Function() onHomeTap;
+  final Function(int) onBreadcrumbTap;
+  final String? currentFolderName;
+  final List<dynamic> navigationStack;
+  final dynamic currentFolder;
+
+  const BrowseNavigation({
+    Key? key,
+    required this.onHomeTap,
+    required this.onBreadcrumbTap,
+    required this.currentFolderName,
+    required this.navigationStack,
+    required this.currentFolder,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<BrowseScreenController>(
-      builder: (context, controller, child) {
-        // Add debug logging to see the navigation state
-        
+    // Only show breadcrumb if we're in a folder (not at root)
+    if (currentFolder == null || currentFolder?.id == 'root') {
+      return const SizedBox.shrink();
+    }
 
-        // Only show breadcrumb if we're in a folder (not at root)
-        if (controller.currentFolder == null || controller.currentFolder?.id == 'root') {
-          return const SizedBox.shrink();
-        }
-
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          color: Colors.white,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                // Home/Root button - style it like a link
-                InkWell(
-                  onTap: () {
-                    controller.loadDepartments();
-                  },
-                  child: Row(
-                    children: [
-                      const Icon(Icons.home, size: 16),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Home',
-                        style: TextStyle(color: EVColors.primaryBlue), // Use the same color as other links
-                      ),
-                    ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: EVColors.browseNavBackground,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            // Home/Root button - style it like a link
+            InkWell(
+              onTap: onHomeTap,
+              child: Row(
+                children: [
+                  const Icon(Icons.home, size: 16, color: EVColors.browseNavText),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Home',
+                    style: TextStyle(color: EVColors.browseNavText),
                   ),
-                ),
-                
-                // Show navigation stack items
-                ...List.generate(controller.navigationStack.length, (index) {
-                  return Row(
-                    children: [
-                      const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
-                      InkWell(
-                        onTap: () {
-                          controller.navigateToBreadcrumb(index);
-                        },
-                        child: Text(
-                          controller.navigationStack[index].name,
-                          style: TextStyle(color: EVColors.primaryBlue),
-                        ),
-                      ),
-                    ],
-                  );
-                }),
-                
-                // Current folder (last item in breadcrumb)
-                const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
-                Text(
-                  controller.currentFolder?.name ?? '',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        );
-      },
-    );
-  }
+            ...List.generate(navigationStack.length, (index) {
+              return Row(
+                children: [
+                  const Icon(Icons.chevron_right, size: 16, color: EVColors.browseNavChevron),
+                  InkWell(
+                    onTap: () => onBreadcrumbTap(index),
+                    child: Text(
+                      navigationStack[index].name,
+                      style: TextStyle(color: EVColors.browseNavText),
+                    ),
+                  ),
+                ],
+              );
+            }),
+            const Icon(Icons.chevron_right, size: 16, color: EVColors.browseNavChevron),
+            Text(
+              currentFolderName ?? '',
+              style: const TextStyle(fontWeight: FontWeight.bold, color: EVColors.browseNavCurrentText),
+            ),
+          ],
+        ),
+      ),
+    );  }
 }

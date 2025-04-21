@@ -208,7 +208,7 @@ class _OfflineSettingsScreenState extends State<OfflineSettingsScreen> {
           ),
           TextButton(
             style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
+              foregroundColor: EVColors.errorRed,
             ),
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text('CLEAR ALL'),
@@ -229,7 +229,7 @@ class _OfflineSettingsScreenState extends State<OfflineSettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('All offline content cleared'),
-            backgroundColor: Colors.green,
+            backgroundColor: EVColors.successGreen,
           ),
         );
         
@@ -243,7 +243,7 @@ class _OfflineSettingsScreenState extends State<OfflineSettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to clear content: ${e.toString()}'),
-            backgroundColor: Colors.red,
+            backgroundColor: EVColors.errorRed,
           ),
         );
       }
@@ -263,8 +263,7 @@ class _OfflineSettingsScreenState extends State<OfflineSettingsScreen> {
         title: const Text('Offline Settings'),
         backgroundColor: EVColors.appBarBackground,
         foregroundColor: EVColors.appBarForeground,
-      ),
-      body: ListView(
+      ),      body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
           _buildStorageSection(),
@@ -290,7 +289,7 @@ class _OfflineSettingsScreenState extends State<OfflineSettingsScreen> {
         ),
         const SizedBox(height: 16),
         ListTile(
-          leading: const Icon(Icons.storage, color: EVColors.primaryBlue),
+          leading: const Icon(Icons.storage, color: EVColors.buttonBackground),
           title: const Text('Offline Storage Used'),
           subtitle: Text(_storageUsage),
           trailing: IconButton(
@@ -304,7 +303,7 @@ class _OfflineSettingsScreenState extends State<OfflineSettingsScreen> {
         ),
         // Add available storage information
         ListTile(
-          leading: const Icon(Icons.sd_storage, color: EVColors.primaryBlue),
+          leading: const Icon(Icons.sd_storage, color: EVColors.buttonBackground),
           title: const Text('Available Storage'),
           subtitle: Text(_availableStorage),
           // Display warning icon if storage is low
@@ -348,7 +347,7 @@ class _OfflineSettingsScreenState extends State<OfflineSettingsScreen> {
           ),
         ] else ...[
           ListTile(
-            leading: const Icon(Icons.sync, color: EVColors.primaryBlue),
+            leading: const Icon(Icons.sync, color: EVColors.buttonBackground),
             title: const Text('Sync offline content'),
             subtitle: const Text('Update your offline files with the latest versions'),
             trailing: ElevatedButton(
@@ -385,7 +384,7 @@ class _OfflineSettingsScreenState extends State<OfflineSettingsScreen> {
         ListTile(
           leading: Icon(
             Icons.delete_forever,
-            color: _isClearing ? Colors.grey : Colors.red,
+            color: _isClearing ? EVColors.iconGrey : EVColors.errorRed,
           ),
           title: const Text('Clear all offline content'),
           subtitle: const Text(
@@ -394,9 +393,9 @@ class _OfflineSettingsScreenState extends State<OfflineSettingsScreen> {
           trailing: ElevatedButton(
             onPressed: _isClearing ? null : _clearAllOfflineContent,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: Colors.grey,
+              backgroundColor: EVColors.errorRed,
+              foregroundColor: EVColors.cardBackground,
+              disabledBackgroundColor: EVColors.iconGrey,
             ),
             child: _isClearing
                 ? const SizedBox(
@@ -404,7 +403,7 @@ class _OfflineSettingsScreenState extends State<OfflineSettingsScreen> {
                     height: 20,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      valueColor: AlwaysStoppedAnimation<Color>(EVColors.cardBackground),
                     ),
                   )
                 : const Text('CLEAR ALL'),
@@ -412,9 +411,7 @@ class _OfflineSettingsScreenState extends State<OfflineSettingsScreen> {
         ),
       ],
     );
-  }
-
-  @override
+  }  @override
   void dispose() {
     _syncService.dispose();
     super.dispose();

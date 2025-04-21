@@ -16,7 +16,7 @@ class SearchLoadingIndicator extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(EVColors.primaryBlue),
+            valueColor: AlwaysStoppedAnimation<Color>(EVColors.buttonBackground),
           ),
           const SizedBox(height: 16),
           Text(
@@ -32,11 +32,10 @@ class SearchLoadingIndicator extends StatelessWidget {
             'This may take a moment depending on your repository size',
             style: TextStyle(
               fontSize: 12,
-              color: Colors.grey,
+              color: EVColors.iconGreyLight,
             ),
             textAlign: TextAlign.center,
-          ),
-        ],
+          ),        ],
       ),
     );
   }

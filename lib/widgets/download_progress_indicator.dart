@@ -24,14 +24,14 @@ class DownloadProgressIndicator extends StatelessWidget {
     if (isMinimized) {
       return _buildMinimizedIndicator(context);
     }
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: EVColors.cardBackground,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: EVColors.cardShadow,
             blurRadius: 4,
             offset: const Offset(0, -2),
           ),
@@ -51,6 +51,7 @@ class DownloadProgressIndicator extends StatelessWidget {
                         'Downloading for offline use ($currentFileIndex of $totalFiles)',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
+                          color: EVColors.textDefault,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -58,7 +59,7 @@ class DownloadProgressIndicator extends StatelessWidget {
                         fileName,
                         style: const TextStyle(
                           fontSize: 12,
-                          color: Colors.grey,
+                          color: EVColors.textLightGrey,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -68,7 +69,7 @@ class DownloadProgressIndicator extends StatelessWidget {
                 ),
                 if (onMinimize != null)
                   IconButton(
-                    icon: const Icon(Icons.minimize),
+                    icon: const Icon(Icons.minimize, color: EVColors.iconGrey),
                     onPressed: onMinimize,
                     tooltip: 'Minimize',
                   ),
@@ -77,15 +78,15 @@ class DownloadProgressIndicator extends StatelessWidget {
             const SizedBox(height: 8),
             LinearProgressIndicator(
               value: progress,
-              backgroundColor: Colors.grey[200],
-              valueColor: const AlwaysStoppedAnimation<Color>(EVColors.primaryBlue),
+              backgroundColor: EVColors.iconGrey.withOpacity(0.2),
+              valueColor: const AlwaysStoppedAnimation<Color>(EVColors.buttonBackground),
             ),
             const SizedBox(height: 8),
             const Text(
               'Please keep the app open while files are being downloaded',
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.grey,
+                color: EVColors.textLightGrey,
               ),
             ),
           ],
@@ -100,7 +101,7 @@ class DownloadProgressIndicator extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: EVColors.primaryBlue,
+          color: EVColors.buttonBackground,
           borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(8),
             topRight: Radius.circular(8),
@@ -111,14 +112,14 @@ class DownloadProgressIndicator extends StatelessWidget {
           children: [
             const Icon(
               Icons.download_rounded,
-              color: Colors.white,
+              color: EVColors.buttonForeground,
               size: 16,
             ),
             const SizedBox(width: 8),
             Text(
               'Downloading ($currentFileIndex/$totalFiles)',
               style: const TextStyle(
-                color: Colors.white,
+                color: EVColors.buttonForeground,
                 fontSize: 12,
               ),
             ),
@@ -127,4 +128,4 @@ class DownloadProgressIndicator extends StatelessWidget {
       ),
     );
   }
-} 
+}

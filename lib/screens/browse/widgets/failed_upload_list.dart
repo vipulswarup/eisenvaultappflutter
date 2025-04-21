@@ -28,8 +28,10 @@ class FailedUploadList extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        color: EVColors.cardBackground,
+        elevation: 2,
+        shadowColor: EVColors.cardShadow,
+        child: Column(          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
               padding: const EdgeInsets.all(16),
@@ -111,7 +113,7 @@ class _FailedUploadItem extends StatelessWidget {
                 icon: const Icon(Icons.refresh, size: 20),
                 onPressed: onRetry,
                 tooltip: 'Retry upload',
-                color: EVColors.primaryBlue,
+                color: EVColors.buttonBackground,
               ),
               IconButton(
                 icon: const Icon(Icons.close, size: 20),

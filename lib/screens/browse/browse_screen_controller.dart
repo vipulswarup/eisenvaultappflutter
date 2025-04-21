@@ -192,7 +192,7 @@ class BrowseScreenController extends ChangeNotifier {
       currentFolder = folder;
       
       // Check both actual connectivity and forced offline mode
-      _isOffline = OfflineManager.forceOfflineMode || await _offlineManager.isOffline();
+      _isOffline =  await _offlineManager.isOffline();
       
       // Load folder contents
       if (_isOffline) {
@@ -249,7 +249,7 @@ class BrowseScreenController extends ChangeNotifier {
 
     try {
       // Check both actual connectivity and forced offline mode
-      _isOffline = OfflineManager.forceOfflineMode || await _offlineManager.isOffline();
+      _isOffline = await _offlineManager.isOffline();
       
       if (_isOffline) {
         final offlineItems = await _offlineManager.getOfflineItems(null);
@@ -325,7 +325,7 @@ class BrowseScreenController extends ChangeNotifier {
       _notifyListeners();
       
       // Check both actual connectivity and forced offline mode
-      _isOffline = OfflineManager.forceOfflineMode || await _offlineManager.isOffline();
+      _isOffline =  await _offlineManager.isOffline();
       
       // Load folder contents first
       if (_isOffline) {

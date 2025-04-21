@@ -44,19 +44,18 @@ class BrowseActions extends StatelessWidget {
 
     return FloatingActionButton(
       onPressed: onBatchDeleteTap,
-      backgroundColor: Colors.red,
-      child: const Icon(Icons.delete),
+      backgroundColor: EVColors.errorRed,
+      child: const Icon(Icons.delete, color: EVColors.cardBackground),
     );
   }
 
   Widget _buildUploadFAB() {
     return FloatingActionButton(
       onPressed: onUploadTap,
-      backgroundColor: EVColors.primaryBlue,
-      child: const Icon(Icons.upload_file),
+      backgroundColor: EVColors.buttonBackground,
+      child: const Icon(Icons.upload_file, color: EVColors.buttonForeground),
     );
   }
-
   bool _canShowUploadFAB(BrowseScreenState state) {
     final currentFolder = state.controller?.currentFolder;
     return currentFolder != null && 

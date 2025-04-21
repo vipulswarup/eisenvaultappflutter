@@ -12,7 +12,7 @@ class SearchResultItem extends StatelessWidget {
     required this.item,
     required this.onTap,
     required this.searchQuery,
-  }) ;
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -25,48 +25,40 @@ class SearchResultItem extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Left side: Icon based on item type
               _buildItemIcon(),
               const SizedBox(width: 12),
-              
-              // Right side: Content details
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Item name with highlighted search term
                     _buildHighlightedName(),
                     const SizedBox(height: 4),
-                    
-                    // Item path/location
                     if (item.description != null) ...[
                       Text(
                         item.description!,
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey[600],
+                          color: EVColors.textGrey,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
                     ],
-                    
-                    // Last modified info
                     if (item.modifiedDate != null) ...[
                       Row(
                         children: [
                           Icon(
                             Icons.access_time,
                             size: 12,
-                            color: Colors.grey[500],
+                            color: EVColors.textLightGrey,
                           ),
                           const SizedBox(width: 4),
                           Text(
                             'Modified: ${_formatDate(item.modifiedDate!)}',
                             style: TextStyle(
                               fontSize: 11,
-                              color: Colors.grey[500],
+                              color: EVColors.textLightGrey,
                             ),
                           ),
                           if (item.modifiedBy != null) ...[
@@ -75,7 +67,7 @@ class SearchResultItem extends StatelessWidget {
                               'by ${item.modifiedBy}',
                               style: TextStyle(
                                 fontSize: 11,
-                                color: Colors.grey[500],
+                                color: EVColors.textLightGrey,
                               ),
                             ),
                           ],
@@ -85,11 +77,9 @@ class SearchResultItem extends StatelessWidget {
                   ],
                 ),
               ),
-              
-              // Right arrow indicator
               Icon(
                 Icons.chevron_right,
-                color: Colors.grey[400],
+                color: EVColors.iconGrey,
               ),
             ],
           ),
@@ -97,51 +87,48 @@ class SearchResultItem extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildItemIcon() {
     if (item.isDepartment) {
-      // Department/Site icon
       return Container(
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: Colors.blue.withOpacity(0.1),
+          color: EVColors.departmentIconBackground,
           borderRadius: BorderRadius.circular(8),
         ),
         child: const Icon(
           Icons.business,
-          color: Colors.blue,
+          color: EVColors.departmentIconForeground,
           size: 24,
         ),
       );
     } else if (item.type == 'folder') {
-      // Folder icon
       return Container(
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: Colors.amber.withOpacity(0.1),
+          color: EVColors.folderIconBackground,
           borderRadius: BorderRadius.circular(8),
         ),
         child: const Icon(
           Icons.folder,
-          color: Colors.amber,
+          color: EVColors.folderIconForeground,
           size: 24,
         ),
       );
     } else {
-      // Document icon - determine icon based on file extension
       IconData iconData = _getDocumentIcon(item.name);
       return Container(
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: Colors.teal.withOpacity(0.1),
+          color: EVColors.documentIconBackground,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(
           iconData,
-          color: Colors.teal,
+          color: EVColors.documentIconForeground,
           size: 24,
         ),
       );
@@ -150,7 +137,6 @@ class SearchResultItem extends StatelessWidget {
 
   IconData _getDocumentIcon(String fileName) {
     final extension = fileName.split('.').last.toLowerCase();
-    
     switch (extension) {
       case 'pdf':
         return Icons.picture_as_pdf;
@@ -176,41 +162,38 @@ class SearchResultItem extends StatelessWidget {
         return Icons.insert_drive_file;
     }
   }
-  
+
   Widget _buildHighlightedName() {
-    // If search query is empty or not found in name, just return the name
     if (searchQuery.isEmpty || !item.name.toLowerCase().contains(searchQuery.toLowerCase())) {
       return Text(
         item.name,
         style: const TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.bold,
+          color: EVColors.textDefault,
         ),
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
       );
     }
-    
-    // Otherwise, highlight the matching part
     final lowerCaseName = item.name.toLowerCase();
     final lowerCaseQuery = searchQuery.toLowerCase();
     final startIndex = lowerCaseName.indexOf(lowerCaseQuery);
     final endIndex = startIndex + searchQuery.length;
-    
     return RichText(
       text: TextSpan(
         style: const TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.bold,
-          color: Colors.black,
+          color: EVColors.textDefault,
         ),
         children: [
           TextSpan(text: item.name.substring(0, startIndex)),
           TextSpan(
             text: item.name.substring(startIndex, endIndex),
             style: TextStyle(
-              backgroundColor: EVColors.primaryBlue.withOpacity(0.2),
-              color: EVColors.primaryBlue,
+              backgroundColor: EVColors.searchHighlightBackground,
+              color: EVColors.searchHighlightText,
             ),
           ),
           TextSpan(text: item.name.substring(endIndex)),
@@ -220,7 +203,7 @@ class SearchResultItem extends StatelessWidget {
       overflow: TextOverflow.ellipsis,
     );
   }
-  
+
   String _formatDate(String dateString) {
     try {
       final date = DateTime.parse(dateString);

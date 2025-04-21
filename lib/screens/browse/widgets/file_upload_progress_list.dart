@@ -26,30 +26,32 @@ class FileUploadProgressList extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
+        color: EVColors.cardBackground,
+        elevation: 2,
+        shadowColor: EVColors.cardShadow,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: EVColors.primaryBlue.withOpacity(0.1),
+                color: EVColors.buttonBackground.withOpacity(0.1),
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.upload_file, color: EVColors.primaryBlue),
+                  const Icon(Icons.upload_file, color: EVColors.buttonBackground),
                   const SizedBox(width: 8),
                   Text(
                     'Uploading ${uploadProgresses.length} ${uploadProgresses.length == 1 ? 'file' : 'files'}',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: EVColors.primaryBlue,
+                      color: EVColors.buttonBackground,
                     ),
                   ),
                 ],
               ),
-            ),
-            Flexible(
+            ),            Flexible(
               child: ListView.builder(
                 shrinkWrap: true,
                 itemCount: uploadProgresses.length,
@@ -122,7 +124,7 @@ class _UploadProgressItem extends StatelessWidget {
                     value: progress.progress,
                     backgroundColor: Colors.grey.withOpacity(0.2),
                     valueColor: AlwaysStoppedAnimation<Color>(
-                      progress.isComplete ? Colors.green : EVColors.primaryBlue,
+                      progress.isComplete ? Colors.green : EVColors.infoBlue,
                     ),
                   ),
                 ),
@@ -131,7 +133,7 @@ class _UploadProgressItem extends StatelessWidget {
               Text(
                 '${(progress.progress * 100).toInt()}%',
                 style: TextStyle(
-                  color: progress.isComplete ? Colors.green : EVColors.primaryBlue,
+                  color: progress.isComplete ? Colors.green : EVColors.infoBlue,
                   fontWeight: FontWeight.w500,
                 ),
               ),

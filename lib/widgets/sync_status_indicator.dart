@@ -43,8 +43,6 @@ class _SyncStatusIndicatorState extends State<SyncStatusIndicator> {
           _isSyncing = false;
           _hasError = false;
           _syncStatus = 'Sync completed';
-          
-          // Clear status after a delay
           Future.delayed(const Duration(seconds: 3), () {
             if (mounted) {
               setState(() {
@@ -84,7 +82,9 @@ class _SyncStatusIndicatorState extends State<SyncStatusIndicator> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: _hasError ? Colors.red.withOpacity(0.1) : EVColors.primaryBlue.withOpacity(0.1),
+        color: _hasError
+            ? EVColors.errorRed.withOpacity(0.1)
+            : EVColors.buttonBackground.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -96,7 +96,7 @@ class _SyncStatusIndicatorState extends State<SyncStatusIndicator> {
               height: 16,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(EVColors.primaryBlue),
+                valueColor: AlwaysStoppedAnimation<Color>(EVColors.buttonBackground),
               ),
             ),
             const SizedBox(width: 8),
@@ -104,14 +104,14 @@ class _SyncStatusIndicatorState extends State<SyncStatusIndicator> {
           Icon(
             _hasError ? Icons.error : Icons.sync,
             size: 16,
-            color: _hasError ? Colors.red : EVColors.primaryBlue,
+            color: _hasError ? EVColors.errorRed : EVColors.buttonBackground,
           ),
           const SizedBox(width: 8),
           Flexible(
             child: Text(
               _syncStatus,
               style: TextStyle(
-                color: _hasError ? Colors.red : EVColors.primaryBlue,
+                color: _hasError ? EVColors.errorRed : EVColors.buttonBackground,
                 fontSize: 12,
               ),
             ),
@@ -123,7 +123,6 @@ class _SyncStatusIndicatorState extends State<SyncStatusIndicator> {
 
   @override
   void dispose() {
-    // Clear callbacks to prevent memory leaks
     widget.syncService.onSyncStarted = null;
     widget.syncService.onSyncCompleted = null;
     widget.syncService.onSyncProgress = null;

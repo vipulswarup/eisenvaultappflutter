@@ -327,7 +327,13 @@ class _BrowseScreenState extends State<BrowseScreen> {
             ),
             body: Column(
               children: [
-                const BrowseNavigation(),
+                BrowseNavigation(
+                  onHomeTap: () => _controller!.loadDepartments(),
+                  onBreadcrumbTap: (index) => _controller!.navigateToBreadcrumb(index),
+                  currentFolderName: _controller!.currentFolder?.name,
+                  navigationStack: _controller!.navigationStack,
+                  currentFolder: _controller!.currentFolder,
+                ),
                 Expanded(
                   child: Stack(
                     children: [
