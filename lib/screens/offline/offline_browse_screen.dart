@@ -1,25 +1,34 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:eisenvaultappflutter/constants/colors.dart';
-import 'package:eisenvaultappflutter/models/browse_item.dart';
-import 'package:eisenvaultappflutter/screens/browse/browse_screen.dart'; // Add this import
-import 'package:eisenvaultappflutter/screens/browse/widgets/empty_folder_view.dart';
-import 'package:eisenvaultappflutter/screens/browse/widgets/folder_content_list.dart';
-import 'package:eisenvaultappflutter/screens/login_screen.dart';  // Updated import path
+import 'package:eisenvaultappflutter/screens/browse/browse_screen_controller.dart';
+import 'package:eisenvaultappflutter/screens/browse/handlers/delete_handler.dart';
+import 'package:eisenvaultappflutter/screens/browse/handlers/file_tap_handler.dart';
+import 'package:eisenvaultappflutter/screens/browse/widgets/browse_drawer.dart';
+import 'package:eisenvaultappflutter/screens/browse/widgets/browse_navigation.dart';
+import 'package:eisenvaultappflutter/screens/browse/widgets/browse_app_bar.dart';
+import 'package:eisenvaultappflutter/screens/browse/widgets/browse_content.dart';
+import 'package:eisenvaultappflutter/screens/browse/widgets/download_progress_indicator.dart';
+import 'package:eisenvaultappflutter/services/delete/delete_service.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
-import 'package:eisenvaultappflutter/utils/file_type_utils.dart';
+import 'package:provider/provider.dart';
+import 'package:eisenvaultappflutter/services/offline/download_manager.dart';
+import 'package:eisenvaultappflutter/screens/browse/state/browse_screen_state.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
+import 'package:flutter/material.dart';
 
-/// Screen for browsing content available offline
+/// OfflineBrowseScreen is a dedicated screen that shows only the offline content.
 class OfflineBrowseScreen extends StatefulWidget {
-  final String instanceType;
   final String baseUrl;
   final String authToken;
+  final String firstName;
+  final String instanceType;
 
   const OfflineBrowseScreen({
     Key? key,
-    required this.instanceType,
     required this.baseUrl,
     required this.authToken,
+    required this.firstName,
+    required this.instanceType,
   }) : super(key: key);
 
   @override
@@ -27,372 +36,202 @@ class OfflineBrowseScreen extends StatefulWidget {
 }
 
 class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
-  late OfflineManager _offlineManager;
-  
-  List<BrowseItem> _items = [];
-  bool _isLoading = true;
-  String? _currentParentId;
-  List<BrowseItem> _navigationStack = [];
-  
+  OfflineManager? _offlineManager;
+  BrowseScreenController? _controller;
+  late FileTapHandler _fileTapHandler;
+  late DeleteHandler _deleteHandler;
+  late DeleteService _deleteService;
+
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
   @override
   void initState() {
     super.initState();
-    _initOfflineManager();
-  }
-  
-  Future<void> _initOfflineManager() async {
-    _offlineManager = await OfflineManager.createDefault();
-    _loadRootItems();
-    
-    // Debug: Dump database contents to help diagnose issues
-    _dumpDatabaseContents();
-  }
-  
-  Future<void> _dumpDatabaseContents() async {
-    await _offlineManager.dumpOfflineDatabase();
-  }
-  
-  Future<void> _loadRootItems() async {
-    setState(() {
-      _isLoading = true;
-    });
-    
-    try {
-      final items = await _offlineManager.getOfflineItems(null);
-      
-      setState(() {
-        _items = items;
-        _isLoading = false;
-        _currentParentId = null;
-        _navigationStack = [];
-      });
-    } catch (e) {
-      EVLogger.error('Failed to load offline items', e);
-      setState(() {
-        _isLoading = false;
-      });
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error loading offline content: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-  
-  Future<void> _loadFolderContents(BrowseItem folder) async {
-    setState(() {
-      _isLoading = true;
-    });
-    
-    try {
-      final items = await _offlineManager.getOfflineItems(folder.id);
-      
-      setState(() {
-        _items = items;
-        _isLoading = false;
-        _currentParentId = folder.id;
-        
-        if (_currentParentId == null) {
-          _navigationStack = [];
-        } else {
-          _navigationStack.add(folder);
-        }
-      });
-    } catch (e) {
-      EVLogger.error('Failed to load offline folder contents', {
-        'folderId': folder.id,
-        'error': e.toString()
-      });
-      
-      setState(() {
-        _isLoading = false;
-      });
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error loading folder: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-  
-  Future<void> _handleFileTap(BrowseItem file) async {
-    try {
-      final fileType = FileTypeUtils.getFileType(file.name);
-      
-      // Check if we have viewer support for this file type
-      if (fileType == FileType.unknown) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Preview not supported for ${file.name}'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        return;
-      }
-      
-      // Show loading indicator
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Loading file...'),
-          duration: Duration(seconds: 1),
-        ),
-      );
-      
-      // Get file content from offline storage
-      final fileContent = await _offlineManager.getFileContent(file.id);
-      
-      if (fileContent == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('File content not available offline: ${file.name}'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
-        return;
-      }
-      
-      if (!mounted) return;
-      
-      // Handle navigation to appropriate viewer based on file type
-      // This would need to be implemented similarly to FileTapHandler
-      _openAppropriateViewer(file.name, fileType, fileContent);
-      
-    } catch (e) {
-      EVLogger.error('Error opening offline file', {
-        'fileId': file.id,
-        'error': e.toString()
-      });
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error opening file: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-  
-  void _openAppropriateViewer(String fileName, FileType fileType, dynamic fileContent) {
-    // This would need to be implemented similar to the FileTapHandler._openAppropriateViewer method
-    // Opening appropriate viewers based on file type
-    // For brevity, we'll just show a message
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Opening $fileName in offline mode'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-  
-  void _navigateBack() {
-    if (_navigationStack.isEmpty) {
-      // At root level, navigate back to login screen
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => const LoginScreen(),
-        ),
-      );
-      return;
-    }
-    
-    if (_navigationStack.length == 1) {
-      // Back to root
-      _loadRootItems();
-    } else {
-      // Go to previous folder in stack
-      _navigationStack.removeLast(); // Remove current folder
-      final previousFolder = _navigationStack.removeLast(); // Get and remove previous folder
-      _loadFolderContents(previousFolder); // Load previous folder
-    }
+    _initializeOfflineComponents();
   }
 
-  // Add a new method to switch to online mode
-  void _switchToOnlineMode() async {
+  Future<void> _initializeOfflineComponents() async {
+    _offlineManager = await OfflineManager.createDefault();
+
+    _controller = BrowseScreenController(
+      baseUrl: widget.baseUrl,
+      authToken: widget.authToken,
+      instanceType: widget.instanceType,
+      onStateChanged: () {
+        if (mounted) setState(() {});
+      },
+      context: context,
+      scaffoldKey: _scaffoldKey,
+      offlineManager: _offlineManager!,
+    );
+
+    // Force offline mode
+    _controller!.setOfflineMode(true);
+    // Set forceOfflineMode to true in OfflineManager
+    OfflineManager.forceOfflineMode = true;
+
+    _deleteService = DeleteService(
+      repositoryType: widget.instanceType,
+      baseUrl: widget.baseUrl,
+      authToken: widget.authToken,
+      customerHostname: '', // not needed in offline mode
+    );
+
+    _deleteHandler = DeleteHandler(
+      context: context,
+      repositoryType: widget.instanceType,
+      baseUrl: widget.baseUrl,
+      authToken: widget.authToken,
+      deleteService: _deleteService,
+      onDeleteSuccess: _loadOfflineContent,
+    );
+
+    _fileTapHandler = FileTapHandler(
+      context: context,
+      instanceType: widget.instanceType,
+      baseUrl: widget.baseUrl,
+      authToken: widget.authToken,
+    );
+
+    await _loadOfflineContent();
+
+    // After initialization, trigger a rebuild.
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _loadOfflineContent() async {
     try {
-      // Get credentials from offline manager
-      final credentials = await _offlineManager.getSavedCredentials();
-      
-      if (credentials == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Cannot switch to online mode: No credentials found'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-        return;
-      }
-      
-      // Navigate to the online browse screen
+      setState(() {
+        _controller!.isLoading = true;
+      });
+      // Always load offline content from storage (root level)
+      final items = await _offlineManager!.getOfflineItems(null);
       if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => BrowseScreen(
-              baseUrl: credentials['baseUrl']!,
-              authToken: credentials['authToken']!,
-              firstName: credentials['username'] ?? 'User',
-              instanceType: credentials['instanceType']!,
-              customerHostname: credentials['instanceType'] == 'Angora' 
-                  ? Uri.parse(credentials['baseUrl']!).host 
-                  : 'classic-repository',
-            ),
-          ),
-        );
+        setState(() {
+          _controller!.items = items;
+          _controller!.isLoading = false;
+          _controller!.errorMessage = null;
+        });
       }
     } catch (e) {
-      EVLogger.error('Error switching to online mode', e);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error switching to online mode: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (!mounted) return;
+      setState(() {
+        _controller!.isLoading = false;
+        _controller!.errorMessage =
+            'Failed to load offline content: ${e.toString()}';
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Offline Files'),
-        backgroundColor: EVColors.appBarBackground,
-        foregroundColor: EVColors.appBarForeground,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: _navigateBack,
+    // If the controller isn't ready yet show a loading indicator.
+    if (_controller == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider<BrowseScreenController>.value(value: _controller!),
+        ChangeNotifierProvider<DownloadManager>(create: (_) => DownloadManager()),
+        ChangeNotifierProvider<BrowseScreenState>(
+          create: (_) {
+            final state = BrowseScreenState(
+              context: context,
+              baseUrl: widget.baseUrl,
+              authToken: widget.authToken,
+              instanceType: widget.instanceType,
+              scaffoldKey: _scaffoldKey,
+            );
+            state.controller = _controller;
+            return state;
+          },
         ),
-        actions: [
-          // Add online mode toggle
-          Row(
-            children: [
-              const Text('Go Online', 
-                style: TextStyle(fontSize: 12),
+      ],
+      builder: (context, child) => Scaffold(
+        key: _scaffoldKey,
+        backgroundColor: EVColors.screenBackground,
+        appBar: BrowseAppBar(
+          onDrawerOpen: () => _scaffoldKey.currentState?.openDrawer(),
+          onSearchTap: () {
+            // Disable search in offline mode.
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Search is available only online'),
+                backgroundColor: EVColors.statusWarning,
               ),
-              Switch(
-                value: false, // Always false in offline screen
-                activeColor: Colors.green,
-                onChanged: (value) {
-                  if (value) {
-                    _switchToOnlineMode();
-                  }
-                },
-              ),
-            ],
-          ),
-          // Existing refresh button
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              if (_currentParentId == null) {
-                _loadRootItems();
-              } else {
-                _loadFolderContents(_navigationStack.last);
-              }
-            },
-          ),
-        ],
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Display breadcrumbs
-          if (_navigationStack.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    InkWell(
-                      onTap: _loadRootItems,
-                      child: const Text(
-                        'Offline Root',
-                        style: TextStyle(fontWeight: FontWeight.w500),
+            );
+          },
+          onLogoutTap: () {}, // No logout action changes needed offline.
+          showBackButton: _controller!.navigationStack.isNotEmpty,
+          onBackPressed: () {
+            _controller!.handleBackNavigation();
+          },
+        ),
+        drawer: BrowseDrawer(
+          firstName: widget.firstName,
+          baseUrl: widget.baseUrl,
+          authToken: widget.authToken,
+          instanceType: widget.instanceType,
+          onLogoutTap: () {},
+          offlineManager: _offlineManager!,
+        ),
+        body: Column(
+          children: [
+            Container(
+              width: double.infinity,
+              color: Colors.orange.withOpacity(0.1),
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              child: Row(
+                children: [
+                  Icon(Icons.offline_pin, color: Colors.orange[700], size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Offline Mode - Showing offline content only',
+                      style: TextStyle(
+                        color: Colors.orange[900],
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                    ...List.generate(_navigationStack.length * 2 - 1, (index) {
-                      if (index.isOdd) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 4),
-                          child: Icon(Icons.chevron_right, size: 16, color: Colors.grey),
-                        );
-                      }
-                      
-                      final folderIndex = index ~/ 2;
-                      final folder = _navigationStack[folderIndex];
-                      
-                      return InkWell(
-                                               onTap: () {
-                          // Navigate to this folder
-                          _navigationStack = _navigationStack.sublist(0, folderIndex + 1);
-                          _loadFolderContents(folder);
-                        },
-                        child: Text(
-                          folder.name,
-                          style: TextStyle(
-                            fontWeight: folderIndex == _navigationStack.length - 1
-                                ? FontWeight.bold
-                                : FontWeight.w500,
-                            color: folderIndex == _navigationStack.length - 1
-                                ? EVColors.primaryBlue
-                                : Colors.black87,
-                          ),
-                        ),
-                      );
-                    }),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-            
-          // Main content
-          Expanded(
-            child: _buildContent(),
-          ),
-        ],
+            const BrowseNavigation(),
+            Expanded(
+              child: Stack(
+                children: [
+                  BrowseContent(
+                    onFolderTap: (folder) {
+                      _controller!.navigateToFolder(folder);
+                      _loadOfflineContent();
+                    },
+                    onFileTap: (file) => _fileTapHandler.handleFileTap(file),
+                    onDeleteTap: (item) => _deleteHandler.showDeleteConfirmation(item),
+                  ),
+                  const Positioned(
+                    bottom: 16,
+                    right: 16,
+                    child: DownloadProgressIndicator(),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        // Disable FAB: online actions are not available offline.
+        floatingActionButton: null,
       ),
     );
   }
-  
-  Widget _buildContent() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    
-    if (_items.isEmpty) {
-      return const EmptyFolderView();
-    }
-    
-    return FolderContentList(
-      items: _items,
-      selectionMode: false, // No selection in offline mode
-      selectedItems: const {}, // No selection
-      onItemSelected: (String itemId, bool selected) {}, // No selection
-      onFolderTap: (folder) => _loadFolderContents(folder),
-      onFileTap: (file) => _handleFileTap(file),
-      onDeleteTap: (item) {}, // No deletion in offline mode
-      showDeleteOption: false,
-      onRefresh: _currentParentId == null
-          ? _loadRootItems
-          : () => _loadFolderContents(_navigationStack.last),
-      onLoadMore: () async {}, // No pagination in offline mode
-      isLoadingMore: false,
-      hasMoreItems: false,
-    );
+
+  @override
+  void dispose() {
+    // Reset forceOfflineMode when leaving offline browse screen
+    OfflineManager.forceOfflineMode = false;
+    super.dispose();
   }
 }

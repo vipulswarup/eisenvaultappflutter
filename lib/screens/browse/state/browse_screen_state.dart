@@ -100,8 +100,8 @@ class BrowseScreenState extends ChangeNotifier {
       // Only notify if controller is initialized
       if (isControllerInitialized) {
         controller?.setOfflineMode(isNowOffline);
-        // Only refresh if we're going from offline to online
-        if (!isNowOffline) {
+        // Only refresh if we're going from offline to online and controller is not already loading
+        if (!isNowOffline && !controller!.isLoading) {
           refreshCurrentView();
         }
       }

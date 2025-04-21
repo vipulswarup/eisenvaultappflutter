@@ -206,6 +206,7 @@ class _OfflineLoginUIState extends State<OfflineLoginUI> {
               instanceType: credentials['instanceType']!,
               baseUrl: credentials['baseUrl']!,
               authToken: credentials['authToken']!,
+              firstName: credentials['firstName'] ?? 'User',
             ),
           ),
         );

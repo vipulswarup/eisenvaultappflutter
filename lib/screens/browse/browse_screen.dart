@@ -22,7 +22,7 @@ import 'package:eisenvaultappflutter/screens/browse/widgets/browse_actions.dart'
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_content.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_navigation.dart';
 
-/// The main browse screen that displays the repository content
+/// BrowseScreen handles online browsing of the repository content.
 class BrowseScreen extends StatefulWidget {
   final String baseUrl;
   final String authToken;
@@ -60,11 +60,9 @@ class UploadNavigationHandler {
     required this.controller,
   });
 
-  /// Navigate to the upload screen to add files to the current folder
+  /// Navigate to the upload screen to add files to the current folder.
   Future<void> navigateToUploadScreen() async {
-    // Get the current folder from the controller
     final currentFolder = controller.currentFolder;
-    
     if (currentFolder == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -75,14 +73,10 @@ class UploadNavigationHandler {
       return;
     }
 
-    // Get the correct parent folder ID
     String parentFolderId;
-
     if (instanceType.toLowerCase() == 'angora') {
-      // For Angora, we use the current folder ID directly
       parentFolderId = currentFolder.id;
     } else {
-      // For Alfresco/Classic, handle documentLibrary ID
       if (currentFolder.isDepartment) {
         if (currentFolder.documentLibraryId != null) {
           parentFolderId = currentFolder.documentLibraryId!;
@@ -112,7 +106,6 @@ class UploadNavigationHandler {
       ),
     );
 
-    // If upload was successful, refresh the current folder
     if (result == true) {
       refreshCurrentFolder();
     }
@@ -120,13 +113,11 @@ class UploadNavigationHandler {
 }
 
 class _BrowseScreenState extends State<BrowseScreen> {
-  // Connectivity variables
   final Connectivity _connectivity = Connectivity();
   bool _isOffline = false;
   late StreamSubscription<ConnectivityResult> _connectivitySubscription;
-  
-  // Controller and handlers
-  BrowseScreenController? _controller;  // Make nullable
+
+  BrowseScreenController? _controller;
   late FileTapHandler _fileTapHandler;
   late AuthHandler _authHandler;
   late DeleteHandler _deleteHandler;
@@ -134,99 +125,42 @@ class _BrowseScreenState extends State<BrowseScreen> {
   late BatchDeleteHandler _batchDeleteHandler;
   late UploadNavigationHandler _uploadHandler;
   late SearchNavigationHandler _searchHandler;
-  
-  // Selection mode state
+
   bool _isInSelectionMode = false;
   final Set<String> _selectedItems = {};
 
-  // Offline manager
   late OfflineManager _offlineManager;
 
-  // Global key for scaffold
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  // Define _refreshCurrentFolder first to avoid being referenced before declaration
   Future<void> _refreshCurrentFolder() async {
-    if (!mounted) return; // Check if widget is still mounted
-    
-    if (_isOffline) {
-      // In offline mode, load offline content
-      await _loadOfflineContent();
+    if (!mounted) return;
+    if (_controller?.currentFolder != null) {
+      await _controller!.loadFolderContents(_controller!.currentFolder!);
     } else {
-      if (_controller?.currentFolder != null) {
-        await _controller!.loadFolderContents(_controller!.currentFolder!);
-      } else {
-        await _controller!.loadDepartments();
-      }
+      await _controller!.loadDepartments();
     }
   }
 
-  Future<void> _loadOfflineContent() async {
-    if (!mounted) return; // Check if widget is still mounted
-    
-    try {
-      setState(() {
-        _controller!.isLoading = true;
-      });
-
-      // Get offline items for current folder
-      // If we're at the root level (no current folder), use null as parentId
-      // Otherwise use the current folder's ID
-      final String? parentId = _controller!.currentFolder?.id == 'root' 
-          ? null 
-          : _controller!.currentFolder?.id;
-          
-      final items = await _offlineManager.getOfflineItems(parentId);
-      
-      if (!mounted) return; // Check again after async operation
-      
-      setState(() {
-        _controller!.items = items;
-        _controller!.isLoading = false;
-        _controller!.errorMessage = null;
-      });
-    } catch (e) {
-      if (!mounted) return; // Check if widget is still mounted
-      
-      setState(() {
-        _controller!.isLoading = false;
-        _controller!.errorMessage = 'Failed to load offline content: ${e.toString()}';
-      });
-    }
-  }
-  
   void _updateConnectionStatus(ConnectivityResult result) {
-    if (!mounted) return; // Check if widget is still mounted
-    
+    if (!mounted) return;
     final wasOffline = _isOffline;
-    // Consider both ConnectivityResult.none and ConnectivityResult.other as offline states
     final isNowOffline = result == ConnectivityResult.none || result == ConnectivityResult.other;
-    
     if (wasOffline != isNowOffline) {
       setState(() {
         _isOffline = isNowOffline;
       });
-      
-      if (isNowOffline) {
-        
-        _loadOfflineContent();
-      } else {
-        
+      if (!_isOffline && _controller != null && !_controller!.isLoading) {
         _refreshCurrentFolder();
       }
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(isNowOffline 
-              ? 'You are offline. Showing available offline content.' 
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(isNowOffline
+              ? 'Switching to offline mode.'
               : 'Back online. Refreshing content...'),
-            backgroundColor: isNowOffline 
-              ? EVColors.statusWarning 
-              : EVColors.statusSuccess,
-          ),
-        );
-      }
+          backgroundColor: isNowOffline ? EVColors.statusWarning : EVColors.statusSuccess,
+        ),
+      );
     }
   }
 
@@ -236,27 +170,22 @@ class _BrowseScreenState extends State<BrowseScreen> {
       _updateConnectionStatus(result);
     } catch (e) {
       EVLogger.error('Error checking connectivity', e);
-      // If we can't check connectivity, assume we're offline
       _updateConnectionStatus(ConnectivityResult.none);
     }
-  }
-
-  bool _shouldShowOfflineToggle() {
-    return _offlineManager.hasOfflineContent() != null;
   }
 
   @override
   void initState() {
     super.initState();
     _initializeComponents();
+    _checkConnectivity();
+    _connectivitySubscription = _connectivity.onConnectivityChanged.listen(_updateConnectionStatus);
   }
 
   Future<void> _initializeComponents() async {
-    // Initialize offline manager first
     _offlineManager = await OfflineManager.createDefault();
     if (!mounted) return;
 
-    // Initialize controller
     _controller = BrowseScreenController(
       baseUrl: widget.baseUrl,
       authToken: widget.authToken,
@@ -269,22 +198,13 @@ class _BrowseScreenState extends State<BrowseScreen> {
       offlineManager: _offlineManager,
     );
 
-    // Initialize other components that depend on controller
-    _initializeHandlers();
-    _initConnectivityListener();
-    
-    // Load initial content
-    _controller?.loadDepartments();
-  }
-
-  void _initializeHandlers() {
     _deleteService = DeleteService(
       repositoryType: widget.instanceType,
       baseUrl: widget.baseUrl,
       authToken: widget.authToken,
       customerHostname: widget.customerHostname,
     );
-    
+
     _deleteHandler = DeleteHandler(
       context: context,
       repositoryType: widget.instanceType,
@@ -295,7 +215,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
         _refreshCurrentFolder();
       },
     );
-    
+
     _batchDeleteHandler = BatchDeleteHandler(
       context: context,
       instanceType: widget.instanceType,
@@ -313,20 +233,20 @@ class _BrowseScreenState extends State<BrowseScreen> {
         });
       },
     );
-    
+
     _fileTapHandler = FileTapHandler(
       context: context,
       instanceType: widget.instanceType,
       baseUrl: widget.baseUrl,
       authToken: widget.authToken,
     );
-    
+
     _authHandler = AuthHandler(
       context: context,
       instanceType: widget.instanceType,
       baseUrl: widget.baseUrl,
     );
-    
+
     _uploadHandler = UploadNavigationHandler(
       context: context,
       instanceType: widget.instanceType,
@@ -346,11 +266,12 @@ class _BrowseScreenState extends State<BrowseScreen> {
         _fileTapHandler.handleFileTap(document);
       },
     );
+
+    _controller?.loadDepartments();
   }
 
   @override
   Widget build(BuildContext context) {
-    // If controller is not initialized yet, show a loading indicator
     if (_controller == null) {
       return const Scaffold(
         body: Center(
@@ -358,7 +279,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
         ),
       );
     }
-    
+
     return MultiProvider(
       providers: [
         ChangeNotifierProvider<BrowseScreenController>.value(value: _controller!),
@@ -372,7 +293,6 @@ class _BrowseScreenState extends State<BrowseScreen> {
               instanceType: widget.instanceType,
               scaffoldKey: _scaffoldKey,
             );
-            // Explicitly set the controller reference
             state.controller = _controller;
             return state;
           },
@@ -380,7 +300,6 @@ class _BrowseScreenState extends State<BrowseScreen> {
       ],
       builder: (context, child) => WillPopScope(
         onWillPop: () async {
-          // Handle back button press
           final state = Provider.of<BrowseScreenState>(context, listen: false);
           return !state.handleBackButton();
         },
@@ -392,15 +311,9 @@ class _BrowseScreenState extends State<BrowseScreen> {
               onDrawerOpen: () => _scaffoldKey.currentState?.openDrawer(),
               onSearchTap: () => _searchHandler.navigateToSearch(),
               onLogoutTap: _authHandler.showLogoutConfirmation,
-              // Show back button if we're not at root level or have navigation stack
-              showBackButton: (_controller!.currentFolder != null && 
-                              _controller!.currentFolder!.id != 'root') ||
-                              _controller!.navigationStack.isNotEmpty,
+              showBackButton: (_controller!.currentFolder != null && _controller!.currentFolder!.id != 'root') ||
+                  _controller!.navigationStack.isNotEmpty,
               onBackPressed: () {
-                // Log the current state for debugging
-                
-                
-                // Use the controller's handleBackNavigation method
                 _controller!.handleBackNavigation();
               },
             ),
@@ -410,45 +323,18 @@ class _BrowseScreenState extends State<BrowseScreen> {
               authToken: widget.authToken,
               instanceType: widget.instanceType,
               onLogoutTap: _authHandler.showLogoutConfirmation,
-              offlineManager: _offlineManager, // Pass the offlineManager here
+              offlineManager: _offlineManager,
             ),
             body: Column(
               children: [
-                Consumer<BrowseScreenState>(
-                  builder: (context, state, child) {
-                    if (state.isOffline) {
-                      return Container(
-                        width: double.infinity,
-                        color: Colors.orange.withOpacity(0.1),
-                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                        child: Row(
-                          children: [
-                            Icon(Icons.offline_pin, color: Colors.orange[700], size: 20),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Offline Mode - Showing available offline content',
-                                style: TextStyle(
-                                  color: Colors.orange[900],
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                    return const SizedBox.shrink();
-                  },
-                ),
                 const BrowseNavigation(),
                 Expanded(
                   child: Stack(
                     children: [
                       BrowseContent(
                         onFolderTap: (folder) {
-                          
                           _controller!.navigateToFolder(folder);
+                          _refreshCurrentFolder();
                         },
                         onFileTap: (file) => _fileTapHandler.handleFileTap(file),
                         onDeleteTap: (item) => _deleteHandler.showDeleteConfirmation(item),
@@ -479,11 +365,6 @@ class _BrowseScreenState extends State<BrowseScreen> {
         ),
       ),
     );
-  }
-
-  void _initConnectivityListener() {
-    _connectivitySubscription = 
-        _connectivity.onConnectivityChanged.listen(_updateConnectionStatus);
   }
 
   @override

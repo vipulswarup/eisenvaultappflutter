@@ -1,6 +1,7 @@
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/screens/offline/offline_settings_screen.dart';
 import 'package:eisenvaultappflutter/screens/browse/browse_screen.dart';
+import 'package:eisenvaultappflutter/screens/offline/offline_browse_screen.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:flutter/material.dart';
 
@@ -106,12 +107,11 @@ class BrowseDrawer extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => BrowseScreen(
+                  builder: (context) => OfflineBrowseScreen(
                     baseUrl: baseUrl,
                     authToken: authToken,
                     firstName: firstName,
                     instanceType: instanceType,
-                    customerHostname: '', // Add appropriate hostname if needed
                   ),
                 ),
               );

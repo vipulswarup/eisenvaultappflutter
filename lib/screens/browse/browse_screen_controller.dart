@@ -183,8 +183,6 @@ class BrowseScreenController extends ChangeNotifier {
   Future<void> loadFolderContents(BrowseItem folder) async {
     if (isLoading) return;
     
-    
-    
     try {
       isLoading = true;
       errorMessage = null;
@@ -193,10 +191,14 @@ class BrowseScreenController extends ChangeNotifier {
       // Set current folder
       currentFolder = folder;
       
+      // Check both actual connectivity and forced offline mode
+      _isOffline = OfflineManager.forceOfflineMode || await _offlineManager.isOffline();
+      
       // Load folder contents
       if (_isOffline) {
         final offlineItems = await _offlineManager.getOfflineItems(folder.id);
         items = offlineItems;
+        _hasMoreItems = false;
       } else {
         final browseService = BrowseServiceFactory.getService(
           instanceType, 
@@ -211,12 +213,11 @@ class BrowseScreenController extends ChangeNotifier {
         );
         
         items = result;
+        _hasMoreItems = result.length >= _itemsPerPage;
       }
       
       // Reset pagination
       _currentPage = 0;
-      _hasMoreItems = items.length >= _itemsPerPage;
-      
       
     } catch (e) {
       EVLogger.error('FOLDER NAVIGATION: Error loading folder contents', {
@@ -235,7 +236,6 @@ class BrowseScreenController extends ChangeNotifier {
 
   /// Loads top-level departments/folders
   Future<void> loadDepartments() async {
-    
     isLoading = true;
     errorMessage = null;
     _currentPage = 0;
@@ -246,26 +246,21 @@ class BrowseScreenController extends ChangeNotifier {
     currentFolder = null;
     
     _notifyListeners();
-    
 
     try {
-      _isOffline = await _offlineManager.isOffline();
-      
+      // Check both actual connectivity and forced offline mode
+      _isOffline = OfflineManager.forceOfflineMode || await _offlineManager.isOffline();
       
       if (_isOffline) {
-        
         final offlineItems = await _offlineManager.getOfflineItems(null);
-        
         items = offlineItems;
         _hasMoreItems = false;
       } else {
-        
         final browseService = BrowseServiceFactory.getService(
           instanceType, 
           baseUrl, 
           authToken
         );
-        
 
         final rootItem = BrowseItem(
           id: 'root',
@@ -273,33 +268,24 @@ class BrowseScreenController extends ChangeNotifier {
           type: 'folder',
           isDepartment: instanceType == 'Angora',
         );
-        
 
-        
         final loadedItems = await browseService.getChildren(
           rootItem,
           skipCount: 0,
           maxItems: _itemsPerPage,
         );
         
-        
-        
-        
         items = loadedItems;
         if (loadedItems.length < _itemsPerPage) {
           _hasMoreItems = false;
         }
-        
       }
     } catch (e) {
       EVLogger.error('Error loading departments', e);
       errorMessage = 'Failed to load departments: ${e.toString()}';
     } finally {
-      
       isLoading = false;
       _notifyListeners();
-      
-      
     }
   }
 
@@ -332,19 +318,20 @@ class BrowseScreenController extends ChangeNotifier {
     // Don't navigate if we're already loading
     if (isLoading) return;
     
-    
-    
     try {
       // Set loading state
       isLoading = true;
       errorMessage = null;
       _notifyListeners();
       
+      // Check both actual connectivity and forced offline mode
+      _isOffline = OfflineManager.forceOfflineMode || await _offlineManager.isOffline();
+      
       // Load folder contents first
       if (_isOffline) {
         final offlineItems = await _offlineManager.getOfflineItems(folder.id);
         items = offlineItems;
-        
+        _hasMoreItems = false;
       } else {
         final browseService = BrowseServiceFactory.getService(
           instanceType, 
@@ -352,26 +339,22 @@ class BrowseScreenController extends ChangeNotifier {
           authToken
         );
         
-        
         final result = await browseService.getChildren(
           folder,
           skipCount: 0,
           maxItems: _itemsPerPage,
         );
         
-        
-        
         items = result;
+        _hasMoreItems = result.length >= _itemsPerPage;
       }
       
       // Update navigation stack after loading contents
       if (currentFolder != null && currentFolder!.id != 'root') {
         navigationStack.add(currentFolder!);
-        
       } else if (currentFolder?.id == 'root') {
         // Clear navigation stack when coming from root
         navigationStack.clear();
-        
       }
       
       // Set current folder
@@ -379,8 +362,6 @@ class BrowseScreenController extends ChangeNotifier {
       
       // Reset pagination
       _currentPage = 0;
-      _hasMoreItems = items.length >= _itemsPerPage;
-      
       
     } catch (e) {
       EVLogger.error('FOLDER NAVIGATION: Error navigating to folder', {
