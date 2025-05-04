@@ -319,7 +319,6 @@ class BrowseScreenController extends ChangeNotifier {
     if (isLoading) return;
     
     try {
-      // Set loading state
       isLoading = true;
       errorMessage = null;
       _notifyListeners();
@@ -327,7 +326,7 @@ class BrowseScreenController extends ChangeNotifier {
       // Check both actual connectivity and forced offline mode
       _isOffline =  await _offlineManager.isOffline();
       
-      // Load folder contents first
+      // No special handling for departments/sites; just load their children
       if (_isOffline) {
         final offlineItems = await _offlineManager.getOfflineItems(folder.id);
         items = offlineItems;

@@ -1,5 +1,6 @@
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
+import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:flutter/material.dart';
 
 class BrowseItemTile extends StatelessWidget {
@@ -54,6 +55,12 @@ class BrowseItemTile extends StatelessWidget {
       onTap: selectionMode
           ? () => onSelectionChanged?.call(!isSelected)
           : onTap,
+      onLongPress: () {
+        // Trigger selection mode on long press
+        if (!selectionMode && onSelectionChanged != null) {
+          onSelectionChanged!(true);
+        }
+      },
     );
   }
 

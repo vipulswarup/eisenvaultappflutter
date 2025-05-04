@@ -30,9 +30,9 @@ class ClassicBrowseService implements BrowseService {
         return _getSitesFolderContents(skipCount: skipCount, maxItems: maxItems);
       }
       
-      // If this is a department/site, we need to get its documentLibrary
+      // If this is a department/site, fetch its containers (including documentLibrary)
       if (parent.isDepartment) {
-        return _getSiteDocumentLibraryContents(parent.id, skipCount: skipCount, maxItems: maxItems);
+        return _getSiteContainers(parent.id, skipCount: skipCount, maxItems: maxItems);
       }
       
       // Otherwise, get children of the specified folder
@@ -123,73 +123,89 @@ class ClassicBrowseService implements BrowseService {
     }
   }
   
-  /// Fetches the Document Library contents for a specific site
-  Future<List<BrowseItem>> _getSiteDocumentLibraryContents(
+  /// Fetches the containers (e.g. documentLibrary) for a specific site
+  Future<List<BrowseItem>> _getSiteContainers(
     String siteId, {
     int skipCount = 0,
     int maxItems = 25,
   }) async {
     try {
-      // First, we need to get the documentLibrary container node ID for this site
-      final urlDocLib = Uri.parse(
-        _baseService.buildUrl('api/-default-/public/alfresco/versions/1/sites/$siteId/containers/documentLibrary')
+      final url = Uri.parse(
+        _baseService.buildUrl('api/-default-/public/alfresco/versions/1/sites/$siteId/containers?skipCount=$skipCount&maxItems=$maxItems')
       );
-      
-      final docLibResponse = await http.get(
-        urlDocLib,
+      final response = await http.get(
+        url,
         headers: _baseService.createHeaders(),
       );
-      
-      if (docLibResponse.statusCode != 200) {
-        EVLogger.error('Failed to fetch document library', {
-          'statusCode': docLibResponse.statusCode,
-          'body': docLibResponse.body
+      if (response.statusCode != 200) {
+        EVLogger.error('Failed to fetch site containers', {
+          'statusCode': response.statusCode,
+          'body': response.body
         });
-        throw Exception('Failed to fetch document library: ${docLibResponse.statusCode}');
+        throw Exception('Failed to fetch site containers: ${response.statusCode}');
       }
-      
-      final docLibData = json.decode(docLibResponse.body);
-      final docLibId = docLibData['entry']['id'];
-      
-      // Now fetch the contents of the document library
-      final urlContents = Uri.parse(
-        _baseService.buildUrl('api/-default-/public/alfresco/versions/1/nodes/$docLibId/children?include=path,properties,allowableOperations&skipCount=$skipCount&maxItems=$maxItems')
-      );
-      
-      final contentsResponse = await http.get(
-        urlContents,
-        headers: _baseService.createHeaders(),
-      );
-      
-      if (contentsResponse.statusCode != 200) {
-        EVLogger.error('Failed to fetch document library contents', {
-          'statusCode': contentsResponse.statusCode,
-          'body': contentsResponse.body
-        });
-        throw Exception('Failed to fetch document library contents: ${contentsResponse.statusCode}');
+      final data = json.decode(response.body);
+      if (data['list'] == null || data['list']['entries'] == null) {
+        EVLogger.error('Invalid response format for site containers');
+        throw Exception('Invalid response format for site containers');
       }
-      
-      final contentsData = json.decode(contentsResponse.body);
-      
-      if (contentsData['list'] == null || contentsData['list']['entries'] == null) {
-        EVLogger.error('Invalid response format for document library contents');
-        throw Exception('Invalid response format for document library contents');
+      final containers = <BrowseItem>[];
+      for (final entry in data['list']['entries']) {
+        final container = entry['entry'];
+        // Fetch permissions for this container
+        List<String>? allowableOperations;
+        try {
+          final permUrl = Uri.parse(
+            _baseService.buildUrl('api/-default-/public/alfresco/versions/1/nodes/${container['id']}?include=allowableOperations')
+          );
+          final permResponse = await http.get(
+            permUrl,
+            headers: _baseService.createHeaders(),
+          );
+          if (permResponse.statusCode == 200) {
+            final permData = json.decode(permResponse.body);
+            if (permData['entry'] != null && permData['entry']['allowableOperations'] != null) {
+              allowableOperations = List<String>.from(permData['entry']['allowableOperations']);
+            }
+          }
+        } catch (e) {
+          EVLogger.error('Failed to fetch permissions for container', {
+            'containerId': container['id'],
+            'error': e.toString(),
+          });
+        }
+        containers.add(BrowseItem(
+          id: container['id'],
+          name: container['folderId'] ?? container['id'],
+          type: 'folder',
+          description: container['title'] ?? '',
+          isDepartment: false,
+          modifiedDate: container['modifiedAt'],
+          modifiedBy: container['modifiedByUser']?['displayName'],
+          allowableOperations: allowableOperations,
+        ));
       }
-      
-      final items = (contentsData['list']['entries'] as List)
-          .map((entry) => _mapAlfrescoBrowseItem(entry['entry']))
-          .toList();
-      
-      EVLogger.info('Retrieved document library contents', {'count': items.length});
-      return items;
+      EVLogger.info('Retrieved site containers', {'count': containers.length});
+      return containers;
     } catch (e) {
-      EVLogger.error('Failed to get document library contents', e);
-      throw Exception('Failed to get document library contents: ${e.toString()}');
+      EVLogger.error('Failed to get site containers', e);
+      throw Exception('Failed to get site containers: ${e.toString()}');
     }
   }
 
   /// Maps an Alfresco API response item to a BrowseItem object
   BrowseItem _mapAlfrescoBrowseItem(Map<String, dynamic> entry) {
+    // Extract allowable operations
+    List<String>? allowableOperations;
+    if (entry['allowableOperations'] != null) {
+      allowableOperations = List<String>.from(entry['allowableOperations']);
+    } else if (entry['permissions'] != null) {
+      // Fallback to permissions if allowableOperations is not present
+      if (entry['permissions'] is List) {
+        allowableOperations = List<String>.from(entry['permissions']);
+      }
+    }
+
     return BrowseItem(
       id: entry['id'],
       name: entry['name'],
@@ -198,9 +214,7 @@ class ClassicBrowseService implements BrowseService {
       modifiedDate: entry['modifiedAt'],
       modifiedBy: entry['modifiedByUser']?['displayName'],
       isDepartment: entry['nodeType'] == 'st:site',
-      allowableOperations: entry['allowableOperations'] != null
-          ? List<String>.from(entry['allowableOperations'])
-          : null,
+      allowableOperations: allowableOperations,
     );
   }
 

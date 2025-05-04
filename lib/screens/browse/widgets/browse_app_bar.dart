@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
+import 'package:provider/provider.dart';
+import '../state/browse_screen_state.dart';
 
 class BrowseAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback onDrawerOpen;
@@ -21,6 +23,9 @@ class BrowseAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final state = !isOfflineMode
+        ? Provider.of<BrowseScreenState>(context, listen: false)
+        : null;
     return AppBar(
       backgroundColor: EVColors.appBarBackground,
       foregroundColor: EVColors.appBarForeground,
@@ -35,10 +40,22 @@ class BrowseAppBar extends StatelessWidget implements PreferredSizeWidget {
             ),
       title: Text(isOfflineMode ? 'Offline Content' : 'Browse'),
       actions: [
-        IconButton(
-          icon: const Icon(Icons.search),
-          onPressed: onSearchTap,
-        ),
+        if (!isOfflineMode && state != null) ...[
+          IconButton(
+            icon: Icon(state.isInSelectionMode ? Icons.close : Icons.select_all),
+            onPressed: () {
+              if (state.isInSelectionMode) {
+                state.exitSelectionMode();
+              } else {
+                state.toggleSelectionMode();
+              }
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: onSearchTap,
+          ),
+        ],
         IconButton(
           icon: const Icon(Icons.logout),
           onPressed: onLogoutTap,

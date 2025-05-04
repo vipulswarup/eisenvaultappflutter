@@ -1,6 +1,8 @@
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/widgets/browse_item_tile.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../state/browse_screen_state.dart';
 
 /// Widget that displays a list of folder contents
 class FolderContentList extends StatelessWidget {
@@ -41,6 +43,7 @@ class FolderContentList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final state = Provider.of<BrowseScreenState>(context, listen: false);
     return RefreshIndicator(
       onRefresh: onRefresh,
       child: ListView.builder(
@@ -49,10 +52,10 @@ class FolderContentList extends StatelessWidget {
           if (index == items.length) {
             return _buildLoadMoreIndicator();
           }
-          
           final item = items[index];
           final isSelected = selectedItems.contains(item.id);
-          
+
+          // Always pass onSelectionChanged to BrowseItemTile
           return selectionMode
               ? _buildSelectableItem(context, item, isSelected)
               : FutureBuilder<bool>(
@@ -71,6 +74,15 @@ class FolderContentList extends StatelessWidget {
                       showDeleteOption: showDeleteOption,
                       isAvailableOffline: snapshot.data ?? false,
                       onOfflineToggle: onOfflineToggle,
+                      selectionMode: false,
+                      isSelected: isSelected,
+                      onSelectionChanged: (selected) {
+                        // If not in selection mode, enter it and select the item
+                        if (!state.isInSelectionMode) {
+                          state.toggleSelectionMode();
+                        }
+                        state.toggleItemSelection(item.id);
+                      },
                     );
                   },
                 );

@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_drawer.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_navigation.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_app_bar.dart';
+import 'package:eisenvaultappflutter/screens/browse/browse_screen.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:flutter/material.dart';
@@ -32,6 +34,10 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
   /// OfflineManager instance, initialized asynchronously.
   OfflineManager? _offlineManager;
 
+  /// Connectivity subscription for online detection
+  StreamSubscription<ConnectivityResult>? _connectivitySubscription;
+  bool _navigatingToOnline = false;
+
   /// Scaffold key for drawer control.
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -46,6 +52,41 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
   void initState() {
     super.initState();
     _initializeOfflineComponents();
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((result) {
+      final isOnline = result != ConnectivityResult.none && result != ConnectivityResult.other;
+      if (isOnline) {
+        if (_navigatingToOnline) return;
+        _navigatingToOnline = true;
+        if (!mounted) {
+          EVLogger.info('OfflineBrowseScreen: Widget not mounted, skipping context usage');
+          return;
+        }
+        EVLogger.info('Device went online, navigating back to BrowseScreen');
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (context) => BrowseScreen(
+                baseUrl: widget.baseUrl,
+                authToken: widget.authToken,
+                firstName: widget.firstName,
+                instanceType: widget.instanceType,
+                customerHostname: '', // Provide if needed
+              ),
+            ),
+            (route) => false,
+          );
+        });
+      } else {
+        _navigatingToOnline = false;
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _connectivitySubscription?.cancel();
+    super.dispose();
   }
 
   /// Initializes the OfflineManager and loads the initial offline content.
@@ -121,6 +162,7 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
 
   /// Handles tapping on a file: attempts to open it from offline storage.
   Future<void> _handleFileTap(BrowseItem file) async {
+    EVLogger.info('OfflineBrowseScreen: File tapped', {'fileId': file.id, 'fileName': file.name});
     if (_offlineManager == null) return;
     try {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -133,6 +175,7 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
       final fileContent = await _offlineManager!.getFileContent(file.id);
 
       if (fileContent == null) {
+        EVLogger.error('OfflineBrowseScreen: File content not available offline', {'fileId': file.id});
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('File content not available offline'),
@@ -156,6 +199,7 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
 
   /// Opens the file in an appropriate viewer (stub for now).
   void _openFileViewer(BrowseItem file, dynamic fileContent) {
+    EVLogger.info('OfflineBrowseScreen: Opening file viewer', {'fileId': file.id, 'fileName': file.name});
     // TODO: Implement actual file viewing logic based on file type.
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

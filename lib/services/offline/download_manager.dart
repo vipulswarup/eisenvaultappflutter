@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:eisenvaultappflutter/services/offline/download_progress.dart';
+import 'package:eisenvaultappflutter/utils/logger.dart';
 
 class DownloadManager extends ChangeNotifier {
-  static final DownloadManager _instance = DownloadManager._internal();
-  factory DownloadManager() => _instance;
-  
-  DownloadManager._internal();
+  DownloadManager() {
+    EVLogger.info('DownloadManager created', {'hashCode': hashCode});
+  }
 
   bool _isDownloading = false;
   DownloadProgress? _currentProgress;
@@ -22,6 +22,7 @@ class DownloadManager extends ChangeNotifier {
   bool get isMinimized => _isMinimized;
 
   void startDownload() {
+    EVLogger.info('DownloadManager.startDownload', {'hashCode': hashCode});
     if (_isDisposed) return;
     _isDownloading = true;
     _isMinimized = false;
@@ -29,6 +30,7 @@ class DownloadManager extends ChangeNotifier {
   }
 
   void updateProgress(DownloadProgress progress) {
+    EVLogger.info('DownloadManager.updateProgress', {'hashCode': hashCode, 'progress': progress.progress});
     if (_isDisposed) return;
     _currentProgress = progress;
     if (!_progressController.isClosed) {
@@ -38,6 +40,7 @@ class DownloadManager extends ChangeNotifier {
   }
 
   void completeDownload() {
+    EVLogger.info('DownloadManager.completeDownload', {'hashCode': hashCode});
     if (_isDisposed) return;
     _isDownloading = false;
     _currentProgress = null;
@@ -53,6 +56,7 @@ class DownloadManager extends ChangeNotifier {
 
   @override
   void dispose() {
+    EVLogger.info('DownloadManager disposed', {'hashCode': hashCode});
     _isDisposed = true;
     if (!_progressController.isClosed) {
       _progressController.close();

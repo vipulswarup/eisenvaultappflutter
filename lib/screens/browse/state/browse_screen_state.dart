@@ -59,10 +59,15 @@ class BrowseScreenState extends ChangeNotifier {
       );
       
       // Initialize connectivity monitoring
-      _initConnectivityMonitoring();
+      _connectivitySubscription = _connectivity.onConnectivityChanged.listen((result) {
+        _isOffline = result == ConnectivityResult.none;
+        notifyListeners();
+      });
       
       // Check initial connectivity
-      await _checkConnectivity();
+      final result = await _connectivity.checkConnectivity();
+      _isOffline = result == ConnectivityResult.none;
+      notifyListeners();
       
       // Notify listeners that controller is ready
       notifyListeners();
@@ -73,40 +78,16 @@ class BrowseScreenState extends ChangeNotifier {
     }
   }
   
-  /// Initialize connectivity monitoring
-  void _initConnectivityMonitoring() {
-    _connectivitySubscription = _connectivity.onConnectivityChanged.listen(_updateConnectionStatus);
-  }
+  /// Getters
+  bool get isOffline => _isOffline;
+  bool get isInSelectionMode => _isInSelectionMode;
+  Set<String> get selectedItems => _selectedItems;
+  bool get isControllerInitialized => controller != null;
   
-  /// Check initial connectivity
-  Future<void> _checkConnectivity() async {
-    try {
-      final result = await _connectivity.checkConnectivity();
-      _updateConnectionStatus(result);
-    } catch (e) {
-      EVLogger.error('Error checking connectivity', e);
-      // If we can't check connectivity, assume we're offline
-      _updateConnectionStatus(ConnectivityResult.none);
-    }
-  }
-  
-  /// Update connection status
-  void _updateConnectionStatus(ConnectivityResult result) {
-    // Consider both ConnectivityResult.none and ConnectivityResult.other as offline states
-    final isNowOffline = result == ConnectivityResult.none || result == ConnectivityResult.other;
-    
-    if (_isOffline != isNowOffline) {
-      _isOffline = isNowOffline;
-      // Only notify if controller is initialized
-      if (isControllerInitialized) {
-        controller?.setOfflineMode(isNowOffline);
-        // Only refresh if we're going from offline to online and controller is not already loading
-        if (!isNowOffline && !controller!.isLoading) {
-          refreshCurrentView();
-        }
-      }
-      notifyListeners();
-    }
+  /// Get selected browse items
+  List<BrowseItem> getSelectedBrowseItems() {
+    if (!isControllerInitialized) return [];
+    return controller?.items.where((item) => _selectedItems.contains(item.id)).toList() ?? [];
   }
   
   /// Toggle selection mode
@@ -136,15 +117,6 @@ class BrowseScreenState extends ChangeNotifier {
   /// Get the count of selected items
   int get selectedItemCount => _selectedItems.length;
   
-  /// Get the set of selected items
-  Set<String> get selectedItems => _selectedItems;
-  
-  /// Check if in selection mode
-  bool get isInSelectionMode => _isInSelectionMode;
-  
-  /// Check if offline
-  bool get isOffline => _isOffline;
-  
   /// Set offline mode
   void setOfflineMode(bool offline) {
     if (_isOffline != offline) {
@@ -155,15 +127,6 @@ class BrowseScreenState extends ChangeNotifier {
       }
       notifyListeners();
     }
-  }
-  
-  /// Check if controller is initialized
-  bool get isControllerInitialized => controller != null;
-  
-  /// Get selected browse items
-  List<BrowseItem> getSelectedBrowseItems() {
-    if (!isControllerInitialized) return [];
-    return controller?.items.where((item) => _selectedItems.contains(item.id)).toList() ?? [];
   }
   
   /// Clear selection
@@ -181,61 +144,43 @@ class BrowseScreenState extends ChangeNotifier {
   
   /// Refresh the current view
   Future<void> refreshCurrentView() async {
-    
-    if (!isControllerInitialized) {
-      
-      return;
-    }
+    if (!isControllerInitialized) return;
     
     if (controller?.currentFolder != null) {
-      
       await controller?.loadFolderContents(controller!.currentFolder!);
     } else {
-      
       await controller?.loadDepartments();
     }
-    
   }
   
   /// Handle back button press
   /// Returns true if the back button press was handled, false otherwise
   bool handleBackButton() {
     // If controller is not initialized, can't handle back
-    if (!isControllerInitialized) {
-      
-      return false;
-    }
+    if (!isControllerInitialized) return false;
     
     // Get the current state directly from the controller
     final currentFolder = controller!.currentFolder;
     final navigationStack = controller!.navigationStack;
     
-    
-    
     // If in selection mode, exit selection mode
     if (_isInSelectionMode) {
       exitSelectionMode();
-      
       return true;
     }
     
     // If we have a navigation stack, go back
     if (navigationStack.isNotEmpty) {
       final previousFolder = navigationStack.removeLast();
-      
-      
-      // Load the previous folder's contents
       controller!.loadFolderContents(previousFolder);
       return true;
     }
     
     // If we're not at the root level, go to root
     if (currentFolder != null && currentFolder.id != 'root') {
-      
       controller!.loadDepartments();
       return true;
     }
-    
     
     return false;
   }

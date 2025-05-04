@@ -21,6 +21,8 @@ import 'package:eisenvaultappflutter/screens/browse/widgets/browse_app_bar.dart'
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_actions.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_content.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_navigation.dart';
+import 'package:eisenvaultappflutter/screens/browse/handlers/batch_offline_handler.dart';
+import 'package:eisenvaultappflutter/screens/offline/offline_browse_screen.dart';
 
 /// BrowseScreen handles online browsing of the repository content.
 class BrowseScreen extends StatefulWidget {
@@ -113,9 +115,16 @@ class UploadNavigationHandler {
 }
 
 class _BrowseScreenState extends State<BrowseScreen> {
+  /// Connectivity instance to monitor network changes.
   final Connectivity _connectivity = Connectivity();
+  
+  //a boolean to track if the app is offline
   bool _isOffline = false;
+  //a stream subscription to listen to connectivity changes
   late StreamSubscription<ConnectivityResult> _connectivitySubscription;
+
+  // Show/hide download indicator
+  bool _showDownloadIndicator = true;
 
   BrowseScreenController? _controller;
   late FileTapHandler _fileTapHandler;
@@ -123,23 +132,34 @@ class _BrowseScreenState extends State<BrowseScreen> {
   late DeleteHandler _deleteHandler;
   late DeleteService _deleteService;
   late BatchDeleteHandler _batchDeleteHandler;
+  late BatchOfflineHandler _batchOfflineHandler;
   late UploadNavigationHandler _uploadHandler;
   late SearchNavigationHandler _searchHandler;
 
+  // A set to keep track of selected items for batch operations
   final Set<String> _selectedItems = {};
 
   late OfflineManager _offlineManager;
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
+  // A helper method to log the current folder state for debugging purposes
+  // This method is called after the current folder is refreshed
+  void _logCurrentFolderState() {}
+
   Future<void> _refreshCurrentFolder() async {
     if (!mounted) return;
     if (_controller?.currentFolder != null) {
       await _controller!.loadFolderContents(_controller!.currentFolder!);
+      _logCurrentFolderState(); // Log after refresh
     } else {
+      //If there's no current folder, this calls the loadDepartments method on the controller and awaits its completion. 
       await _controller!.loadDepartments();
     }
   }
+
+  // Add a debounce flag
+  bool _navigatingToOffline = false;
 
   void _updateConnectionStatus(ConnectivityResult result) {
     if (!mounted) return;
@@ -148,9 +168,14 @@ class _BrowseScreenState extends State<BrowseScreen> {
     if (wasOffline != isNowOffline) {
       setState(() {
         _isOffline = isNowOffline;
+        if (isNowOffline) _showDownloadIndicator = false;
       });
       if (!_isOffline && _controller != null && !_controller!.isLoading) {
         _refreshCurrentFolder();
+      }
+      if (!mounted) {
+        EVLogger.info('BrowseScreen: Widget not mounted, skipping context usage');
+        return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -160,6 +185,28 @@ class _BrowseScreenState extends State<BrowseScreen> {
           backgroundColor: isNowOffline ? EVColors.statusWarning : EVColors.statusSuccess,
         ),
       );
+      // Debounce navigation to avoid double navigation
+      if (isNowOffline) {
+        if (_navigatingToOffline) return;
+        _navigatingToOffline = true;
+        EVLogger.info('Device went offline, navigating to OfflineBrowseScreen');
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (context) => OfflineBrowseScreen(
+                baseUrl: widget.baseUrl,
+                authToken: widget.authToken,
+                firstName: widget.firstName,
+                instanceType: widget.instanceType,
+              ),
+            ),
+            (route) => false,
+          );
+        });
+      } else {
+        _navigatingToOffline = false;
+      }
     }
   }
 
@@ -232,6 +279,18 @@ class _BrowseScreenState extends State<BrowseScreen> {
       },
     );
 
+    _batchOfflineHandler = BatchOfflineHandler(
+      context: context,
+      instanceType: widget.instanceType,
+      baseUrl: widget.baseUrl,
+      authToken: widget.authToken,
+      offlineManager: _offlineManager,
+      getSelectedItems: () => _controller?.items.where((item) => _selectedItems.contains(item.id)).toList() ?? [],
+      onOfflineSuccess: () {
+        _refreshCurrentFolder();
+      },
+    );
+
     _fileTapHandler = FileTapHandler(
       context: context,
       instanceType: widget.instanceType,
@@ -281,7 +340,13 @@ class _BrowseScreenState extends State<BrowseScreen> {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider<BrowseScreenController>.value(value: _controller!),
-        ChangeNotifierProvider<DownloadManager>(create: (_) => DownloadManager()),
+        ChangeNotifierProvider<DownloadManager>(
+          create: (_) {
+            EVLogger.info('BrowseScreen: Creating DownloadManager provider');
+            return DownloadManager();
+          },
+          // No explicit dispose needed, DownloadManager logs its own dispose
+        ),
         ChangeNotifierProvider<BrowseScreenState>(
           create: (_) {
             final state = BrowseScreenState(
@@ -342,10 +407,10 @@ class _BrowseScreenState extends State<BrowseScreen> {
                         onFileTap: (file) => _fileTapHandler.handleFileTap(file),
                         onDeleteTap: (item) => _deleteHandler.showDeleteConfirmation(item),
                       ),
-                      const Positioned(
+                      Positioned(
                         bottom: 16,
                         right: 16,
-                        child: DownloadProgressIndicator(),
+                        child: _showDownloadIndicator ? DownloadProgressIndicator() : SizedBox.shrink(),
                       ),
                     ],
                   ),
@@ -359,6 +424,11 @@ class _BrowseScreenState extends State<BrowseScreen> {
                   onBatchDeleteTap: () {
                     if (state.selectedItems.isNotEmpty) {
                       _batchDeleteHandler.handleBatchDelete();
+                    }
+                  },
+                  onBatchOfflineTap: () {
+                    if (state.selectedItems.isNotEmpty) {
+                      _batchOfflineHandler.handleBatchOffline();
                     }
                   },
                 );
