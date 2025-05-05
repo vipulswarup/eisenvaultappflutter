@@ -1,16 +1,11 @@
 import 'dart:async';
-import 'dart:io';
-import 'dart:typed_data';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/download_progress_indicator.dart';
-import 'package:eisenvaultappflutter/screens/offline/offline_settings_screen.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
-import 'package:eisenvaultappflutter/utils/open_file.dart';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:eisenvaultappflutter/services/offline/download_manager.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_drawer.dart';
@@ -191,11 +186,7 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
 
   /// Handles tapping on a file: attempts to open it from offline storage.
   Future<void> _handleFileTap(BrowseItem file) async {
-    EVLogger.debug('Handling file tap in offline mode', {
-      'fileId': file.id,
-      'fileName': file.name,
-      'fileType': file.type
-    });
+    
     
     if (_offlineManager == null) {
       EVLogger.error('Offline manager not initialized');
@@ -210,10 +201,7 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
         ),
       );
 
-      EVLogger.debug('Attempting to get file content from offline storage', {
-        'fileId': file.id,
-        'fileName': file.name
-      });
+      
       
       final fileContent = await _offlineManager!.getFileContent(file.id);
 
@@ -231,11 +219,7 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
         return;
       }
 
-      EVLogger.debug('Successfully retrieved file content', {
-        'fileId': file.id,
-        'fileName': file.name,
-        'contentSize': fileContent.length
-      });
+      
 
       _openFileViewer(file, fileContent);
     } catch (e) {
@@ -251,11 +235,7 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
 
   /// Opens the file in an appropriate viewer based on file type.
   void _openFileViewer(BrowseItem file, dynamic fileContent) {
-    EVLogger.debug('Opening file viewer', {
-      'fileId': file.id,
-      'fileName': file.name,
-      'contentSize': fileContent.length
-    });
+    
     
     final fileType = FileTypeUtils.getFileType(file.name);
     

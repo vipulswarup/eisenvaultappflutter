@@ -3,6 +3,8 @@ import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
+import 'package:provider/provider.dart';
+import 'package:eisenvaultappflutter/services/offline/download_manager.dart';
 
 /// A button widget that allows users to mark/unmark items for offline availability
 class OfflineAvailabilityButton extends StatefulWidget {
@@ -45,6 +47,7 @@ class _OfflineAvailabilityButtonState extends State<OfflineAvailabilityButton> {
 
   @override
   Widget build(BuildContext context) {
+    EVLogger.debug('OfflineAvailabilityButton: build called');
     return IconButton(
       icon: _buildIcon(),
       tooltip: widget.isAvailableOffline 
@@ -77,6 +80,7 @@ class _OfflineAvailabilityButtonState extends State<OfflineAvailabilityButton> {
   }
 
   Future<void> _toggleOfflineAvailability() async {
+    EVLogger.debug('OfflineAvailabilityButton: _toggleOfflineAvailability called');
     setState(() {
       _isProcessing = true;
     });
@@ -108,7 +112,22 @@ class _OfflineAvailabilityButtonState extends State<OfflineAvailabilityButton> {
         }
 
         // Make available offline
-        await _offlineManager.keepOffline(widget.item);
+        final downloadManager = Provider.of<DownloadManager>(context, listen: false);
+        EVLogger.debug('Button: DownloadManager instance', {'hash': downloadManager.hashCode});
+        await _offlineManager.keepOffline(
+          widget.item,
+          downloadManager: downloadManager,
+          onError: (message) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(message),
+                  backgroundColor: EVColors.errorRed,
+                ),
+              );
+            }
+          },
+        );
         _showMessage('Added to offline storage');
         widget.onAvailabilityChanged(true);
       }

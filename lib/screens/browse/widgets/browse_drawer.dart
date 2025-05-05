@@ -100,7 +100,7 @@ class BrowseDrawer extends StatelessWidget {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.folder),
+            leading: const Icon(Icons.cloud_off),
             title: const Text('Offline Content'),
             onTap: () {
               Navigator.pop(context); // Close the drawer

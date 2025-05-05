@@ -22,17 +22,22 @@ class DownloadManager extends ChangeNotifier {
   bool get isMinimized => _isMinimized;
 
   void startDownload() {
-    
     if (_isDisposed) return;
     _isDownloading = true;
     _isMinimized = false;
+    EVLogger.debug('DownloadManager: startDownload called');
     notifyListeners();
   }
 
   void updateProgress(DownloadProgress progress) {
-    
     if (_isDisposed) return;
     _currentProgress = progress;
+    EVLogger.debug('DownloadManager: updateProgress', {
+      'fileName': progress.fileName,
+      'progress': progress.progress,
+      'totalFiles': progress.totalFiles,
+      'currentFileIndex': progress.currentFileIndex
+    });
     if (!_progressController.isClosed) {
       _progressController.add(progress);
     }
@@ -40,11 +45,11 @@ class DownloadManager extends ChangeNotifier {
   }
 
   void completeDownload() {
-    
     if (_isDisposed) return;
     _isDownloading = false;
     _currentProgress = null;
     _isMinimized = false;
+    EVLogger.debug('DownloadManager: completeDownload called');
     notifyListeners();
   }
 
