@@ -70,7 +70,6 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
         if (_navigatingToOnline) return;
         _navigatingToOnline = true;
         if (!mounted) {
-          
           return;
         }
         
@@ -92,6 +91,20 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
       } else {
         _navigatingToOnline = false;
       }
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Listen for route changes to detect when returning from OfflineSettingsScreen
+    ModalRoute.of(context)?.addScopedWillPopCallback(() async {
+      // This will be called when the route is about to be popped
+      // Refresh the content list when returning from settings
+      if (mounted) {
+        await _loadOfflineContent();
+      }
+      return true;
     });
   }
 
