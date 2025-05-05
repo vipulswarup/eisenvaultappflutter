@@ -164,7 +164,7 @@ class OfflineFileService {
         await dir.delete(recursive: true);
         await dir.create(recursive: true);
         
-        EVLogger.info('All offline files cleared');
+        
       }
     } catch (e) {
       EVLogger.error('Failed to clear offline files', e);

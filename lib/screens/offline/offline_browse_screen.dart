@@ -9,6 +9,9 @@ import 'package:eisenvaultappflutter/screens/browse/browse_screen.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:flutter/material.dart';
+import 'package:eisenvaultappflutter/screens/browse/widgets/download_progress_indicator.dart';
+import 'package:provider/provider.dart';
+import 'package:eisenvaultappflutter/services/offline/download_manager.dart';
 
 /// OfflineBrowseScreen is a dedicated screen that shows only the offline content.
 /// It provides a simplified browsing experience focused solely on viewing offline content.
@@ -58,10 +61,10 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
         if (_navigatingToOnline) return;
         _navigatingToOnline = true;
         if (!mounted) {
-          EVLogger.info('OfflineBrowseScreen: Widget not mounted, skipping context usage');
+          
           return;
         }
-        EVLogger.info('Device went online, navigating back to BrowseScreen');
+        
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
           Navigator.of(context).pushAndRemoveUntil(
@@ -93,12 +96,14 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
   Future<void> _initializeOfflineComponents() async {
     try {
       final manager = await OfflineManager.createDefault();
+      if (!mounted) return;
       setState(() {
         _offlineManager = manager;
       });
       await _loadOfflineContent();
     } catch (e) {
       EVLogger.error('Error initializing offline components', e);
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
         _errorMessage = 'Failed to initialize offline components: ${e.toString()}';
@@ -110,6 +115,7 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
   Future<void> _loadOfflineContent() async {
     if (_offlineManager == null) return;
     try {
+      if (!mounted) return;
       setState(() {
         _isLoading = true;
         _errorMessage = null;
@@ -117,12 +123,14 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
 
       final items = await _offlineManager!.getOfflineItems(_currentFolder?.id);
 
+      if (!mounted) return;
       setState(() {
         _items = items;
         _isLoading = false;
       });
     } catch (e) {
       EVLogger.error('Error loading offline content', e);
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
         _errorMessage = 'Failed to load offline content: ${e.toString()}';
@@ -132,10 +140,10 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
 
   /// Navigates into a folder, updating the navigation stack.
   Future<void> _navigateToFolder(BrowseItem folder) async {
-    if (_currentFolder != null) {
-      _navigationStack.add(_currentFolder!);
-    }
     setState(() {
+      if (_currentFolder != null) {
+        _navigationStack.add(_currentFolder!);
+      }
       _currentFolder = folder;
       _isLoading = true;
     });
@@ -145,9 +153,8 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
   /// Handles back navigation in the folder hierarchy.
   Future<void> _handleBackNavigation() async {
     if (_navigationStack.isNotEmpty) {
-      final previousFolder = _navigationStack.removeLast();
       setState(() {
-        _currentFolder = previousFolder;
+        _currentFolder = _navigationStack.removeLast();
         _isLoading = true;
       });
       await _loadOfflineContent();
@@ -162,7 +169,7 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
 
   /// Handles tapping on a file: attempts to open it from offline storage.
   Future<void> _handleFileTap(BrowseItem file) async {
-    EVLogger.info('OfflineBrowseScreen: File tapped', {'fileId': file.id, 'fileName': file.name});
+    
     if (_offlineManager == null) return;
     try {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -199,7 +206,7 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
 
   /// Opens the file in an appropriate viewer (stub for now).
   void _openFileViewer(BrowseItem file, dynamic fileContent) {
-    EVLogger.info('OfflineBrowseScreen: Opening file viewer', {'fileId': file.id, 'fileName': file.name});
+    
     // TODO: Implement actual file viewing logic based on file type.
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -367,167 +374,176 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Show a loading spinner until OfflineManager is initialized.
-    if (_offlineManager == null) {
+    // Loading state
+    if (_isLoading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
 
-    return Scaffold(
-      key: _scaffoldKey,
-      backgroundColor: EVColors.screenBackground,
-      appBar: BrowseAppBar(
-        onDrawerOpen: () => _scaffoldKey.currentState?.openDrawer(),
-        onSearchTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Search is available only online'),
-              backgroundColor: EVColors.statusWarning,
-            ),
-          );
-        },
-        onLogoutTap: () {},
-        showBackButton: _navigationStack.isNotEmpty || _currentFolder != null,
-        onBackPressed: _handleBackNavigation,
-        isOfflineMode: true,
-      ),      drawer: BrowseDrawer(
-        firstName: widget.firstName,
-        baseUrl: widget.baseUrl,
-        authToken: widget.authToken,
-        instanceType: widget.instanceType,
-        onLogoutTap: () {}, // No logout action needed in offline mode
-        offlineManager: _offlineManager!,
-      ),
-      body: Column(
-        children: [
-          // Offline mode indicator
-          Container(
-            width: double.infinity,
-            color: EVColors.offlineBackground,
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-            child: Row(
-              children: [
-                const Icon(Icons.offline_pin, color: EVColors.offlineIndicator, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Offline Mode - Showing offline content only',
-                    style: const TextStyle(
-                      color: EVColors.offlineText,
-                      fontWeight: FontWeight.w500,
+    // Error state
+    if (_errorMessage != null) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, color: EVColors.statusError, size: 48),
+              const SizedBox(height: 16),
+              Text(
+                _errorMessage!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: EVColors.statusError),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _initializeOfflineComponents, // retry init
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider<DownloadManager>(
+          create: (_) => DownloadManager(),
+        ),
+      ],
+      child: Scaffold(
+        key: _scaffoldKey,
+        backgroundColor: EVColors.screenBackground,
+        appBar: BrowseAppBar(
+          onDrawerOpen: () => _scaffoldKey.currentState?.openDrawer(),
+          onSearchTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Search is available only online'),
+                backgroundColor: EVColors.statusWarning,
+              ),
+            );
+          },
+          onLogoutTap: () {},
+          showBackButton: _navigationStack.isNotEmpty || _currentFolder != null,
+          onBackPressed: _handleBackNavigation,
+          isOfflineMode: true,
+        ),
+        drawer: BrowseDrawer(
+          firstName: widget.firstName,
+          baseUrl: widget.baseUrl,
+          authToken: widget.authToken,
+          instanceType: widget.instanceType,
+          onLogoutTap: () {}, // No logout action needed in offline mode
+          offlineManager: _offlineManager!,
+        ),
+        body: Column(
+          children: [
+            // Offline mode indicator
+            Container(
+              width: double.infinity,
+              color: EVColors.offlineBackground,
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              child: Row(
+                children: [
+                  const Icon(Icons.offline_pin, color: EVColors.offlineIndicator, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Offline Mode - Showing offline content only',
+                      style: const TextStyle(
+                        color: EVColors.offlineText,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          // Navigation breadcrumbs
-          BrowseNavigation(
-            onHomeTap: () {
-              setState(() {
-                _currentFolder = null;
-                _navigationStack.clear();
-                _isLoading = true;
-              });
-              _loadOfflineContent();
-            },
-            onBreadcrumbTap: (index) async {
-              if (index < _navigationStack.length) {
-                final targetFolder = _navigationStack[index];
-                final newStack = _navigationStack.sublist(0, index);
-
+            // Download progress indicator (shows if downloads are in progress)
+            const DownloadProgressIndicator(),
+            // Navigation breadcrumbs
+            BrowseNavigation(
+              onHomeTap: () {
                 setState(() {
-                  _navigationStack = newStack;
-                  _currentFolder = targetFolder;
+                  _currentFolder = null;
+                  _navigationStack.clear();
                   _isLoading = true;
                 });
+                _loadOfflineContent();
+              },
+              onBreadcrumbTap: (index) async {
+                if (index < _navigationStack.length) {
+                  final targetFolder = _navigationStack[index];
+                  final newStack = _navigationStack.sublist(0, index);
 
-                await _loadOfflineContent();
-              }
-            },
-            currentFolderName: _currentFolder?.name,
-            navigationStack: _navigationStack,
-            currentFolder: _currentFolder,
-          ),
-          // Content area
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _errorMessage != null
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.error_outline,
-                              color: EVColors.statusError,
-                              size: 48,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              _errorMessage!,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(color: EVColors.statusError),
-                            ),
-                            const SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: _loadOfflineContent,
-                              child: const Text('Retry'),
-                            ),
-                          ],
-                        ),
-                      )
-                    : _items.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(
-                                  Icons.folder_off,
-                                  color: EVColors.textFieldHint,
-                                  size: 48,
-                                ),
-                                const SizedBox(height: 16),
-                                const Text(
-                                  'No offline content available in this folder',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(color: EVColors.textFieldHint),
-                                ),
-                              ],
-                            ),
-                          )
-                        : ListView.builder(
-                            itemCount: _items.length,
-                            itemBuilder: (context, index) {
-                              final item = _items[index];
-                              return ListTile(
-                                leading: _buildItemIcon(item),
-                                title: Text(item.name),
-                                subtitle: Text(
-                                  item.modifiedDate != null
-                                      ? 'Modified: ${_formatDate(item.modifiedDate!)}'
-                                      : item.description ?? '',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                trailing: IconButton(
-                                  icon: const Icon(Icons.delete_outline),
-                                  tooltip: 'Remove from offline storage',
-                                  onPressed: () => _removeFromOfflineStorage(item),
-                                ),
-                                onTap: () {
-                                  if (item.type == 'folder' || item.isDepartment) {
-                                    _navigateToFolder(item);
-                                  } else {
-                                    _handleFileTap(item);
-                                  }
-                                },
-                              );
-                            },
+                  setState(() {
+                    _navigationStack = newStack;
+                    _currentFolder = targetFolder;
+                    _isLoading = true;
+                  });
+
+                  await _loadOfflineContent();
+                }
+              },
+              currentFolderName: _currentFolder?.name,
+              navigationStack: _navigationStack,
+              currentFolder: _currentFolder,
+            ),
+            // Content area
+            Expanded(
+              child: _items.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.folder_off,
+                            color: EVColors.textFieldHint,
+                            size: 48,
                           ),
-          ),
-        ],
+                          const SizedBox(height: 16),
+                          const Text(
+                            'No offline content available in this folder',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: EVColors.textFieldHint),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: _items.length,
+                      itemBuilder: (context, index) {
+                        final item = _items[index];
+                        return ListTile(
+                          leading: _buildItemIcon(item),
+                          title: Text(item.name),
+                          subtitle: Text(
+                            item.modifiedDate != null
+                                ? 'Modified: ${_formatDate(item.modifiedDate!)}'
+                                : item.description ?? '',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.delete_outline),
+                            tooltip: 'Remove from offline storage',
+                            onPressed: () => _removeFromOfflineStorage(item),
+                          ),
+                          onTap: () {
+                            if (item.type == 'folder' || item.isDepartment) {
+                              _navigateToFolder(item);
+                            } else {
+                              _handleFileTap(item);
+                            }
+                          },
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -55,7 +55,7 @@ class AngoraSearchService implements SearchService {
         
         final results = responseData['data']['results'] as List<dynamic>;
         
-        EVLogger.info('Search returned ${results.length} results');
+        
         
         // Convert the search results to BrowseItem objects
         return results.map<BrowseItem>((item) {

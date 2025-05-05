@@ -63,10 +63,7 @@ class DeleteService {
     Map<String, String>? additionalHeaders,
   }) async {
     try {
-      EVLogger.info('Attempting to delete $entityType', {
-        'backend': backend,
-        'ids': ids,
-      });
+      
       
       if (backend.toLowerCase() == 'angora') {
         // Angora implementation
@@ -93,7 +90,7 @@ class DeleteService {
         if (response.statusCode == 200) {
           final data = json.decode(response.body);
           final message = data['notifications'] ?? 'Delete operation queued successfully';
-          EVLogger.info('$entityType deleted successfully', {'message': message});
+          
           return message;
         } else {
           EVLogger.error('Failed to delete $entityType', {
@@ -161,7 +158,7 @@ class DeleteService {
   // Helper to format delete result message
   String _formatDeleteResult(String entityType, List<String> successfulDeletes, List<String> failedDeletes) {
     if (failedDeletes.isEmpty) {
-      EVLogger.info('All $entityType deleted successfully');
+      
       return '$entityType deleted successfully';
     } else if (successfulDeletes.isEmpty) {
       EVLogger.error('Failed to delete any $entityType');

@@ -50,7 +50,7 @@ class AngoraUploadService {
     
     // In dummy mode, return fake success after delay
     if (_baseService == null || _chunkUploader == null) {
-      EVLogger.info('Using dummy Angora upload service');
+      
       await Future.delayed(const Duration(milliseconds: 1500));
       return {'success': true, 'id': 'dummy-${DateTime.now().millisecondsSinceEpoch}'};
     }
@@ -115,10 +115,7 @@ class AngoraUploadService {
     try {
       startByte = await _chunkUploader!.checkUploadStatus(fileId);
       if (startByte > 0) {
-        EVLogger.info('Resuming upload from byte $startByte', {
-          'fileId': fileId,
-          'fileName': fileName
-        });
+        
       }
     } catch (e) {
       EVLogger.error('Could not check upload status, starting from beginning', {
@@ -235,7 +232,7 @@ class AngoraUploadService {
           final isCloudComplete = data['data']['is_original_cloud_upload_complete'] ?? false;
           
           if (isLocalComplete && isCloudComplete) {
-            EVLogger.info('Server processing complete for document', {'id': documentId});
+            
             return;
           }
         }
@@ -254,8 +251,7 @@ class AngoraUploadService {
     }
     
     // If we get here, we've reached max attempts but processing might still be ongoing
-    EVLogger.info('Reached maximum polling attempts for document processing', 
-      {'id': documentId, 'note': 'Processing may still be ongoing on the server'});
+    
   }
   
   /// Update progress and notify listeners if callback is provided

@@ -62,7 +62,7 @@ class ClassicSearchService implements SearchService {
         final list = responseData['list'];
         final entries = list['entries'] as List<dynamic>;
         
-        EVLogger.info('Search returned ${entries.length} results');
+        
         
         // Convert the search results to BrowseItem objects
         return entries.map<BrowseItem>((entry) {

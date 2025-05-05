@@ -44,7 +44,7 @@ class PersistentAuthService {
         await _storage.write(key: _tokenExpiryKey, value: tokenExpiry);
       }
       
-      EVLogger.info('Credentials stored successfully for offline access');
+      
     } catch (e) {
       EVLogger.error('Failed to store credentials', e);
       rethrow;
@@ -92,7 +92,7 @@ class PersistentAuthService {
       if (tokenExpiry != null) {
         final expiryDate = DateTime.parse(tokenExpiry);
         if (DateTime.now().isAfter(expiryDate)) {
-          EVLogger.info('Stored token has expired');
+          
           return false;
         }
       }
@@ -110,7 +110,7 @@ class PersistentAuthService {
   Future<void> clearCredentials() async {
     try {
       await _storage.deleteAll();
-      EVLogger.info('All credentials cleared');
+      
     } catch (e) {
       EVLogger.error('Failed to clear credentials', e);
       rethrow;

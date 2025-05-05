@@ -51,7 +51,7 @@ class ClassicDeleteProvider implements DeleteProvider {
       
       
       if (response.statusCode == 204) {
-        EVLogger.info('File version deleted successfully');
+        
         return 'Version deleted successfully';
       } else {
         EVLogger.error('Failed to delete version', {
@@ -87,7 +87,7 @@ class ClassicDeleteProvider implements DeleteProvider {
       );
       
       if (response.statusCode == 204) {
-        EVLogger.info('Trash items deleted successfully');
+        
         return 'Trash items deleted successfully';
       } else {
         EVLogger.error('Failed to delete trash items', {
@@ -108,9 +108,7 @@ class ClassicDeleteProvider implements DeleteProvider {
     required List<String> ids,
   }) async {
     try {
-      EVLogger.info('Attempting to delete $entityType', {
-        'ids': ids,
-      });
+      
       
       List<String> successfulDeletes = [];
       List<String> failedDeletes = [];
@@ -152,7 +150,7 @@ class ClassicDeleteProvider implements DeleteProvider {
   /// Helper to format delete result message
   String _formatDeleteResult(String entityType, List<String> successfulDeletes, List<String> failedDeletes) {
     if (failedDeletes.isEmpty) {
-      EVLogger.info('All $entityType deleted successfully');
+      
       return '$entityType deleted successfully';
     } else if (successfulDeletes.isEmpty) {
       EVLogger.error('Failed to delete any $entityType');

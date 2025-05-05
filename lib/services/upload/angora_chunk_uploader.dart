@@ -32,10 +32,7 @@ class AngoraChunkUploader {
         return data['data']?['uploaded_bytes'] as int? ?? 0;
       }
       
-      EVLogger.info('Failed to get upload status', {
-        'statusCode': response.statusCode,
-        'response': response.body,
-      });
+      
       
       return 0;
     } catch (e) {

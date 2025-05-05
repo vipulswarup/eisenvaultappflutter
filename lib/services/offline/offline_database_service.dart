@@ -159,4 +159,10 @@ class OfflineDatabaseService {
       whereArgs: [parentId],
     );
   }
+  
+  /// Remove all items from offline storage (clear the table)
+  Future<void> clearAllItems() async {
+    final db = await database;
+    await db.delete('offline_items');
+  }
 }

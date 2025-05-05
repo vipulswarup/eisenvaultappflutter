@@ -66,7 +66,7 @@ class ClassicBrowseService implements BrowseService {
           .map((entry) => _mapAlfrescoBrowseItem(entry['entry']))
           .toList();
 
-      EVLogger.info('Retrieved folder contents', {'count': items.length});
+      
       return items;
     } catch (e) {
       EVLogger.error('Failed to get children', e);
@@ -79,6 +79,8 @@ class ClassicBrowseService implements BrowseService {
     int skipCount = 0,
     int maxItems = 25,
   }) async {
+    
+    final start = DateTime.now();
     try {
       final url = Uri.parse(
         _baseService.buildUrl('api/-default-/public/alfresco/versions/1/sites?skipCount=$skipCount&maxItems=$maxItems')
@@ -115,11 +117,13 @@ class ClassicBrowseService implements BrowseService {
         );
       }).toList();
 
-      EVLogger.info('Retrieved sites', {'count': sites.length});
+      
+      final elapsed = DateTime.now().difference(start).inMilliseconds;
+      
       return sites;
     } catch (e) {
       EVLogger.error('Failed to get sites', e);
-      throw Exception('Failed to get sites: ${e.toString()}');
+      rethrow;
     }
   }
   
@@ -185,7 +189,7 @@ class ClassicBrowseService implements BrowseService {
           allowableOperations: allowableOperations,
         ));
       }
-      EVLogger.info('Retrieved site containers', {'count': containers.length});
+      
       return containers;
     } catch (e) {
       EVLogger.error('Failed to get site containers', e);

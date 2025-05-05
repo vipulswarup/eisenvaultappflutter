@@ -39,11 +39,12 @@ class OfflineItem {
   });
 
   /// Create an OfflineItem from a BrowseItem
-  factory OfflineItem.fromBrowseItem(BrowseItem item) {
+  factory OfflineItem.fromBrowseItem(BrowseItem item, {String? parentId}) {
     return OfflineItem(
       id: item.id,
       name: item.name,
       type: item.type,
+      parentId: parentId,
       description: item.description,
       modifiedDate: item.modifiedDate != null ? DateTime.parse(item.modifiedDate!) : null,
       modifiedBy: item.modifiedBy,

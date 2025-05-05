@@ -119,7 +119,7 @@ class LocalStorageProvider implements OfflineStorageProvider {
       if (await _baseDir.exists()) {
         await _baseDir.delete(recursive: true);
         await _baseDir.create(recursive: true);
-        EVLogger.info('Cleared offline storage');
+        
       }
     } catch (e) {
       EVLogger.error('Failed to clear storage', {'error': e});

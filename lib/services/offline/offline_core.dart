@@ -8,24 +8,6 @@ enum OfflineStatus {
   error,
 }
 
-/// Configuration for offline functionality
-class OfflineConfig {
-  /// Maximum storage space to use for offline files (in bytes)
-  final int maxStorageBytes;
-  
-  /// How often to attempt sync (in seconds)
-  final int syncIntervalSeconds;
-  
-  /// Whether to automatically sync when online
-  final bool autoSync;
-  
-  const OfflineConfig({
-    this.maxStorageBytes = 500 * 1024 * 1024, // 500MB default
-    this.syncIntervalSeconds = 3600, // 1 hour default
-    this.autoSync = true,
-  });
-}
-
 /// Event for offline state changes
 class OfflineEvent {
   final String type;
@@ -51,34 +33,4 @@ abstract class OfflineStorageProvider {
   
   /// Clear all stored files
   Future<void> clearStorage();
-}
-
-/// Interface for offline metadata providers
-abstract class OfflineMetadataProvider {
-  /// Store item metadata
-  Future<void> storeMetadata(String id, Map<String, dynamic> metadata);
-  
-  /// Get item metadata
-  Future<Map<String, dynamic>?> getMetadata(String id);
-  
-  /// Delete item metadata
-  Future<void> deleteMetadata(String id);
-  
-  /// Get all items under a parent
-  Future<List<Map<String, dynamic>>> getItemsByParent(String? parentId);
-  
-  /// Clear all metadata
-  Future<void> clearMetadata();
-}
-
-/// Interface for offline sync providers
-abstract class OfflineSyncProvider {
-  /// Start sync process
-  Future<void> startSync();
-  
-  /// Stop sync process
-  Future<void> stopSync();
-  
-  /// Get current sync status
-  Stream<OfflineEvent> get syncEvents;
 } 

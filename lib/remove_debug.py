@@ -5,9 +5,13 @@ def remove_debug_statements(file_path):
     with open(file_path, 'r') as file:
         content = file.read()
 
-    # Regex to match EVLogger.debug statements, including multi-line
-    pattern = re.compile(r'EVLogger\.debug\([^;]*?\);', re.DOTALL)
+    # Regex to match EVLogger.debug/info statements, including multi-line
+    pattern = re.compile(r'EVLogger\.(debug|info)\([^;]*?\);', re.DOTALL)
+
+    # Replace the debug statements with an empty string
     new_content = re.sub(pattern, '', content)
+
+
 
     with open(file_path, 'w') as file:
         file.write(new_content)

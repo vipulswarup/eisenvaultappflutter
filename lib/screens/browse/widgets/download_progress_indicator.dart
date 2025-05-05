@@ -8,10 +8,10 @@ class DownloadProgressIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    EVLogger.info('DownloadProgressIndicator build');
+    
     return Consumer<DownloadManager>(
       builder: (context, downloadManager, child) {
-        EVLogger.info('DownloadProgressIndicator Consumer builder', {'downloadManagerHash': downloadManager.hashCode});
+        
         final progress = downloadManager.currentProgress;
         if (progress == null) return const SizedBox.shrink();
 

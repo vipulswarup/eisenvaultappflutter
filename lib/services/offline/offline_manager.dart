@@ -216,12 +216,12 @@ class OfflineManager {
   }
   
   /// Keep an item available for offline access
-  Future<bool> keepOffline(BrowseItem item) async {
-    EVLogger.debug('keepOffline called', {'itemId': item.id, 'itemName': item.name, 'itemType': item.type});
+  Future<bool> keepOffline(BrowseItem item, {String? parentId}) async {
+    
     try {
-      // Create an OfflineItem from the BrowseItem
-      final offlineItem = OfflineItem.fromBrowseItem(item);
-      EVLogger.debug('Saving metadata for item', {'itemId': item.id});
+      // Create an OfflineItem from the BrowseItem, set parentId
+      final offlineItem = OfflineItem.fromBrowseItem(item, parentId: parentId);
+      
       // Save metadata
       await _metadata.saveItem(offlineItem);
       
@@ -229,23 +229,23 @@ class OfflineManager {
         // For folders, we need to recursively download contents
         final downloadManager = DownloadManager();
         downloadManager.startDownload();
-        EVLogger.debug('Started download for folder', {'itemId': item.id});
+        
         try {
           // Get folder contents
           final contents = await _sync.getFolderContents(item.id);
           final totalFiles = contents.where((item) => item.type != 'folder').length;
           var currentFileIndex = 0;
-          EVLogger.debug('Folder contents fetched', {'itemId': item.id, 'totalFiles': totalFiles});
+          
           // Process each item in the folder
           for (final content in contents) {
             if (content.type == 'folder') {
-              // Recursively handle subfolders
-              await keepOffline(content);
+              // Recursively handle subfolders, set parentId
+              await keepOffline(content, parentId: item.id);
             } else {
-              await keepOffline(content);
+              await keepOffline(content, parentId: item.id);
             }
           }
-          EVLogger.debug('Completed keeping folder offline', {'itemId': item.id});
+          
           return true;
         } catch (e) {
           downloadManager.completeDownload();
@@ -260,17 +260,17 @@ class OfflineManager {
           totalFiles: 1,
           currentFileIndex: 1,
         );
-        EVLogger.debug('Started download for file', {'itemId': item.id});
+        
         final downloadManager = DownloadManager();
         downloadManager.startDownload();
         downloadManager.updateProgress(progress);
         try {
           // Download content using sync provider
           final content = await _sync.downloadContent(item.id);
-          EVLogger.debug('Downloaded content for file', {'itemId': item.id});
+          
           // Store the file content
           final filePath = await _storage.storeFile(item.id, content);
-          EVLogger.debug('Stored file content', {'itemId': item.id, 'filePath': filePath});
+          
           // Update metadata with file path
           final updatedItem = offlineItem.copyWith(filePath: filePath);
           await _metadata.saveItem(updatedItem);
@@ -278,7 +278,7 @@ class OfflineManager {
           downloadManager.updateProgress(progress.copyWith(progress: 1.0));
           downloadManager.completeDownload();
           _eventController.add(OfflineEvent('item_added', 'Item added to offline storage', updatedItem));
-          EVLogger.debug('File kept offline successfully', {'itemId': item.id});
+          
           return true;
         } catch (e) {
           downloadManager.completeDownload();
@@ -364,13 +364,18 @@ class OfflineManager {
   Future<void> dumpOfflineDatabase() async {
     try {
       final allItems = await _database.getAllOfflineItems();
-      EVLogger.info('All offline items in database', {
-        'count': allItems.length,
-        'items': allItems.map((item) => item['name']).toList(),
-      });
+      
     } catch (e) {
       EVLogger.error('Failed to dump offline database', e);
     }
+  }
+  
+  /// Clear all offline content (database and files)
+  Future<void> clearAllOfflineContent() async {
+    await Future.wait([
+      _storage.clearStorage(),
+      _database.clearAllItems(),
+    ]);
   }
   
   /// Dispose resources

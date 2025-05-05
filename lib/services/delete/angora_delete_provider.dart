@@ -59,9 +59,7 @@ class AngoraDeleteProvider implements DeleteProvider {
       headers['x-customer-hostname'] = _customerHostname;
       
       // Log headers for debugging
-      EVLogger.info('Delete version request headers', {
-        'headers': headers.toString()
-      });
+      
       
       final response = await http.delete(
         Uri.parse(url),
@@ -71,7 +69,7 @@ class AngoraDeleteProvider implements DeleteProvider {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final message = data['notifications'] ?? 'Version deleted successfully';
-        EVLogger.info('File version deleted successfully', {'message': message});
+        
         return message;
       } else {
         EVLogger.error('Failed to delete version', {
@@ -106,9 +104,7 @@ class AngoraDeleteProvider implements DeleteProvider {
     Map<String, String>? additionalHeaders,
   }) async {
     try {
-      EVLogger.info('Attempting to delete $entityType', {
-        'ids': ids,
-      });
+      
       
       final url = _angoraService.buildUrl('$entityType?ids=${ids.join(',')}');
       
@@ -125,9 +121,7 @@ class AngoraDeleteProvider implements DeleteProvider {
       }
       
       // Log the headers for debugging (remove sensitive data in production)
-      EVLogger.info('Delete request headers', {
-        'headers': headers.toString()
-      });
+      
       
       final response = await http.delete(
         Uri.parse(url),
@@ -152,7 +146,7 @@ class AngoraDeleteProvider implements DeleteProvider {
           message = 'Delete operation queued successfully';
         }
         
-        EVLogger.info('$entityType deleted successfully', {'message': message});
+        
         return message;
       } else {
         EVLogger.error('Failed to delete $entityType', {

@@ -153,8 +153,9 @@ class _BrowseScreenState extends State<BrowseScreen> {
       await _controller!.loadFolderContents(_controller!.currentFolder!);
       _logCurrentFolderState(); // Log after refresh
     } else {
-      //If there's no current folder, this calls the loadDepartments method on the controller and awaits its completion. 
+      
       await _controller!.loadDepartments();
+      
     }
   }
 
@@ -174,7 +175,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
         _refreshCurrentFolder();
       }
       if (!mounted) {
-        EVLogger.info('BrowseScreen: Widget not mounted, skipping context usage');
+        
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
@@ -189,7 +190,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
       if (isNowOffline) {
         if (_navigatingToOffline) return;
         _navigatingToOffline = true;
-        EVLogger.info('Device went offline, navigating to OfflineBrowseScreen');
+        
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
           Navigator.of(context).pushAndRemoveUntil(
@@ -229,6 +230,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
   }
 
   Future<void> _initializeComponents() async {
+    
     _offlineManager = await OfflineManager.createDefault();
     if (!mounted) return;
 
@@ -325,6 +327,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
     );
 
     _controller?.loadDepartments();
+    
   }
 
   @override
@@ -342,7 +345,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
         ChangeNotifierProvider<BrowseScreenController>.value(value: _controller!),
         ChangeNotifierProvider<DownloadManager>(
           create: (_) {
-            EVLogger.info('BrowseScreen: Creating DownloadManager provider');
+            
             return DownloadManager();
           },
           // No explicit dispose needed, DownloadManager logs its own dispose

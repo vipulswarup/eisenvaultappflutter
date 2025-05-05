@@ -24,9 +24,9 @@ class BatchOfflineHandler {
 
   Future<void> handleBatchOffline() async {
     final selectedItems = getSelectedItems();
-    EVLogger.debug('BatchOfflineHandler: handleBatchOffline called', {'selectedItems': selectedItems.map((e) => {'id': e.id, 'name': e.name, 'type': e.type}).toList()});
+    
     if (selectedItems.isEmpty) {
-      EVLogger.debug('BatchOfflineHandler: No items selected for offline');
+      
       return;
     }
 
@@ -53,7 +53,7 @@ class BatchOfflineHandler {
       );
 
       if (confirmed != true) {
-        EVLogger.debug('BatchOfflineHandler: User cancelled offline operation');
+        
         return;
       }
 
@@ -69,10 +69,10 @@ class BatchOfflineHandler {
       // Process each item
       for (final item in selectedItems) {
         if (item.type != 'folder') { // Only files can be made available offline
-          EVLogger.debug('BatchOfflineHandler: Making item available offline', {'itemId': item.id, 'itemName': item.name});
+          
           await offlineManager.keepOffline(item);
         } else {
-          EVLogger.debug('BatchOfflineHandler: Skipping folder item', {'itemId': item.id, 'itemName': item.name});
+          
         }
       }
 
@@ -87,7 +87,7 @@ class BatchOfflineHandler {
         ),
       );
 
-      EVLogger.debug('BatchOfflineHandler: Batch offline operation completed', {'count': selectedItems.length});
+      
       onOfflineSuccess();
     } catch (e) {
       EVLogger.error('Error making items available offline', e);
