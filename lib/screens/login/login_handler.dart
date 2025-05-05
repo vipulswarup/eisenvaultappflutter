@@ -149,8 +149,10 @@ class LoginHandler {
     required String username,
   }) async {
     try {
-      // Save credentials using the new method
-      final offlineManager = await OfflineManager.createDefault();
+      // Create offline manager without requiring credentials
+      final offlineManager = await OfflineManager.createDefault(requireCredentials: false);
+      
+      // Save credentials
       await offlineManager.saveCredentials(
         instanceType: instanceType,
         baseUrl: baseUrl,

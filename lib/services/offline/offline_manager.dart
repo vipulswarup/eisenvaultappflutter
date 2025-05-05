@@ -66,26 +66,33 @@ class OfflineManager {
   static Future<OfflineManager> createDefault({
     OfflineConfig? config,
     sync.OfflineSyncProvider? syncProvider,
+    bool requireCredentials = true,
   }) async {
     final storage = FlutterSecureStorage();
     final instanceType = await storage.read(key: _keyInstanceType);
     final baseUrl = await storage.read(key: _keyBaseUrl);
     final authToken = await storage.read(key: _keyAuthToken);
 
-    if (instanceType == null || baseUrl == null || authToken == null) {
+    if (requireCredentials && (instanceType == null || baseUrl == null || authToken == null)) {
       throw Exception('Missing required credentials for offline sync');
     }
 
-    final provider = syncProvider ?? _DefaultSyncProvider(
-      instanceType: instanceType,
-      baseUrl: baseUrl,
-      authToken: authToken,
-    );
+    final provider = syncProvider ?? (instanceType != null && baseUrl != null && authToken != null
+        ? _DefaultSyncProvider(
+            instanceType: instanceType,
+            baseUrl: baseUrl,
+            authToken: authToken,
+          )
+        : null);
 
     return OfflineManager(
       storage: LocalStorageProvider(),
       metadata: _DatabaseMetadataAdapter(OfflineDatabaseService.instance),
-      sync: provider,
+      sync: provider ?? _DefaultSyncProvider(
+        instanceType: '',
+        baseUrl: '',
+        authToken: '',
+      ),
       config: config ?? const OfflineConfig(),
     );
   }
