@@ -79,7 +79,6 @@ class ClassicBrowseService implements BrowseService {
     int skipCount = 0,
     int maxItems = 25,
   }) async {
-    
     final start = DateTime.now();
     try {
       final url = Uri.parse(
@@ -117,8 +116,8 @@ class ClassicBrowseService implements BrowseService {
         );
       }).toList();
 
-      
       final elapsed = DateTime.now().difference(start).inMilliseconds;
+      EVLogger.info('Fetched ${sites.length} sites in ${elapsed}ms');
       
       return sites;
     } catch (e) {

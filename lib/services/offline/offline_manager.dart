@@ -231,8 +231,6 @@ class OfflineManager {
     int? totalFiles,
     int? currentFileIndex,
   }) async {
-    
-    
     try {
       // Create an OfflineItem from the BrowseItem, set parentId
       final offlineItem = OfflineItem.fromBrowseItem(item, parentId: parentId);
@@ -240,37 +238,23 @@ class OfflineManager {
       // Save metadata
       await _metadata.saveItem(offlineItem);
       
-      
-      if (item.type == 'folder') {
+      if (item.type == 'folder' || item.isDepartment) {
         downloadManager?.startDownload();
         try {
-          // Get folder contents
-          final contents = await _sync.getFolderContents(item.id);
-          
-          
-          final files = contents.where((item) => item.type != 'folder').toList();
-          final totalFilesInFolder = files.length;
-          int fileIndex = 0;
-          // Process each item in the folder
-          for (final content in contents) {
-            if (content.type == 'folder') {
-              await keepOffline(
-                content,
-                parentId: item.id,
-                downloadManager: downloadManager,
-                onError: onError,
-              );
-            } else {
-              fileIndex++;
-              await keepOffline(
-                content,
-                parentId: item.id,
-                downloadManager: downloadManager,
-                onError: onError,
-                totalFiles: totalFilesInFolder,
-                currentFileIndex: fileIndex,
-              );
-            }
+          // For sites/departments, we need to handle them specially
+          if (item.isDepartment) {
+            await _downloadSiteContents(
+              item,
+              downloadManager: downloadManager,
+              onError: onError,
+            );
+          } else {
+            // For regular folders, use the existing recursive approach
+            await _downloadFolderContents(
+              item,
+              downloadManager: downloadManager,
+              onError: onError,
+            );
           }
           return true;
         } catch (e) {
@@ -292,7 +276,6 @@ class OfflineManager {
         downloadManager?.startDownload();
         downloadManager?.updateProgress(progress);
         try {
-          
           // Download content using sync provider
           final content = await _sync.downloadContent(item.id);
           
@@ -321,6 +304,190 @@ class OfflineManager {
       EVLogger.error('Error keeping item offline', e);
       if (onError != null) {
         onError('Error keeping item offline: ${item.name}\n${e.toString()}');
+      }
+      rethrow;
+    }
+  }
+  
+  /// Downloads the contents of a site with pagination
+  Future<void> _downloadSiteContents(
+    BrowseItem site, {
+    DownloadManager? downloadManager,
+    void Function(String message)? onError,
+  }) async {
+    try {
+      // First get all containers for the site using the correct API endpoint
+      final browseService = BrowseServiceFactory.getService(
+        _sync.instanceType,
+        _sync.baseUrl,
+        _sync.authToken,
+      );
+
+      int skipCount = 0;
+      const int maxItems = 25;
+      List<BrowseItem> containers;
+      int totalFiles = 0;
+      int currentFileIndex = 0;
+      
+      // First pass: count total files
+      do {
+        containers = await browseService.getChildren(
+          site,
+          skipCount: skipCount,
+          maxItems: maxItems,
+        );
+
+        for (final container in containers) {
+          if (container.type == 'folder') {
+            // For folders, we need to count their contents
+            totalFiles += await _countFolderContents(container);
+          } else {
+            totalFiles++;
+          }
+        }
+
+        skipCount += maxItems;
+      } while (containers.length >= maxItems);
+
+      // Reset skip count for actual download
+      skipCount = 0;
+      
+      // Second pass: download files
+      do {
+        containers = await browseService.getChildren(
+          site,
+          skipCount: skipCount,
+          maxItems: maxItems,
+        );
+
+        // Process each container
+        for (final container in containers) {
+          if (container.type == 'folder') {
+            // For document libraries and other site containers, use regular folder download
+            await _downloadFolderContents(
+              container,
+              downloadManager: downloadManager,
+              onError: onError,
+              totalFiles: totalFiles,
+              currentFileIndex: currentFileIndex,
+            );
+            // Update currentFileIndex based on folder contents
+            currentFileIndex += await _countFolderContents(container);
+          } else {
+            // For files directly in site containers, download them
+            currentFileIndex++;
+            await keepOffline(
+              container,
+              parentId: site.id,
+              downloadManager: downloadManager,
+              onError: onError,
+              totalFiles: totalFiles,
+              currentFileIndex: currentFileIndex,
+            );
+          }
+        }
+
+        skipCount += maxItems;
+      } while (containers.length >= maxItems);
+    } catch (e) {
+      EVLogger.error('Error downloading site contents', e);
+      if (onError != null) {
+        onError('Failed to download site contents: ${site.name}\n${e.toString()}');
+      }
+      rethrow;
+    }
+  }
+  
+  /// Counts the total number of files in a folder (recursively)
+  Future<int> _countFolderContents(BrowseItem folder) async {
+    int count = 0;
+    final browseService = BrowseServiceFactory.getService(
+      _sync.instanceType,
+      _sync.baseUrl,
+      _sync.authToken,
+    );
+
+    int skipCount = 0;
+    const int maxItems = 25;
+    List<BrowseItem> contents;
+    
+    do {
+      contents = await browseService.getChildren(
+        folder,
+        skipCount: skipCount,
+        maxItems: maxItems,
+      );
+
+      for (final content in contents) {
+        if (content.type == 'folder') {
+          count += await _countFolderContents(content);
+        } else {
+          count++;
+        }
+      }
+
+      skipCount += maxItems;
+    } while (contents.length >= maxItems);
+
+    return count;
+  }
+  
+  /// Downloads the contents of a folder recursively
+  Future<void> _downloadFolderContents(
+    BrowseItem folder, {
+    DownloadManager? downloadManager,
+    void Function(String message)? onError,
+    int? totalFiles,
+    int? currentFileIndex,
+  }) async {
+    try {
+      final browseService = BrowseServiceFactory.getService(
+        _sync.instanceType,
+        _sync.baseUrl,
+        _sync.authToken,
+      );
+
+      int skipCount = 0;
+      const int maxItems = 25;
+      List<BrowseItem> contents;
+      
+      do {
+        contents = await browseService.getChildren(
+          folder,
+          skipCount: skipCount,
+          maxItems: maxItems,
+        );
+
+        // Process each item in the folder
+        for (final content in contents) {
+          if (content.type == 'folder') {
+            await _downloadFolderContents(
+              content,
+              downloadManager: downloadManager,
+              onError: onError,
+              totalFiles: totalFiles,
+              currentFileIndex: currentFileIndex,
+            );
+          } else {
+            // For files, download them directly
+            currentFileIndex = (currentFileIndex ?? 0) + 1;
+            await keepOffline(
+              content,
+              parentId: folder.id,
+              downloadManager: downloadManager,
+              onError: onError,
+              totalFiles: totalFiles,
+              currentFileIndex: currentFileIndex,
+            );
+          }
+        }
+
+        skipCount += maxItems;
+      } while (contents.length >= maxItems);
+    } catch (e) {
+      EVLogger.error('Error downloading folder contents', e);
+      if (onError != null) {
+        onError('Failed to download folder contents: ${folder.name}\n${e.toString()}');
       }
       rethrow;
     }
@@ -448,6 +615,16 @@ class _DefaultSyncProvider implements sync.OfflineSyncProvider {
        _baseUrl = baseUrl,
        _authToken = authToken;
        
+  // Add getters for credentials
+  @override
+  String get instanceType => _instanceType;
+  
+  @override
+  String get baseUrl => _baseUrl;
+  
+  @override
+  String get authToken => _authToken;
+  
   // Add setters for updating credentials
   void updateCredentials({
     required String instanceType,

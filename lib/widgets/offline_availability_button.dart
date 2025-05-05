@@ -47,7 +47,7 @@ class _OfflineAvailabilityButtonState extends State<OfflineAvailabilityButton> {
 
   @override
   Widget build(BuildContext context) {
-    EVLogger.debug('OfflineAvailabilityButton: build called');
+    
     return IconButton(
       icon: _buildIcon(),
       tooltip: widget.isAvailableOffline 
@@ -80,7 +80,7 @@ class _OfflineAvailabilityButtonState extends State<OfflineAvailabilityButton> {
   }
 
   Future<void> _toggleOfflineAvailability() async {
-    EVLogger.debug('OfflineAvailabilityButton: _toggleOfflineAvailability called');
+    
     setState(() {
       _isProcessing = true;
     });
@@ -113,7 +113,7 @@ class _OfflineAvailabilityButtonState extends State<OfflineAvailabilityButton> {
 
         // Make available offline
         final downloadManager = Provider.of<DownloadManager>(context, listen: false);
-        EVLogger.debug('Button: DownloadManager instance', {'hash': downloadManager.hashCode});
+        
         await _offlineManager.keepOffline(
           widget.item,
           downloadManager: downloadManager,

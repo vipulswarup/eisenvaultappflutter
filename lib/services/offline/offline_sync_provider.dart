@@ -5,6 +5,15 @@ import 'package:eisenvaultappflutter/services/offline/offline_core.dart';
 
 /// Interface for syncing offline content with the server
 abstract class OfflineSyncProvider {
+  /// Get the instance type
+  String get instanceType;
+  
+  /// Get the base URL
+  String get baseUrl;
+  
+  /// Get the auth token
+  String get authToken;
+  
   /// Start syncing offline content
   Future<void> startSync();
   

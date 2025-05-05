@@ -8,21 +8,16 @@ class DownloadProgressIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    EVLogger.debug('DownloadProgressIndicator: build called');
+    
     return Consumer<DownloadManager>(
       builder: (context, downloadManager, child) {
-        EVLogger.debug('Indicator: DownloadManager instance', {'hash': downloadManager.hashCode});
+        
         final progress = downloadManager.currentProgress;
         if (progress == null) {
-          EVLogger.debug('DownloadProgressIndicator: No progress to show');
+          
           return const SizedBox.shrink();
         }
-        EVLogger.debug('DownloadProgressIndicator: Showing progress', {
-          'fileName': progress.fileName,
-          'progress': progress.progress,
-          'totalFiles': progress.totalFiles,
-          'currentFileIndex': progress.currentFileIndex
-        });
+        
         return Card(
           elevation: 4,
           child: SizedBox(
