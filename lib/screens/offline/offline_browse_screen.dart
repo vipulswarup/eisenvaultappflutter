@@ -1,17 +1,26 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
+import 'package:eisenvaultappflutter/screens/browse/widgets/download_progress_indicator.dart';
+import 'package:eisenvaultappflutter/screens/offline/offline_settings_screen.dart';
+import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
+import 'package:eisenvaultappflutter/utils/logger.dart';
+import 'package:eisenvaultappflutter/utils/open_file.dart';
+import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:provider/provider.dart';
+import 'package:eisenvaultappflutter/services/offline/download_manager.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_drawer.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_navigation.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_app_bar.dart';
 import 'package:eisenvaultappflutter/screens/browse/browse_screen.dart';
-import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
-import 'package:eisenvaultappflutter/utils/logger.dart';
-import 'package:flutter/material.dart';
-import 'package:eisenvaultappflutter/screens/browse/widgets/download_progress_indicator.dart';
-import 'package:provider/provider.dart';
-import 'package:eisenvaultappflutter/services/offline/download_manager.dart';
+import 'package:eisenvaultappflutter/screens/pdf_viewer_screen.dart';
+import 'package:eisenvaultappflutter/screens/image_viewer_screen.dart';
+import 'package:eisenvaultappflutter/screens/generic_file_preview_screen.dart';
+import 'package:eisenvaultappflutter/utils/file_type_utils.dart';
 
 /// OfflineBrowseScreen is a dedicated screen that shows only the offline content.
 /// It provides a simplified browsing experience focused solely on viewing offline content.
@@ -169,8 +178,17 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
 
   /// Handles tapping on a file: attempts to open it from offline storage.
   Future<void> _handleFileTap(BrowseItem file) async {
+    EVLogger.debug('Handling file tap in offline mode', {
+      'fileId': file.id,
+      'fileName': file.name,
+      'fileType': file.type
+    });
     
-    if (_offlineManager == null) return;
+    if (_offlineManager == null) {
+      EVLogger.error('Offline manager not initialized');
+      return;
+    }
+    
     try {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -179,10 +197,18 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
         ),
       );
 
+      EVLogger.debug('Attempting to get file content from offline storage', {
+        'fileId': file.id,
+        'fileName': file.name
+      });
+      
       final fileContent = await _offlineManager!.getFileContent(file.id);
 
       if (fileContent == null) {
-        EVLogger.error('OfflineBrowseScreen: File content not available offline', {'fileId': file.id});
+        EVLogger.error('OfflineBrowseScreen: File content not available offline', {
+          'fileId': file.id,
+          'fileName': file.name
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('File content not available offline'),
@@ -191,6 +217,12 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
         );
         return;
       }
+
+      EVLogger.debug('Successfully retrieved file content', {
+        'fileId': file.id,
+        'fileName': file.name,
+        'contentSize': fileContent.length
+      });
 
       _openFileViewer(file, fileContent);
     } catch (e) {
@@ -204,16 +236,96 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
     }
   }
 
-  /// Opens the file in an appropriate viewer (stub for now).
+  /// Opens the file in an appropriate viewer based on file type.
   void _openFileViewer(BrowseItem file, dynamic fileContent) {
+    EVLogger.debug('Opening file viewer', {
+      'fileId': file.id,
+      'fileName': file.name,
+      'contentSize': fileContent.length
+    });
     
-    // TODO: Implement actual file viewing logic based on file type.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Opening file: ${file.name}'),
-        backgroundColor: EVColors.statusSuccess,
-      ),
-    );
+    final fileType = FileTypeUtils.getFileType(file.name);
+    
+    switch (fileType) {
+      case FileType.pdf:
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => PdfViewerScreen(
+              title: file.name,
+              pdfContent: fileContent,
+            ),
+          ),
+        );
+        break;
+        
+      case FileType.image:
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => ImageViewerScreen(
+              title: file.name,
+              imageContent: fileContent,
+            ),
+          ),
+        );
+        break;
+        
+      case FileType.document:
+      case FileType.spreadsheet:
+      case FileType.presentation:
+        // Convert file type to appropriate MIME type
+        String mimeType = _getMimeTypeFromFileType(file.name, fileType);
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => GenericFilePreviewScreen(
+              title: file.name,
+              fileContent: fileContent,
+              mimeType: mimeType,
+            ),
+          ),
+        );
+        break;
+        
+      case FileType.unknown:
+      default:
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Preview not supported for ${file.name}'),
+            backgroundColor: EVColors.statusWarning,
+          ),
+        );
+    }
+  }
+
+  /// Helper method to convert FileType to MIME type
+  String _getMimeTypeFromFileType(String fileName, FileType fileType) {
+    switch (fileType) {
+      case FileType.document:
+        if (fileName.toLowerCase().endsWith('.docx')) {
+          return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        } else if (fileName.toLowerCase().endsWith('.doc')) {
+          return 'application/msword';
+        }
+        return 'application/octet-stream';
+        
+      case FileType.spreadsheet:
+        if (fileName.toLowerCase().endsWith('.xlsx')) {
+          return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        } else if (fileName.toLowerCase().endsWith('.xls')) {
+          return 'application/vnd.ms-excel';
+        }
+        return 'application/octet-stream';
+        
+      case FileType.presentation:
+        if (fileName.toLowerCase().endsWith('.pptx')) {
+          return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+        } else if (fileName.toLowerCase().endsWith('.ppt')) {
+          return 'application/vnd.ms-powerpoint';
+        }
+        return 'application/octet-stream';
+        
+      default:
+        return 'application/octet-stream';
+    }
   }
 
   /// Removes an item from offline storage after confirmation.

@@ -217,6 +217,12 @@ class OfflineManager {
   
   /// Keep an item available for offline access
   Future<bool> keepOffline(BrowseItem item, {String? parentId}) async {
+    EVLogger.debug('Starting to keep item offline', {
+      'itemId': item.id,
+      'itemName': item.name,
+      'itemType': item.type,
+      'parentId': parentId
+    });
     
     try {
       // Create an OfflineItem from the BrowseItem, set parentId
@@ -224,6 +230,10 @@ class OfflineManager {
       
       // Save metadata
       await _metadata.saveItem(offlineItem);
+      EVLogger.debug('Saved metadata for offline item', {
+        'itemId': item.id,
+        'itemName': item.name
+      });
       
       if (item.type == 'folder') {
         // For folders, we need to recursively download contents
@@ -233,6 +243,12 @@ class OfflineManager {
         try {
           // Get folder contents
           final contents = await _sync.getFolderContents(item.id);
+          EVLogger.debug('Retrieved folder contents', {
+            'folderId': item.id,
+            'folderName': item.name,
+            'contentCount': contents.length
+          });
+          
           final totalFiles = contents.where((item) => item.type != 'folder').length;
           var currentFileIndex = 0;
           
@@ -264,16 +280,38 @@ class OfflineManager {
         final downloadManager = DownloadManager();
         downloadManager.startDownload();
         downloadManager.updateProgress(progress);
+        
         try {
+          EVLogger.debug('Starting file download', {
+            'fileId': item.id,
+            'fileName': item.name
+          });
+          
           // Download content using sync provider
           final content = await _sync.downloadContent(item.id);
+          EVLogger.debug('Downloaded file content', {
+            'fileId': item.id,
+            'fileName': item.name,
+            'contentSize': content.length
+          });
           
           // Store the file content
           final filePath = await _storage.storeFile(item.id, content);
+          EVLogger.debug('Stored file content', {
+            'fileId': item.id,
+            'fileName': item.name,
+            'filePath': filePath
+          });
           
           // Update metadata with file path
           final updatedItem = offlineItem.copyWith(filePath: filePath);
           await _metadata.saveItem(updatedItem);
+          EVLogger.debug('Updated metadata with file path', {
+            'fileId': item.id,
+            'fileName': item.name,
+            'filePath': filePath
+          });
+          
           // Update progress to 100%
           downloadManager.updateProgress(progress.copyWith(progress: 1.0));
           downloadManager.completeDownload();
@@ -300,7 +338,27 @@ class OfflineManager {
   
   /// Get offline file content
   Future<Uint8List?> getFileContent(String itemId) async {
-    return await _storage.getFile(itemId);
+    EVLogger.debug('Attempting to get offline file content', {
+      'itemId': itemId
+    });
+    
+    try {
+      final content = await _storage.getFile(itemId);
+      if (content == null) {
+        EVLogger.debug('File content not found in offline storage', {
+          'itemId': itemId
+        });
+      } else {
+        EVLogger.debug('Retrieved file content from offline storage', {
+          'itemId': itemId,
+          'contentSize': content.length
+        });
+      }
+      return content;
+    } catch (e) {
+      EVLogger.error('Error getting offline file content', e);
+      return null;
+    }
   }
   
   /// Get all offline items under a parent
