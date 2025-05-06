@@ -52,7 +52,7 @@ class FileTapHandler {
       final fileType = getFileType(document.name);
       
       // First check if file is available offline
-      if (await _offlineManager.isAvailableOffline(document.id)) {
+      if (await _offlineManager.isItemOffline(document.id)) {
         final offlineContent = await _offlineManager.getFileContent(document.id);
         if (offlineContent != null) {
           if (!context.mounted) return;

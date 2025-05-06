@@ -1,65 +1,88 @@
 import 'package:flutter/material.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
-import 'package:provider/provider.dart';
-import '../state/browse_screen_state.dart';
 
 class BrowseAppBar extends StatelessWidget implements PreferredSizeWidget {
-  final VoidCallback onDrawerOpen;
-  final VoidCallback onSearchTap;
-  final VoidCallback onLogoutTap;
+  final VoidCallback? onDrawerOpen;
+  final VoidCallback? onSearchTap;
+  final VoidCallback? onLogoutTap;
   final bool showBackButton;
-  final VoidCallback? onBackPressed;
+  final bool? Function()? onBackPressed;
   final bool isOfflineMode;
+  final bool isInSelectionMode;
+  final VoidCallback? onSelectionModeToggle;
 
   const BrowseAppBar({
     Key? key,
-    required this.onDrawerOpen,
-    required this.onSearchTap,
-    required this.onLogoutTap,
+    this.onDrawerOpen,
+    this.onSearchTap,
+    this.onLogoutTap,
     this.showBackButton = false,
     this.onBackPressed,
     this.isOfflineMode = false,
+    this.isInSelectionMode = false,
+    this.onSelectionModeToggle,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final state = !isOfflineMode
-        ? Provider.of<BrowseScreenState>(context, listen: false)
-        : null;
     return AppBar(
       backgroundColor: EVColors.appBarBackground,
-      foregroundColor: EVColors.appBarForeground,
       leading: showBackButton
           ? IconButton(
               icon: const Icon(Icons.arrow_back),
-              onPressed: onBackPressed,
+              onPressed: () {
+                if (onBackPressed?.call() ?? false) {
+                  // Navigation handled by controller
+                } else {
+                  Navigator.of(context).pop();
+                }
+              },
             )
           : IconButton(
               icon: const Icon(Icons.menu),
               onPressed: onDrawerOpen,
             ),
-      title: Text(isOfflineMode ? 'Offline Content' : 'Browse'),
+      title: Row(
+        children: [
+          const Text('Browse'),
+          if (isOfflineMode)
+            Container(
+              margin: const EdgeInsets.only(left: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: EVColors.statusWarning,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text(
+                'Offline',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+        ],
+      ),
       actions: [
-        if (!isOfflineMode && state != null) ...[
+        if (!isOfflineMode) ...[
           IconButton(
-            icon: Icon(state.isInSelectionMode ? Icons.close : Icons.select_all),
-            onPressed: () {
-              if (state.isInSelectionMode) {
-                state.exitSelectionMode();
-              } else {
-                state.toggleSelectionMode();
-              }
-            },
+            icon: Icon(isInSelectionMode ? Icons.close : Icons.select_all),
+            onPressed: onSelectionModeToggle,
           ),
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: onSearchTap,
           ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: onLogoutTap,
+          ),
+        ] else ...[
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: onSearchTap,
+          ),
         ],
-        IconButton(
-          icon: const Icon(Icons.logout),
-          onPressed: onLogoutTap,
-        ),
       ],
     );
   }

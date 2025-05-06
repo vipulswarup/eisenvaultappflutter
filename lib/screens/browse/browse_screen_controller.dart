@@ -413,7 +413,7 @@ class BrowseScreenController extends ChangeNotifier {
     if (_offlineItems.contains(itemId)) {
       return true;
     }
-    final isAvailable = await _offlineManager.isAvailableOffline(itemId);
+    final isAvailable = await _offlineManager.isItemOffline(itemId);
     if (isAvailable) {
       _offlineItems.add(itemId);
     }

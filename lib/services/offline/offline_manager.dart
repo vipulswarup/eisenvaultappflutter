@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_item.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_core.dart' show OfflineStorageProvider, OfflineEvent;
@@ -494,9 +495,14 @@ class OfflineManager {
   }
   
   /// Check if an item is available offline
-  Future<bool> isAvailableOffline(String itemId) async {
-    final metadata = await _metadata.getMetadata(itemId);
-    return metadata != null;
+  Future<bool> isItemOffline(String itemId) async {
+    try {
+      final metadata = await _metadata.getMetadata(itemId);
+      return metadata != null;
+    } catch (e) {
+      EVLogger.error('Error checking if item is offline', e);
+      return false;
+    }
   }
   
   /// Get offline file content
@@ -597,6 +603,39 @@ class OfflineManager {
     _connectivitySubscription.cancel();
     _eventController.close();
     _connectivityStream.close();
+  }
+  
+  /// Get the total available space on the device
+  Future<String> getAvailableSpace() async {
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final path = directory.path;
+      final result = await Process.run('df', ['-k', path]);
+      if (result.exitCode == 0) {
+        final lines = result.stdout.toString().split('\n');
+        if (lines.length > 1) {
+          final values = lines[1].split(RegExp(r'\s+'));
+          if (values.length > 3) {
+            final availableBytes = int.parse(values[3]) * 1024; // Convert KB to bytes
+            
+            // Convert bytes to a human-readable format
+            if (availableBytes < 1024) {
+              return '$availableBytes B';
+            } else if (availableBytes < 1024 * 1024) {
+              return '${(availableBytes / 1024).toStringAsFixed(2)} KB';
+            } else if (availableBytes < 1024 * 1024 * 1024) {
+              return '${(availableBytes / (1024 * 1024)).toStringAsFixed(2)} MB';
+            } else {
+              return '${(availableBytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
+            }
+          }
+        }
+      }
+      return 'Unknown';
+    } catch (e) {
+      EVLogger.error('Error getting available space', e);
+      return 'Unknown';
+    }
   }
 }
 

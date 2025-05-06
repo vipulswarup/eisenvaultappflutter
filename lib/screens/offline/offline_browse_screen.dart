@@ -168,20 +168,31 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
   }
 
   /// Handles back navigation in the folder hierarchy.
-  Future<void> _handleBackNavigation() async {
+  Future<bool> _handleBackNavigation() async {
     if (_navigationStack.isNotEmpty) {
       setState(() {
         _currentFolder = _navigationStack.removeLast();
         _isLoading = true;
       });
       await _loadOfflineContent();
+      return true;
     } else if (_currentFolder != null) {
       setState(() {
         _currentFolder = null;
         _isLoading = true;
       });
       await _loadOfflineContent();
+      return true;
     }
+    return false;
+  }
+
+  bool _handleBackNavigationSync() {
+    if (_navigationStack.isNotEmpty || _currentFolder != null) {
+      _handleBackNavigation();
+      return true;
+    }
+    return false;
   }
 
   /// Handles tapping on a file: attempts to open it from offline storage.
@@ -532,7 +543,7 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
           },
           onLogoutTap: () {},
           showBackButton: _navigationStack.isNotEmpty || _currentFolder != null,
-          onBackPressed: _handleBackNavigation,
+          onBackPressed: _handleBackNavigationSync,
           isOfflineMode: true,
         ),
         drawer: BrowseDrawer(

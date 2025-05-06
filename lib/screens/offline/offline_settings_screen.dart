@@ -178,6 +178,9 @@ class _OfflineSettingsScreenState extends State<OfflineSettingsScreen> {
     
     try {
       await _syncService.startSync();
+      // Refresh storage info after sync
+      await _loadStorageUsage();
+      await _loadAvailableStorage();
     } catch (e) {
       EVLogger.error('Failed to start sync', e);
       if (mounted) {
@@ -233,7 +236,7 @@ class _OfflineSettingsScreenState extends State<OfflineSettingsScreen> {
           ),
         );
         
-        // Refresh storage usage
+        // Refresh storage info
         await _loadStorageUsage();
         await _loadAvailableStorage();
       }
@@ -281,48 +284,48 @@ class _OfflineSettingsScreenState extends State<OfflineSettingsScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Storage Usage',
+          'Storage',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
         ),
         const SizedBox(height: 16),
-        ListTile(
-          leading: const Icon(Icons.storage, color: EVColors.buttonBackground),
-          title: const Text('Offline Storage Used'),
-          subtitle: Text(_storageUsage),
-          trailing: IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              _loadStorageUsage();
-              _loadAvailableStorage();
-            },
-            tooltip: 'Refresh storage usage',
-          ),
-        ),
-        // Add available storage information
-        ListTile(
-          leading: const Icon(Icons.sd_storage, color: EVColors.buttonBackground),
-          title: const Text('Available Storage'),
-          subtitle: Text(_availableStorage),
-          // Display warning icon if storage is low
-          trailing: _availableStorage.contains('Low') 
-            ? const Icon(Icons.warning, color: Colors.orange)
-            : null,
-        ),
-        // Show storage info message if space is low
-        if (_availableStorage.contains('Low'))
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Text(
-              'Low storage may affect your ability to save additional content for offline use.',
-              style: TextStyle(
-                color: Colors.orange,
-                fontSize: 12,
-              ),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Used Space'),
+                    Text(
+                      _storageUsage,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Available Space'),
+                    Text(
+                      _availableStorage,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
+        ),
       ],
     );
   }
