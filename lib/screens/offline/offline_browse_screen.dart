@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
-import 'package:eisenvaultappflutter/screens/browse/widgets/download_progress_indicator.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:flutter/material.dart';
@@ -138,7 +137,11 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
         _errorMessage = null;
       });
 
+      
+
       final items = await _offlineManager!.getOfflineItems(_currentFolder?.id);
+
+      
 
       if (!mounted) return;
       setState(() {
@@ -157,6 +160,8 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
 
   /// Navigates into a folder, updating the navigation stack.
   Future<void> _navigateToFolder(BrowseItem folder) async {
+    
+
     setState(() {
       if (_currentFolder != null) {
         _navigationStack.add(_currentFolder!);
@@ -169,6 +174,8 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
 
   /// Handles back navigation in the folder hierarchy.
   Future<bool> _handleBackNavigation() async {
+    
+
     if (_navigationStack.isNotEmpty) {
       setState(() {
         _currentFolder = _navigationStack.removeLast();

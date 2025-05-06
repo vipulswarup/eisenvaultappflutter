@@ -372,6 +372,14 @@ class OfflineManager {
 
         // Process each container
         for (final container in containers) {
+          // First save the container itself with the site as parent
+          await keepOffline(
+            container,
+            parentId: site.id,
+            downloadManager: downloadManager,
+            onError: onError,
+          );
+
           if (container.type == 'folder') {
             // For document libraries and other site containers, use regular folder download
             await _downloadFolderContents(
@@ -380,6 +388,7 @@ class OfflineManager {
               onError: onError,
               totalFiles: totalFiles,
               currentFileIndex: currentFileIndex,
+              parentId: container.id, // Use the container's ID as parent for its contents
             );
             // Update currentFileIndex based on folder contents
             currentFileIndex += await _countFolderContents(container);
@@ -449,6 +458,7 @@ class OfflineManager {
     void Function(String message)? onError,
     int? totalFiles,
     int? currentFileIndex,
+    String? parentId,
   }) async {
     try {
       final browseService = BrowseServiceFactory.getService(
@@ -472,18 +482,27 @@ class OfflineManager {
         for (final content in contents) {
           if (downloadManager?.isCancelled == true) return;
           if (content.type == 'folder') {
+            // First save the folder with its parent ID
+            await keepOffline(
+              content,
+              parentId: parentId ?? folder.id,
+              downloadManager: downloadManager,
+              onError: onError,
+            );
+            // Then download its contents
             fileIndex = await _downloadFolderContentsWithIndex(
               content,
               downloadManager: downloadManager,
               onError: onError,
               totalFiles: totalFiles,
               currentFileIndex: fileIndex,
+              parentId: content.id, // Use the folder's ID as parent for its contents
             );
           } else {
             fileIndex++;
             await keepOffline(
               content,
-              parentId: folder.id,
+              parentId: parentId ?? folder.id,
               downloadManager: downloadManager,
               onError: onError,
               totalFiles: totalFiles,
@@ -510,6 +529,7 @@ class OfflineManager {
     void Function(String message)? onError,
     int? totalFiles,
     int? currentFileIndex,
+    String? parentId,
   }) async {
     int fileIndex = currentFileIndex ?? 0;
     final browseService = BrowseServiceFactory.getService(
@@ -530,18 +550,27 @@ class OfflineManager {
       for (final content in contents) {
         if (downloadManager?.isCancelled == true) return fileIndex;
         if (content.type == 'folder') {
+          // First save the folder with its parent ID
+          await keepOffline(
+            content,
+            parentId: parentId,
+            downloadManager: downloadManager,
+            onError: onError,
+          );
+          // Then download its contents
           fileIndex = await _downloadFolderContentsWithIndex(
             content,
             downloadManager: downloadManager,
             onError: onError,
             totalFiles: totalFiles,
             currentFileIndex: fileIndex,
+            parentId: content.id, // Use the folder's ID as parent for its contents
           );
         } else {
           fileIndex++;
           await keepOffline(
             content,
-            parentId: folder.id,
+            parentId: parentId,
             downloadManager: downloadManager,
             onError: onError,
             totalFiles: totalFiles,
@@ -586,7 +615,12 @@ class OfflineManager {
   /// Get all offline items under a parent
   Future<List<BrowseItem>> getOfflineItems(String? parentId) async {
     try {
+      
+
       final items = await _metadata.getItemsByParent(parentId);
+
+      
+
       return items.map((data) => BrowseItem(
         id: data['id'],
         name: data['name'],
@@ -817,6 +851,8 @@ class _DatabaseMetadataAdapter implements OfflineMetadataProvider {
   
   @override
   Future<void> saveItem(OfflineItem item) async {
+    
+
     // Insert the item into the database
     await _database.insertItem(
       BrowseItem(
@@ -836,12 +872,18 @@ class _DatabaseMetadataAdapter implements OfflineMetadataProvider {
   
   @override
   Future<Map<String, dynamic>?> getMetadata(String itemId) async {
+    
     return await _database.getItem(itemId);
   }
   
   @override
   Future<List<Map<String, dynamic>>> getItemsByParent(String? parentId) async {
+    
+
     final items = await _database.getItemsByParent(parentId);
+
+    
+
     return items;
   }
   
