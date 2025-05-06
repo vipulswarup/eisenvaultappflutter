@@ -257,6 +257,7 @@ class OfflineManager {
               onError: onError,
             );
           }
+          downloadManager?.completeDownload();
           return true;
         } catch (e) {
           downloadManager?.completeDownload();
@@ -280,6 +281,9 @@ class OfflineManager {
           // Download content using sync provider
           final content = await _sync.downloadContent(item.id);
           
+          // Update progress to 50% when download is complete
+          downloadManager?.updateProgress(progress.copyWith(progress: 0.5));
+          
           // Store the file content
           final filePath = await _storage.storeFile(item.id, content);
           
@@ -289,7 +293,12 @@ class OfflineManager {
           
           // Update progress to 100%
           downloadManager?.updateProgress(progress.copyWith(progress: 1.0));
-          downloadManager?.completeDownload();
+          
+          // Only complete the download if this is the last file
+          if (currentFileIndex == totalFiles) {
+            downloadManager?.completeDownload();
+          }
+          
           _eventController.add(OfflineEvent('item_added', 'Item added to offline storage', updatedItem));
           return true;
         } catch (e) {
@@ -451,34 +460,34 @@ class OfflineManager {
       int skipCount = 0;
       const int maxItems = 25;
       List<BrowseItem> contents;
-      
+      int fileIndex = currentFileIndex ?? 0;
       do {
+        if (downloadManager?.isCancelled == true) return;
         contents = await browseService.getChildren(
           folder,
           skipCount: skipCount,
           maxItems: maxItems,
         );
 
-        // Process each item in the folder
         for (final content in contents) {
+          if (downloadManager?.isCancelled == true) return;
           if (content.type == 'folder') {
-            await _downloadFolderContents(
+            fileIndex = await _downloadFolderContentsWithIndex(
               content,
               downloadManager: downloadManager,
               onError: onError,
               totalFiles: totalFiles,
-              currentFileIndex: currentFileIndex,
+              currentFileIndex: fileIndex,
             );
           } else {
-            // For files, download them directly
-            currentFileIndex = (currentFileIndex ?? 0) + 1;
+            fileIndex++;
             await keepOffline(
               content,
               parentId: folder.id,
               downloadManager: downloadManager,
               onError: onError,
               totalFiles: totalFiles,
-              currentFileIndex: currentFileIndex,
+              currentFileIndex: fileIndex,
             );
           }
         }
@@ -492,6 +501,57 @@ class OfflineManager {
       }
       rethrow;
     }
+  }
+  
+  /// Helper that returns the updated file index after downloading a folder
+  Future<int> _downloadFolderContentsWithIndex(
+    BrowseItem folder, {
+    DownloadManager? downloadManager,
+    void Function(String message)? onError,
+    int? totalFiles,
+    int? currentFileIndex,
+  }) async {
+    int fileIndex = currentFileIndex ?? 0;
+    final browseService = BrowseServiceFactory.getService(
+      _sync.instanceType,
+      _sync.baseUrl,
+      _sync.authToken,
+    );
+    int skipCount = 0;
+    const int maxItems = 25;
+    List<BrowseItem> contents;
+    do {
+      if (downloadManager?.isCancelled == true) return fileIndex;
+      contents = await browseService.getChildren(
+        folder,
+        skipCount: skipCount,
+        maxItems: maxItems,
+      );
+      for (final content in contents) {
+        if (downloadManager?.isCancelled == true) return fileIndex;
+        if (content.type == 'folder') {
+          fileIndex = await _downloadFolderContentsWithIndex(
+            content,
+            downloadManager: downloadManager,
+            onError: onError,
+            totalFiles: totalFiles,
+            currentFileIndex: fileIndex,
+          );
+        } else {
+          fileIndex++;
+          await keepOffline(
+            content,
+            parentId: folder.id,
+            downloadManager: downloadManager,
+            onError: onError,
+            totalFiles: totalFiles,
+            currentFileIndex: fileIndex,
+          );
+        }
+      }
+      skipCount += maxItems;
+    } while (contents.length >= maxItems);
+    return fileIndex;
   }
   
   /// Check if an item is available offline

@@ -38,7 +38,18 @@ class DownloadProgressIndicator extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Icon(Icons.download, color: EVColors.buttonBackground, size: 36),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Icon(Icons.download, color: EVColors.buttonBackground, size: 36),
+                          IconButton(
+                            icon: const Icon(Icons.close, color: EVColors.textGrey),
+                            onPressed: () {
+                              downloadManager.cancelDownload();
+                            },
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 16),
                       Text(
                         progress.totalFiles > 1
@@ -77,6 +88,14 @@ class DownloadProgressIndicator extends StatelessWidget {
                           color: EVColors.textGrey,
                           fontSize: 14,
                         ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextButton.icon(
+                        icon: const Icon(Icons.cancel, color: EVColors.statusError),
+                        label: const Text('Cancel Download', style: TextStyle(color: EVColors.statusError)),
+                        onPressed: () {
+                          downloadManager.cancelDownload();
+                        },
                       ),
                     ],
                   ),
