@@ -14,7 +14,7 @@ dependencies:
   # Core Flutter Dependencies
   cupertino_icons: ^1.0.2
   async: ^2.12.0
-  provider: ^6.1.1
+  provider: ^6.1.5
   
   # Networking and API
   http: ^1.1.0
@@ -26,7 +26,10 @@ dependencies:
   logger: ^2.0.2+1
   
   # PDF Handling
-  syncfusion_flutter_pdfviewer: ^29.1.37
+  syncfusion_flutter_pdfviewer: ^29.1.41
+  syncfusion_flutter_pdf: ^29.1.41
+  syncfusion_flutter_core: ^29.1.41
+  syncfusion_flutter_signaturepad: ^29.1.41
   pdf: ^3.11.3
   printing: ^5.14.2
   
