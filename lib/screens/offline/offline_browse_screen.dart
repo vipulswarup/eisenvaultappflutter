@@ -577,8 +577,6 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
                 ],
               ),
             ),
-            // Download progress indicator (shows if downloads are in progress)
-            const DownloadProgressIndicator(),
             // Navigation breadcrumbs
             BrowseNavigation(
               onHomeTap: () {

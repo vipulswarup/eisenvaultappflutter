@@ -9,6 +9,8 @@ import 'screens/login_screen.dart';
 // Add imports for web database support
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:provider/provider.dart';
+import 'package:eisenvaultappflutter/services/offline/download_manager.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,7 +38,12 @@ void main() async {
     EVLogger.error('No saved credentials for offline support: $e');
   }
 
-  runApp(MyApp(syncService: syncService));
+  runApp(
+    ChangeNotifierProvider<DownloadManager>(
+      create: (_) => DownloadManager(),
+      child: MyApp(syncService: syncService),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {

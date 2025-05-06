@@ -329,132 +329,122 @@ class _BrowseScreenState extends State<BrowseScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider<DownloadManager>(
-          create: (_) => DownloadManager(),
-        ),
-      ],
-      child: Scaffold(
-        key: _scaffoldKey,
-        backgroundColor: EVColors.screenBackground,
-        appBar: BrowseAppBar(
-          onDrawerOpen: () => _scaffoldKey.currentState?.openDrawer(),
-          onSearchTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Search is available only online'),
-                backgroundColor: EVColors.statusWarning,
-              ),
-            );
-          },
-          onLogoutTap: () {},
-          showBackButton: _controller?.navigationStack.isNotEmpty ?? false || _controller?.currentFolder != null,
-          onBackPressed: _controller?.handleBackNavigation,
-          isOfflineMode: _isOffline,
-          isInSelectionMode: _isInSelectionMode,
-          onSelectionModeToggle: _toggleSelectionMode,
-        ),
-        drawer: _offlineManager == null 
-          ? null 
-          : BrowseDrawer(
-              firstName: widget.firstName,
-              baseUrl: widget.baseUrl,
-              authToken: widget.authToken,
-              instanceType: widget.instanceType,
-              onLogoutTap: () {}, // No logout action needed in offline mode
-              offlineManager: _offlineManager!,
+    return Scaffold(
+      key: _scaffoldKey,
+      backgroundColor: EVColors.screenBackground,
+      appBar: BrowseAppBar(
+        onDrawerOpen: () => _scaffoldKey.currentState?.openDrawer(),
+        onSearchTap: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Search is available only online'),
+              backgroundColor: EVColors.statusWarning,
             ),
-        body: _controller == null
-            ? const Center(child: CircularProgressIndicator())
-            : Stack(
-                children: [
-                  Column(
+          );
+        },
+        onLogoutTap: () {},
+        showBackButton: _controller?.navigationStack.isNotEmpty ?? false || _controller?.currentFolder != null,
+        onBackPressed: _controller?.handleBackNavigation,
+        isOfflineMode: _isOffline,
+        isInSelectionMode: _isInSelectionMode,
+        onSelectionModeToggle: _toggleSelectionMode,
+      ),
+      drawer: _offlineManager == null 
+        ? null 
+        : BrowseDrawer(
+            firstName: widget.firstName,
+            baseUrl: widget.baseUrl,
+            authToken: widget.authToken,
+            instanceType: widget.instanceType,
+            onLogoutTap: () {}, // No logout action needed in offline mode
+            offlineManager: _offlineManager!,
+          ),
+      body: Stack(
+        children: [
+          // Main content
+          Column(
+            children: [
+              if (_isOffline)
+                Container(
+                  width: double.infinity,
+                  color: EVColors.offlineBackground,
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                  child: Row(
                     children: [
-                      BrowseNavigation(
-                        onHomeTap: () {
-                          _controller?.loadDepartments();
-                        },
-                        onBreadcrumbTap: (index) {
-                          _controller?.navigateToBreadcrumb(index);
-                        },
-                        currentFolderName: _controller?.currentFolder?.name,
-                        navigationStack: _controller?.navigationStack ?? [],
-                        currentFolder: _controller?.currentFolder,
-                      ),
+                      const Icon(Icons.offline_pin, color: EVColors.offlineIndicator, size: 20),
+                      const SizedBox(width: 8),
                       Expanded(
-                        child: BrowseList(
-                          items: _controller!.items,
-                          isLoading: _controller!.isLoading,
-                          errorMessage: _controller!.errorMessage,
-                          onItemTap: _handleItemTap,
-                          onItemLongPress: _handleItemLongPress,
-                          isOffline: _isOffline,
-                          isInSelectionMode: _isInSelectionMode,
-                          selectedItems: _selectedItems,
-                          onItemSelectionChanged: (itemId, selected) {
-                            setState(() {
-                              if (selected) {
-                                _selectedItems.add(itemId);
-                              } else {
-                                _selectedItems.remove(itemId);
-                              }
-                            });
-                          },
+                        child: Text(
+                          'Offline Mode - Showing offline content only',
+                          style: const TextStyle(
+                            color: EVColors.offlineText,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  if (_isInSelectionMode && _selectedItems.isNotEmpty)
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: EVColors.listItemBackground,
-                          boxShadow: [
-                            BoxShadow(
-                              color: EVColors.cardShadow,
-                              blurRadius: 4,
-                              offset: const Offset(0, -2),
-                            ),
-                          ],
-                        ),
-                        child: SafeArea(
-                          child: Row(
-                            children: [
-                              Text(
-                                '${_selectedItems.length} selected',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: EVColors.textDefault,
-                                ),
-                              ),
-                              const Spacer(),
-                              TextButton.icon(
-                                icon: const Icon(Icons.delete_outline, color: EVColors.statusError),
-                                label: const Text('Delete', style: TextStyle(color: EVColors.statusError)),
-                                onPressed: () {
-                                  _batchDeleteHandler.handleBatchDelete();
-                                },
-                              ),
-                              const SizedBox(width: 8),
-                              TextButton.icon(
-                                icon: const Icon(Icons.offline_pin, color: EVColors.buttonBackground),
-                                label: const Text('Keep Offline', style: TextStyle(color: EVColors.buttonBackground)),
-                                onPressed: () {
-                                  _batchOfflineHandler.handleBatchOffline();
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
+                ),
+              BrowseNavigation(
+                onHomeTap: () {
+                  _controller?.loadDepartments();
+                },
+                onBreadcrumbTap: (index) {
+                  _controller?.navigateToBreadcrumb(index);
+                },
+                currentFolderName: _controller?.currentFolder?.name,
+                navigationStack: _controller?.navigationStack ?? [],
+                currentFolder: _controller?.currentFolder,
               ),
+              Expanded(
+                child: _controller == null
+                    ? const Center(child: CircularProgressIndicator())
+                    : _controller!.isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : _controller!.items.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(
+                                      Icons.folder_off,
+                                      color: EVColors.textFieldHint,
+                                      size: 48,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    const Text(
+                                      'No content available in this folder',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(color: EVColors.textFieldHint),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : BrowseList(
+                                items: _controller!.items,
+                                isLoading: _controller!.isLoading,
+                                errorMessage: _controller!.errorMessage,
+                                onItemTap: _handleItemTap,
+                                onItemLongPress: _handleItemLongPress,
+                                isOffline: _isOffline,
+                                isInSelectionMode: _isInSelectionMode,
+                                selectedItems: _selectedItems,
+                                onItemSelectionChanged: (itemId, selected) {
+                                  setState(() {
+                                    if (selected) {
+                                      _selectedItems.add(itemId);
+                                    } else {
+                                      _selectedItems.remove(itemId);
+                                    }
+                                  });
+                                },
+                              ),
+              ),
+            ],
+          ),
+          // Modal download progress overlay (always above all content)
+          const DownloadProgressIndicator(),
+        ],
       ),
     );
   }
@@ -473,18 +463,18 @@ class _BrowseScreenState extends State<BrowseScreen> {
     
     showModalBottomSheet(
       context: context,
-      builder: (context) => Column(
+      builder: (sheetContext) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           ListTile(
             leading: const Icon(Icons.offline_pin),
             title: Text(isOffline ? 'Remove from Offline' : 'Keep Offline'),
             onTap: () async {
-              Navigator.pop(context);
+              Navigator.pop(sheetContext);
               if (isOffline) {
                 await _removeFromOffline(item);
               } else {
-                await _keepOffline(item);
+                await _keepOffline(context, item);
               }
             },
           ),
@@ -493,7 +483,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
               leading: const Icon(Icons.download),
               title: const Text('Download'),
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pop(sheetContext);
                 _fileTapHandler.handleFileTap(item);
               },
             ),
@@ -501,7 +491,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
             leading: const Icon(Icons.delete),
             title: const Text('Delete'),
             onTap: () {
-              Navigator.pop(context);
+              Navigator.pop(sheetContext);
               _deleteHandler.showDeleteConfirmation(item);
             },
           ),
@@ -545,9 +535,9 @@ class _BrowseScreenState extends State<BrowseScreen> {
     }
   }
 
-  Future<void> _keepOffline(BrowseItem item) async {
+  Future<void> _keepOffline(BuildContext context, BrowseItem item) async {
     try {
-      final downloadManager = DownloadManager();
+      final downloadManager = Provider.of<DownloadManager>(context, listen: false);
       await _offlineManager!.keepOffline(
         item,
         downloadManager: downloadManager,
