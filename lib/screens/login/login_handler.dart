@@ -17,29 +17,23 @@ class LoginHandler {
     required String baseUrl,
     required String username,
     required String password,
-    required String instanceType,
+    required String instanceType, // Keep parameter for future use
   }) async {
     try {
+      // Force Classic instance type
+      const instanceType = 'Classic';
+      
       // For Classic instances, append /alfresco if not present
-      if (instanceType == 'Classic' && !baseUrl.endsWith('/alfresco')) {
+      if (!baseUrl.endsWith('/alfresco')) {
         baseUrl = '$baseUrl/alfresco';
       }
 
-      // Perform login based on instance type
-      Map<String, dynamic> loginResult;
-      if (instanceType == 'Classic') {
-        final authService = ClassicAuthService(baseUrl);
-        loginResult = await authService.makeRequest(
-          'login',
-          requestFunction: () => authService.login(username, password)
-        );
-      } else {
-        final authService = AngoraAuthService(baseUrl);
-        loginResult = await authService.makeRequest(
-          'login',
-          requestFunction: () => authService.login(username, password)
-        );
-      }
+      // Perform login using Classic auth service
+      final authService = ClassicAuthService(baseUrl);
+      final loginResult = await authService.makeRequest(
+        'login',
+        requestFunction: () => authService.login(username, password)
+      );
 
       if (!context.mounted) return;
       
@@ -52,14 +46,8 @@ class LoginHandler {
         ),
       );
       
-      // Extract customer hostname for Angora
-      String customerHostname = '';
-      if (instanceType == 'Angora') {
-        Uri uri = Uri.parse(baseUrl);
-        customerHostname = uri.host; // Extract hostname properly
-      } else {
-        customerHostname = 'classic-repository';
-      }
+      // Set customer hostname for Classic
+      const customerHostname = 'classic-repository';
       
       // Initialize offline components
       await _initializeOfflineComponents(

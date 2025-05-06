@@ -199,11 +199,14 @@ class _OfflineLoginUIState extends State<OfflineLoginUI> {
         throw Exception('No saved credentials found');
       }
 
+      // Force Classic instance type
+      const instanceType = 'Classic';
+
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (context) => OfflineBrowseScreen(
-              instanceType: credentials['instanceType']!,
+              instanceType: instanceType,
               baseUrl: credentials['baseUrl']!,
               authToken: credentials['authToken']!,
               firstName: credentials['firstName'] ?? 'User',

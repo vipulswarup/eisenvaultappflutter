@@ -91,34 +91,35 @@ class _LoginFormState extends State<LoginForm> {
                   ),                  
                   SizedBox(height: elementSpacing * 2), // Increased spacing after logo
                  
-                  DropdownButtonFormField<String>(
-                    value: _selectedVersion,
-                    decoration: InputDecoration(
-                      labelText: 'Instance Type',
-                      prefixIcon: Icon(Icons.dns, color: EVColors.textFieldPrefixIcon),
-                      filled: true,
-                      fillColor: EVColors.textFieldFill,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      labelStyle: TextStyle(color: EVColors.textFieldLabel),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                    ),
-                    items: const [
-                      DropdownMenuItem(value: 'Classic', child: Text('Classic')),
-                      DropdownMenuItem(value: 'Angora', child: Text('Angora')),
-                    ],
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedVersion = value!;
-                        if (_devMode) {
-                          _updateDevCredentials(_selectedVersion);
-                        }
-                      });
-                    },
-                  ),
-                  SizedBox(height: elementSpacing),
+                  // Comment out the DropdownButtonFormField instead of removing it
+                  // DropdownButtonFormField<String>(
+                  //   value: _selectedVersion,
+                  //   decoration: InputDecoration(
+                  //     labelText: 'Instance Type',
+                  //     prefixIcon: Icon(Icons.dns, color: EVColors.textFieldPrefixIcon),
+                  //     filled: true,
+                  //     fillColor: EVColors.textFieldFill,
+                  //     border: OutlineInputBorder(
+                  //       borderRadius: BorderRadius.circular(12),
+                  //       borderSide: BorderSide.none,
+                  //     ),
+                  //     labelStyle: TextStyle(color: EVColors.textFieldLabel),
+                  //     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  //   ),
+                  //   items: const [
+                  //     DropdownMenuItem(value: 'Classic', child: Text('Classic')),
+                  //     DropdownMenuItem(value: 'Angora', child: Text('Angora')),
+                  //   ],
+                  //   onChanged: (value) {
+                  //     setState(() {
+                  //       _selectedVersion = value!;
+                  //       if (_devMode) {
+                  //         _updateDevCredentials(_selectedVersion);
+                  //       }
+                  //     });
+                  //   },
+                  // ),
+                  // SizedBox(height: elementSpacing),
                   _buildTextField(
                     controller: _urlController,
                     label: 'Server URL',
