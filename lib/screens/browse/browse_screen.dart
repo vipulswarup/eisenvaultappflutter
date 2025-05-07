@@ -343,7 +343,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
             ),
           );
         },
-        onLogoutTap: () {},
+        onLogoutTap: () => _authHandler.showLogoutConfirmation(),
         showBackButton: _controller?.navigationStack.isNotEmpty ?? false || _controller?.currentFolder != null,
         onBackPressed: _controller?.handleBackNavigation,
         isOfflineMode: _isOffline,
@@ -357,7 +357,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
             baseUrl: widget.baseUrl,
             authToken: widget.authToken,
             instanceType: widget.instanceType,
-            onLogoutTap: () {}, // No logout action needed in offline mode
+            onLogoutTap: () => _authHandler.showLogoutConfirmation(),
             offlineManager: _offlineManager!,
           ),
       body: Stack(

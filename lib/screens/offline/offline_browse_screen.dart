@@ -15,6 +15,7 @@ import 'package:eisenvaultappflutter/screens/pdf_viewer_screen.dart';
 import 'package:eisenvaultappflutter/screens/image_viewer_screen.dart';
 import 'package:eisenvaultappflutter/screens/generic_file_preview_screen.dart';
 import 'package:eisenvaultappflutter/utils/file_type_utils.dart';
+import 'package:eisenvaultappflutter/screens/browse/handlers/auth_handler.dart';
 
 /// OfflineBrowseScreen is a dedicated screen that shows only the offline content.
 /// It provides a simplified browsing experience focused solely on viewing offline content.
@@ -54,10 +55,17 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
   List<BrowseItem> _navigationStack = [];
   BrowseItem? _currentFolder;
 
+  late AuthHandler _authHandler;
+
   @override
   void initState() {
     super.initState();
     _initializeOfflineComponents();
+    _authHandler = AuthHandler(
+      context: context,
+      instanceType: widget.instanceType,
+      baseUrl: widget.baseUrl,
+    );
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen((result) {
       final isOnline = result != ConnectivityResult.none && result != ConnectivityResult.other;
       if (isOnline) {
@@ -548,7 +556,7 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
               ),
             );
           },
-          onLogoutTap: () {},
+          onLogoutTap: () => _authHandler.showLogoutConfirmation(),
           showBackButton: _navigationStack.isNotEmpty || _currentFolder != null,
           onBackPressed: _handleBackNavigationSync,
           isOfflineMode: true,
@@ -558,7 +566,7 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
           baseUrl: widget.baseUrl,
           authToken: widget.authToken,
           instanceType: widget.instanceType,
-          onLogoutTap: () {}, // No logout action needed in offline mode
+          onLogoutTap: () => _authHandler.showLogoutConfirmation(),
           offlineManager: _offlineManager!,
         ),
         body: Column(
