@@ -23,6 +23,7 @@ import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:eisenvaultappflutter/screens/document_upload_screen.dart';
+import 'package:eisenvaultappflutter/screens/widgets/action_button_builder.dart';
 
 /// BrowseScreen handles online browsing of the repository content.
 class BrowseScreen extends StatefulWidget {
@@ -445,6 +446,22 @@ class _BrowseScreenState extends State<BrowseScreen> {
           // Modal download progress overlay (always above all content)
           const DownloadProgressIndicator(),
         ],
+      ),
+      floatingActionButton: ActionButtonBuilder.buildFloatingActionButton(
+        isInSelectionMode: _isInSelectionMode,
+        hasSelectedItems: _selectedItems.isNotEmpty,
+        isInFolder: _controller?.currentFolder != null && !_controller!.currentFolder!.isDepartment,
+        hasWritePermission: _controller?.currentFolder?.canCreate ?? false,
+        onBatchDelete: () => _batchDeleteHandler.handleBatchDelete(),
+        onUpload: () => _uploadHandler.navigateToUploadScreen(),
+        onShowNoPermissionMessage: (message) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message),
+              backgroundColor: EVColors.statusError,
+            ),
+          );
+        },
       ),
     );
   }

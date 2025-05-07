@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_core.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 /// Implementation of [OfflineStorageProvider] that stores files on the device's local storage
 class LocalStorageProvider implements OfflineStorageProvider {
@@ -19,11 +20,21 @@ class LocalStorageProvider implements OfflineStorageProvider {
     try {
       // Request storage permissions on Android
       if (Platform.isAndroid) {
-        final status = await Permission.storage.request();
-        if (status.isGranted) {
-          // Permission granted, proceed with initialization
+        final deviceInfo = await DeviceInfoPlugin().androidInfo;
+        final sdkVersion = deviceInfo.version.sdkInt;
+        
+        if (sdkVersion >= 30) {
+          // Android 11 and above
+          final status = await Permission.manageExternalStorage.request();
+          if (!status.isGranted) {
+            throw Exception('Storage permission is required for offline access. Please grant permission in Settings.');
+          }
         } else {
-          throw Exception('Storage permission is required for offline access');
+          // Android 10 and below
+          final status = await Permission.storage.request();
+          if (!status.isGranted) {
+            throw Exception('Storage permission is required for offline access');
+          }
         }
       }
       
