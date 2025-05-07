@@ -1,4 +1,3 @@
-import 'package:eisenvaultappflutter/config/dev_credentials.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/screens/login/login_handler.dart';
 import 'package:flutter/material.dart';
@@ -21,35 +20,7 @@ class _LoginFormState extends State<LoginForm> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _showPassword = false;
-  String _selectedVersion = 'Classic';
-  
-  // Development mode flag
-  final bool _devMode = true;
   final _loginHandler = LoginHandler();
-
-  @override
-  void initState() {
-    super.initState();
-    if (_devMode) {
-      _updateDevCredentials(_selectedVersion);
-    }
-  }
-  
-  void _updateDevCredentials(String instanceType) {
-    try {
-      final credentialsMap = DevCredentials.credentials[instanceType];
-      if (credentialsMap != null) {
-        _urlController.text = credentialsMap['url'] ?? '';
-        _usernameController.text = credentialsMap['username'] ?? '';
-        _passwordController.text = credentialsMap['password'] ?? '';
-      }
-    } catch (e) {
-      _urlController.text = '';
-      _usernameController.text = '';
-      _passwordController.text = '';
-      print('Dev credentials not loaded: $e');
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -91,35 +62,6 @@ class _LoginFormState extends State<LoginForm> {
                   ),                  
                   SizedBox(height: elementSpacing * 2), // Increased spacing after logo
                  
-                  // Comment out the DropdownButtonFormField instead of removing it
-                  // DropdownButtonFormField<String>(
-                  //   value: _selectedVersion,
-                  //   decoration: InputDecoration(
-                  //     labelText: 'Instance Type',
-                  //     prefixIcon: Icon(Icons.dns, color: EVColors.textFieldPrefixIcon),
-                  //     filled: true,
-                  //     fillColor: EVColors.textFieldFill,
-                  //     border: OutlineInputBorder(
-                  //       borderRadius: BorderRadius.circular(12),
-                  //       borderSide: BorderSide.none,
-                  //     ),
-                  //     labelStyle: TextStyle(color: EVColors.textFieldLabel),
-                  //     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                  //   ),
-                  //   items: const [
-                  //     DropdownMenuItem(value: 'Classic', child: Text('Classic')),
-                  //     DropdownMenuItem(value: 'Angora', child: Text('Angora')),
-                  //   ],
-                  //   onChanged: (value) {
-                  //     setState(() {
-                  //       _selectedVersion = value!;
-                  //       if (_devMode) {
-                  //         _updateDevCredentials(_selectedVersion);
-                  //       }
-                  //     });
-                  //   },
-                  // ),
-                  // SizedBox(height: elementSpacing),
                   _buildTextField(
                     controller: _urlController,
                     label: 'Server URL',
@@ -255,7 +197,7 @@ class _LoginFormState extends State<LoginForm> {
           baseUrl: baseUrl,
           username: username, 
           password: password,
-          instanceType: _selectedVersion,
+          instanceType: 'Classic',
         );
       } catch (e) {
         widget.onLoginFailed(e);
