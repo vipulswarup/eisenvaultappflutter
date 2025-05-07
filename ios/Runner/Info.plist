@@ -24,6 +24,8 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>MinimumOSVersion</key>
+	<string>13.0</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -175,20 +177,34 @@
 	
 	<!-- Permission for file access -->
 	<key>NSDocumentsFolderUsageDescription</key>
-	<string>This app needs access to documents for opening and sharing files</string>
+	<string>EisenVault needs access to documents for managing and organizing your files.</string>
 	<key>NSDownloadsFolderUsageDescription</key>
-	<string>This app needs access to downloads for saving files</string>
+	<string>EisenVault needs access to downloads to save and manage offline documents.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>This app needs access to the photo library for file selection.</string>
+	<string>EisenVault needs access to your photo library to select and upload documents and images.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Need access to camera for document upload</string>
+	<string>EisenVault needs camera access to scan documents and capture photos for upload.</string>
 	<key>NSDocumentsDirectoryUsageDescription</key>
 	<string>This app needs access to documents for file selection.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Need access to microphone for document upload</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Need access to photo library for selecting and uploading files</string>
+	<string>EisenVault needs microphone access for voice annotations in documents.</string>
 
+	<!-- Privacy Descriptions -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>EisenVault needs location access to tag documents with location metadata when required.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>EisenVault uses Face ID for secure access to your documents.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>EisenVault needs local network access to connect to your organization's document management system.</string>
+	
+	<!-- App Store Information -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>https</string>
+		<string>http</string>
+	</array>
 </dict>
 </plist>
 

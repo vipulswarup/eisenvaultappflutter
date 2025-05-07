@@ -12,3 +12,6 @@ PRODUCT_BUNDLE_IDENTIFIER = com.eisenvault.eisenvaultappflutter
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2025 Argali Knowledge Services Pvt. Ltd. All rights reserved.
+
+// Minimum macOS version
+MACOSX_DEPLOYMENT_TARGET = 10.14
