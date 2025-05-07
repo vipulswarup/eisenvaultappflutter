@@ -23,7 +23,7 @@ import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:eisenvaultappflutter/screens/document_upload_screen.dart';
-import 'package:eisenvaultappflutter/screens/widgets/action_button_builder.dart';
+import 'package:eisenvaultappflutter/screens/browse/components/action_button_builder.dart';
 
 /// BrowseScreen handles online browsing of the repository content.
 class BrowseScreen extends StatefulWidget {
@@ -451,7 +451,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
         isInSelectionMode: _isInSelectionMode,
         hasSelectedItems: _selectedItems.isNotEmpty,
         isInFolder: _controller?.currentFolder != null && !_controller!.currentFolder!.isDepartment,
-        hasWritePermission: _controller?.currentFolder?.canCreate ?? false,
+        hasWritePermission: _controller?.currentFolder?.allowableOperations?.contains('create') ?? false,
         onBatchDelete: () => _batchDeleteHandler.handleBatchDelete(),
         onUpload: () => _uploadHandler.navigateToUploadScreen(),
         onShowNoPermissionMessage: (message) {
