@@ -30,6 +30,18 @@ class GenericFilePreviewScreen extends StatelessWidget {
         title: Text(title),
         backgroundColor: EVColors.appBarBackground,
         foregroundColor: EVColors.appBarForeground,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.open_in_new),
+            tooltip: 'Open in external app',
+            onPressed: () => _openWithExternalApp(context),
+          ),
+          IconButton(
+            icon: const Icon(Icons.share),
+            tooltip: 'Share file',
+            onPressed: () => _shareFile(context),
+          ),
+        ],
       ),
       body: _buildPreview(),
     );
