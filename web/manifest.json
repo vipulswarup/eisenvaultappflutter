@@ -1,11 +1,11 @@
 {
-    "name": "eisenvaultappflutter",
-    "short_name": "eisenvaultappflutter",
+    "name": "EisenVault",
+    "short_name": "EisenVault",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Document Management System by Argali Knowledge Services Pvt. Ltd.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
