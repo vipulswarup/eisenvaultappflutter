@@ -77,11 +77,6 @@ class BrowseAppBar extends StatelessWidget implements PreferredSizeWidget {
             icon: const Icon(Icons.logout),
             onPressed: onLogoutTap,
           ),
-        ] else ...[
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: onSearchTap,
-          ),
         ],
       ],
     );

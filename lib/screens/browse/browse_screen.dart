@@ -335,14 +335,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
       backgroundColor: EVColors.screenBackground,
       appBar: BrowseAppBar(
         onDrawerOpen: () => _scaffoldKey.currentState?.openDrawer(),
-        onSearchTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Search is available only online'),
-              backgroundColor: EVColors.statusWarning,
-            ),
-          );
-        },
+        onSearchTap: () => _searchHandler.navigateToSearch(),
         onLogoutTap: () => _authHandler.showLogoutConfirmation(),
         showBackButton: _controller?.navigationStack.isNotEmpty ?? false || _controller?.currentFolder != null,
         onBackPressed: _controller?.handleBackNavigation,
