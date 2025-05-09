@@ -2,10 +2,80 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
 	<string>EisenVault</string>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Microsoft Word Document</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.microsoft.word.doc</string>
+				<string>org.openxmlformats.wordprocessingml.document</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Microsoft Excel Spreadsheet</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.microsoft.excel.xls</string>
+				<string>org.openxmlformats.spreadsheetml.sheet</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>PDF Document</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.adobe.pdf</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Microsoft PowerPoint Presentation</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.microsoft.powerpoint.ppt</string>
+				<string>org.openxmlformats.presentationml.presentation</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Text Document</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.text</string>
+				<string>public.plain-text</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Document</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.data</string>
+				<string>public.content</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -22,10 +92,41 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>https</string>
+		<string>http</string>
+	</array>
 	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
 	<key>MinimumOSVersion</key>
 	<string>13.0</string>
+	<key>NSCameraUsageDescription</key>
+	<string>EisenVault needs camera access to scan documents and capture photos for upload.</string>
+	<key>NSDocumentsDirectoryUsageDescription</key>
+	<string>This app needs access to documents for file selection.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>EisenVault needs access to documents for managing and organizing your files.</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>EisenVault needs access to downloads to save and manage offline documents.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>EisenVault uses Face ID for secure access to your documents.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>EisenVault needs local network access to connect to your organization's document management system.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>EisenVault needs location access to tag documents with location metadata when required.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>EisenVault needs microphone access for voice annotations in documents.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>EisenVault needs access to your photo library to select and upload documents and images.</string>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UIFileSharingEnabled</key>
+	<true/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -43,92 +144,6 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>CADisableMinimumFrameDurationOnPhone</key>
-	<true/>
-	<key>UIApplicationSupportsIndirectInputEvents</key>
-	<true/>
-	
-	<!-- File handling configurations -->
-	<key>LSSupportsOpeningDocumentsInPlace</key>
-	<true/>
-	<key>UIFileSharingEnabled</key>
-	<true/>
-	<key>CFBundleDocumentTypes</key>
-	<array>
-		<!-- Microsoft Word Documents -->
-		<dict>
-			<key>CFBundleTypeName</key>
-			<string>Microsoft Word Document</string>
-			<key>LSHandlerRank</key>
-			<string>Alternate</string>
-			<key>LSItemContentTypes</key>
-			<array>
-				<string>com.microsoft.word.doc</string>
-				<string>org.openxmlformats.wordprocessingml.document</string>
-			</array>
-		</dict>
-		<!-- Microsoft Excel Documents -->
-		<dict>
-			<key>CFBundleTypeName</key>
-			<string>Microsoft Excel Spreadsheet</string>
-			<key>LSHandlerRank</key>
-			<string>Alternate</string>
-			<key>LSItemContentTypes</key>
-			<array>
-				<string>com.microsoft.excel.xls</string>
-				<string>org.openxmlformats.spreadsheetml.sheet</string>
-			</array>
-		</dict>
-		<!-- PDF Documents -->
-		<dict>
-			<key>CFBundleTypeName</key>
-			<string>PDF Document</string>
-			<key>LSHandlerRank</key>
-			<string>Alternate</string>
-			<key>LSItemContentTypes</key>
-			<array>
-				<string>com.adobe.pdf</string>
-			</array>
-		</dict>
-		<!-- Microsoft PowerPoint Documents -->
-		<dict>
-			<key>CFBundleTypeName</key>
-			<string>Microsoft PowerPoint Presentation</string>
-			<key>LSHandlerRank</key>
-			<string>Alternate</string>
-			<key>LSItemContentTypes</key>
-			<array>
-				<string>com.microsoft.powerpoint.ppt</string>
-				<string>org.openxmlformats.presentationml.presentation</string>
-			</array>
-		</dict>
-		<!-- Plain Text Documents -->
-		<dict>
-			<key>CFBundleTypeName</key>
-			<string>Text Document</string>
-			<key>LSHandlerRank</key>
-			<string>Alternate</string>
-			<key>LSItemContentTypes</key>
-			<array>
-				<string>public.text</string>
-				<string>public.plain-text</string>
-			</array>
-		</dict>
-		<!-- Generic Content Type -->
-		<dict>
-			<key>CFBundleTypeName</key>
-			<string>Document</string>
-			<key>LSHandlerRank</key>
-			<string>Alternate</string>
-			<key>LSItemContentTypes</key>
-			<array>
-				<string>public.data</string>
-				<string>public.content</string>
-			</array>
-		</dict>
-	</array>
-	
-	<!-- Additional UTI declarations -->
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>
@@ -174,38 +189,5 @@
 			</dict>
 		</dict>
 	</array>
-	
-	<!-- Permission for file access -->
-	<key>NSDocumentsFolderUsageDescription</key>
-	<string>EisenVault needs access to documents for managing and organizing your files.</string>
-	<key>NSDownloadsFolderUsageDescription</key>
-	<string>EisenVault needs access to downloads to save and manage offline documents.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>EisenVault needs access to your photo library to select and upload documents and images.</string>
-	<key>NSCameraUsageDescription</key>
-	<string>EisenVault needs camera access to scan documents and capture photos for upload.</string>
-	<key>NSDocumentsDirectoryUsageDescription</key>
-	<string>This app needs access to documents for file selection.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>EisenVault needs microphone access for voice annotations in documents.</string>
-
-	<!-- Privacy Descriptions -->
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>EisenVault needs location access to tag documents with location metadata when required.</string>
-	<key>NSFaceIDUsageDescription</key>
-	<string>EisenVault uses Face ID for secure access to your documents.</string>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>EisenVault needs local network access to connect to your organization's document management system.</string>
-	
-	<!-- App Store Information -->
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
-	<key>LSApplicationQueriesSchemes</key>
-	<array>
-		<string>https</string>
-		<string>http</string>
-	</array>
 </dict>
 </plist>
-
-

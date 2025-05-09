@@ -6,6 +6,7 @@ OUTPUT_BASE="resized_screenshots"
 # Define device resolutions
 # Format: device_name:portrait_resolution:landscape_resolution
 DEVICES=(
+    "iphone_6_9:1320x2868:2868x1320"
     "iphone_6_5:1242x2688:2688x1242"
     "iphone_5_5:1242x2208:2208x1242"
     "ipad_11:1668x2388:2388x1668"
@@ -54,7 +55,7 @@ for file in "$INPUT_DIR"/*.png; do
         fi
 
         output_file="$OUTPUT_BASE/$device_name/${device_name}_screenshot_${index}.png"
-        magick "$file" -resize "$target_res" "$output_file"
+        magick "$file" -resize "${target_res}!" "$output_file"
         echo "✔️  $device_name -> $target_res"
     done
 
