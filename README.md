@@ -1,6 +1,6 @@
 # Eisenvault Flutter App
 
-A cross-platform Flutter application for Eisenvault document management system.
+A cross-platform Flutter application for Eisenvault document management system. It is compatible with EisenVault's new Angora platform, and also the classic Alfresco-based platform. If you have an Alfresco 5.2 or later server, you can use this app to connect to it.
 
 ## Project Description
 
