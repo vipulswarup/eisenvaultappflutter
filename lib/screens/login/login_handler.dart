@@ -4,10 +4,13 @@ import 'package:eisenvaultappflutter/screens/offline/offline_browse_screen.dart'
 import 'package:eisenvaultappflutter/services/api/base_service.dart';
 import 'package:eisenvaultappflutter/services/auth/angora_auth_service.dart';
 import 'package:eisenvaultappflutter/services/auth/classic_auth_service.dart';
+import 'package:eisenvaultappflutter/services/auth/auth_state_manager.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/services/offline/sync_service.dart';
 import 'package:eisenvaultappflutter/widgets/error_display.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'dart:io';
 
 /// Handles login logic and authentication, including offline mode
 class LoginHandler {
@@ -17,7 +20,7 @@ class LoginHandler {
     required String baseUrl,
     required String username,
     required String password,
-    required String instanceType, // Keep parameter for future use
+    required String instanceType,
   }) async {
     try {
       // Force Classic instance type
@@ -49,6 +52,17 @@ class LoginHandler {
       // Set customer hostname for Classic
       const customerHostname = 'classic-repository';
       
+      // Update auth state
+      final authStateManager = Provider.of<AuthStateManager>(context, listen: false);
+      await authStateManager.handleSuccessfulLogin(
+        token: loginResult['token'],
+        username: username,
+        firstName: loginResult['firstName'] ?? 'User',
+        instanceType: instanceType,
+        baseUrl: baseUrl,
+        customerHostname: customerHostname,
+      );
+
       // Initialize offline components
       await _initializeOfflineComponents(
         instanceType: instanceType,
@@ -71,8 +85,21 @@ class LoginHandler {
           ),
         );
       }
-    } on ServiceException catch (error) {
+    } catch (e) {
       if (!context.mounted) return;
+      
+      String errorMessage = 'Login failed';
+      
+      // Handle specific error cases
+      if (e is SocketException) {
+        errorMessage = 'Network error: Unable to connect to the server. Please check your internet connection and try again.';
+      } else if (e is HttpException) {
+        errorMessage = 'Server error: The server is not responding correctly. Please try again later.';
+      } else if (e is ServiceException) {
+        errorMessage = e.toString();
+      } else {
+        errorMessage = 'An unexpected error occurred: ${e.toString()}';
+      }
       
       // Show error dialog
       showDialog(
@@ -97,7 +124,7 @@ class LoginHandler {
                     vertical: 20.0
                   ),
                   child: ErrorDisplay(
-                    error: error,
+                    error: ServiceException(errorMessage),
                     onRetry: () {
                       Navigator.of(context).pop();
                       performLogin(
@@ -176,6 +203,7 @@ class LoginHandler {
       return false;
     }
   }
+  
   /// Navigates to the offline browse screen
   Future<void> navigateToOfflineBrowse(BuildContext context) async {
     try {

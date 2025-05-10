@@ -1,6 +1,8 @@
 import 'package:eisenvaultappflutter/screens/login_screen.dart';
 import 'package:eisenvaultappflutter/services/auth/angora_auth_service.dart';
+import 'package:eisenvaultappflutter/services/auth/auth_state_manager.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 /// Handles authentication and logout operations
 class AuthHandler {
@@ -41,21 +43,30 @@ class AuthHandler {
   }
 
   /// Performs the actual logout
-  void performLogout() {
-    // For Classic instance - clear token if needed
-    if (instanceType == 'Classic') {
-      // No persistent token storage in the current implementation
-    } 
-    // For Angora instance - clear token
-    else if (instanceType == 'Angora') {
-      final authService = AngoraAuthService(baseUrl);
-      authService.setToken(null); // Clear the token
-    }
+  Future<void> performLogout() async {
+    try {
+      // Get auth state manager
+      final authStateManager = Provider.of<AuthStateManager>(context, listen: false);
+      
+      // Perform logout
+      await authStateManager.logout();
 
-    // Navigate back to login screen and remove all previous routes
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const LoginScreen()),
-      (Route<dynamic> route) => false,
-    );
+      // Navigate back to login screen and remove all previous routes
+      if (context.mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (Route<dynamic> route) => false,
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error during logout: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }

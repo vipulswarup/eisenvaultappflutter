@@ -1,0 +1,28 @@
+{
+    "NSPrivacyAccessedAPITypes": [
+        {
+            "NSPrivacyAccessedAPIType": "NSUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": ["C617.1"]
+        },
+        {
+            "NSPrivacyAccessedAPIType": "NSFileSystemUsageDescription",
+            "NSPrivacyAccessedAPITypeReasons": ["1C8.1"]
+        }
+    ],
+    "NSPrivacyTracking": false,
+    "NSPrivacyTrackingDomains": [],
+    "NSPrivacyCollectedDataTypes": [
+        {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeDeviceIdentifier",
+            "NSPrivacyCollectedDataTypeLinked": false,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": ["C617.1"]
+        },
+        {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeNetworkInformation",
+            "NSPrivacyCollectedDataTypeLinked": false,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": ["C617.1"]
+        }
+    ]
+} 

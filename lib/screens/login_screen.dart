@@ -31,7 +31,12 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _initOfflineManager() async {
-    _offlineManager = await OfflineManager.createDefault();
+    try {
+      _offlineManager = await OfflineManager.createDefault(requireCredentials: false);
+    } catch (e) {
+      EVLogger.error('Failed to initialize offline manager', e);
+      // Don't rethrow - we want to continue even if offline manager fails
+    }
   }
 
   Future<void> _checkConnectivity() async {
