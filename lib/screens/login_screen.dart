@@ -17,7 +17,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   bool _isOfflineMode = false;
   final Connectivity _connectivity = Connectivity();
-  StreamSubscription<ConnectivityResult>? _connectivitySubscription;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   late OfflineManager _offlineManager;
   bool _isCheckingConnectivity = false;
   Timer? _debounceTimer;
@@ -59,29 +59,22 @@ class _LoginScreenState extends State<LoginScreen> {
     // Cancel any existing subscription
     _connectivitySubscription?.cancel();
     
-    
-    _connectivitySubscription = _connectivity.onConnectivityChanged.listen((result) {
-    
-      
+    _connectivitySubscription = _connectivity.onConnectivityChanged.listen((results) {
       // Debounce connectivity changes to prevent rapid state updates
       _debounceTimer?.cancel();
       _debounceTimer = Timer(const Duration(seconds: 1), () {
-        _updateConnectionStatus(result);
+        _updateConnectionStatus(results);
       });
     });
-    
   }
 
-  Future<void> _updateConnectionStatus(ConnectivityResult result) async {
+  Future<void> _updateConnectionStatus(List<ConnectivityResult> results) async {
     if (!mounted) return;
     
-    
-    
     // Consider both ConnectivityResult.none and ConnectivityResult.other as offline states
-    final isNowOffline = result == ConnectivityResult.none || result == ConnectivityResult.other;
+    final isNowOffline = results.contains(ConnectivityResult.none) || results.contains(ConnectivityResult.other);
     
     if (isNowOffline) {
-      
       if (mounted) {
         setState(() {
           _isOfflineMode = true;
@@ -95,7 +88,6 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } else {
-      
       if (mounted) {
         setState(() {
           _isOfflineMode = false;

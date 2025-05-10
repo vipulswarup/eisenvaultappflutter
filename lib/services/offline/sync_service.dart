@@ -37,7 +37,7 @@ class SyncService {
   
   // Connectivity monitoring
   final Connectivity _connectivity = Connectivity();
-  StreamSubscription<ConnectivityResult>? _connectivitySubscription;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   
   // Authentication details needed for API calls
   String? _instanceType;
@@ -79,9 +79,9 @@ class SyncService {
   
   /// Start monitoring network connectivity changes
   void _startMonitoringConnectivity() {
-    _connectivitySubscription = _connectivity.onConnectivityChanged.listen((result) {
+    _connectivitySubscription = _connectivity.onConnectivityChanged.listen((results) {
       // Consider both ConnectivityResult.none and ConnectivityResult.other as offline states
-      if (result != ConnectivityResult.none && result != ConnectivityResult.other) {
+      if (!results.contains(ConnectivityResult.none) && !results.contains(ConnectivityResult.other)) {
         _notifyProgress('Internet connection restored, syncing offline content...');
         Future.delayed(const Duration(seconds: 2), () {
           startSync();

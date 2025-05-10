@@ -46,8 +46,8 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider<DownloadManager>(
-          create: (_) => DownloadManager(),
+    ChangeNotifierProvider<DownloadManager>(
+      create: (_) => DownloadManager(),
         ),
         ChangeNotifierProvider<AuthStateManager>(
           create: (_) => authStateManager,

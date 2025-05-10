@@ -42,7 +42,7 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
   OfflineManager? _offlineManager;
 
   /// Connectivity subscription for online detection
-  StreamSubscription<ConnectivityResult>? _connectivitySubscription;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   bool _navigatingToOnline = false;
 
   /// Scaffold key for drawer control.
@@ -66,8 +66,8 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
       instanceType: widget.instanceType,
       baseUrl: widget.baseUrl,
     );
-    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((result) {
-      final isOnline = result != ConnectivityResult.none && result != ConnectivityResult.other;
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((results) {
+      final isOnline = !results.contains(ConnectivityResult.none) && !results.contains(ConnectivityResult.other);
       if (isOnline) {
         if (_navigatingToOnline) return;
         _navigatingToOnline = true;

@@ -51,12 +51,12 @@ class AuthHandler {
       // Perform logout
       await authStateManager.logout();
 
-      // Navigate back to login screen and remove all previous routes
+    // Navigate back to login screen and remove all previous routes
       if (context.mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
-          (Route<dynamic> route) => false,
-        );
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
+      (Route<dynamic> route) => false,
+    );
       }
     } catch (e) {
       if (context.mounted) {

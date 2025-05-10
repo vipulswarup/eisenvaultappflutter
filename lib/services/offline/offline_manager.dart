@@ -51,7 +51,7 @@ class OfflineManager {
   static const String _keyUsername = 'offline_username';
   
   // Connectivity monitoring
-  late StreamSubscription<ConnectivityResult> _connectivitySubscription;
+  late StreamSubscription<List<ConnectivityResult>> _connectivitySubscription;
   
   // Event controller for offline state changes
   final _eventController = StreamController<OfflineEvent>.broadcast();
@@ -113,16 +113,16 @@ class OfflineManager {
   }
   
   void _initConnectivityMonitoring() {
-    _connectivitySubscription = _connectivity.onConnectivityChanged.listen((result) {
-      if (result != ConnectivityResult.none && _config.autoSync) {
+    _connectivitySubscription = _connectivity.onConnectivityChanged.listen((results) {
+      if (!results.contains(ConnectivityResult.none) && !results.contains(ConnectivityResult.other) && _config.autoSync) {
         _sync.startSync();
       }
     });
   }
   
   void _initConnectivityListener() {
-    Connectivity().onConnectivityChanged.listen((result) {
-      _connectivityStream.add(result == ConnectivityResult.none);
+    Connectivity().onConnectivityChanged.listen((results) {
+      _connectivityStream.add(results.contains(ConnectivityResult.none) || results.contains(ConnectivityResult.other));
     });
   }
   

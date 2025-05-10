@@ -27,42 +27,42 @@ class OfflineModeIndicator extends StatefulWidget {
 
 class _OfflineModeIndicatorState extends State<OfflineModeIndicator> {
   final Connectivity _connectivity = Connectivity();
-  late StreamSubscription<ConnectivityResult> _connectivitySubscription;
-  bool _isOnline = true;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  bool _isOffline = false;
 
   @override
   void initState() {
     super.initState();
-    // Check initial connectivity state
     _checkConnectivity();
-    
-    // Listen for connectivity changes
-    _connectivitySubscription = _connectivity.onConnectivityChanged.listen(_updateConnectionStatus);
+    _setupConnectivityListener();
   }
   
   Future<void> _checkConnectivity() async {
     try {
-      final result = await _connectivity.checkConnectivity();
-      _updateConnectionStatus(result);
+      final results = await _connectivity.checkConnectivity();
+      _updateConnectionStatus(results);
     } catch (e) {
-      EVLogger.error('Error checking connectivity', e);
-      // Assume online if we can't check
-      _updateConnectionStatus(ConnectivityResult.mobile);
+      print('Error checking connectivity: $e');
     }
   }
-  
-  void _updateConnectionStatus(ConnectivityResult result) {
+
+  void _setupConnectivityListener() {
+    _connectivitySubscription = _connectivity.onConnectivityChanged.listen(_updateConnectionStatus);
+  }
+
+  void _updateConnectionStatus(List<ConnectivityResult> results) {
+    if (!mounted) return;
+    
+    final isNowOffline = results.contains(ConnectivityResult.none) || results.contains(ConnectivityResult.other);
+    
     setState(() {
-      // Consider both ConnectivityResult.none and ConnectivityResult.other as offline states
-      _isOnline = result != ConnectivityResult.none && result != ConnectivityResult.other;
+      _isOffline = isNowOffline;
     });
     
-    
-    
-    if (_isOnline) {
-      widget.syncService.startPeriodicSync();
-    } else {
+    if (_isOffline) {
       widget.syncService.stopPeriodicSync();
+    } else {
+      widget.syncService.startPeriodicSync();
     }
   }
 
@@ -72,9 +72,7 @@ class _OfflineModeIndicatorState extends State<OfflineModeIndicator> {
     
     // If forceOfflineMode changed, update the offline status
     if (widget.forceOfflineMode != oldWidget.forceOfflineMode) {
-      _updateConnectionStatus(widget.forceOfflineMode 
-        ? ConnectivityResult.none 
-        : ConnectivityResult.mobile);
+      _updateConnectionStatus([widget.forceOfflineMode ? ConnectivityResult.none : ConnectivityResult.mobile]);
     }
   }
   
@@ -83,7 +81,7 @@ class _OfflineModeIndicatorState extends State<OfflineModeIndicator> {
     return Column(
       children: [
         // Show offline banner if offline
-        if (!_isOnline)
+        if (_isOffline)
           _buildOfflineBanner(),
         
         // Always show the child widget
@@ -176,7 +174,8 @@ class _OfflineModeIndicatorState extends State<OfflineModeIndicator> {
 
   @override
   void dispose() {
-    _connectivitySubscription.cancel();
+    _connectivitySubscription?.cancel();
     super.dispose();
   }
 }
+

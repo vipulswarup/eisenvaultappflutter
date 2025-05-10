@@ -122,7 +122,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
   //a boolean to track if the app is offline
   bool _isOffline = false;
   //a stream subscription to listen to connectivity changes
-  late StreamSubscription<ConnectivityResult> _connectivitySubscription;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
   // Show/hide download indicator
   bool _showDownloadIndicator = true;
@@ -163,58 +163,25 @@ class _BrowseScreenState extends State<BrowseScreen> {
   // Add a debounce flag
   bool _navigatingToOffline = false;
 
-  void _updateConnectionStatus(ConnectivityResult result) {
-    if (!mounted) return;
-    
-    final isOffline = result == ConnectivityResult.none;
-    if (_isOffline != isOffline) {
-      setState(() {
-        _isOffline = isOffline;
-      });
-      
-      // Navigate to appropriate screen based on connectivity
-      if (isOffline) {
-        // Check if we have offline content before navigating
-        _offlineManager?.hasOfflineContent().then((hasContent) {
-          if (hasContent && mounted) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => OfflineBrowseScreen(
-                  baseUrl: widget.baseUrl,
-                  authToken: widget.authToken,
-                  firstName: widget.firstName,
-                  instanceType: widget.instanceType,
-                ),
-              ),
-            );
-          }
-        });
-      } else {
-        // If we're in offline screen, go back to online
-        if (ModalRoute.of(context)?.settings.name == '/offline') {
-          Navigator.pop(context);
-        }
-      }
-    }
+  void _setupConnectivityListener() {
+    _connectivitySubscription = _connectivity.onConnectivityChanged.listen(_updateConnectionStatus);
   }
 
-  Future<void> _checkConnectivity() async {
-    try {
-      final result = await _connectivity.checkConnectivity();
-      _updateConnectionStatus(result);
-    } catch (e) {
-      EVLogger.error('Error checking connectivity', e);
-      _updateConnectionStatus(ConnectivityResult.none);
-    }
+  void _updateConnectionStatus(List<ConnectivityResult> results) {
+    if (!mounted) return;
+    
+    final isNowOffline = results.contains(ConnectivityResult.none) || results.contains(ConnectivityResult.other);
+    
+    setState(() {
+      _isOffline = isNowOffline;
+    });
   }
 
   @override
   void initState() {
     super.initState();
     _initializeComponents();
-    _checkConnectivity();
-    _connectivitySubscription = _connectivity.onConnectivityChanged.listen(_updateConnectionStatus);
+    _setupConnectivityListener();
   }
 
   Future<void> _initializeComponents() async {
@@ -461,7 +428,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
 
   @override
   void dispose() {
-    _connectivitySubscription.cancel();
+    _connectivitySubscription?.cancel();
     _controller?.dispose();
     super.dispose();
   }

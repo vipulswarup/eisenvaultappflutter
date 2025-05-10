@@ -41,7 +41,7 @@ dependencies:
   share_plus_platform_interface: ^5.0.2
   
   # Device info and file handling
-  device_info_plus: ^11.4.0
+  device_info_plus: ^11.0.0
   open_file: ^3.5.10
   debounce_throttle: ^2.0.0
   dio: ^5.3.2
@@ -51,14 +51,14 @@ dependencies:
   file_selector: ^1.0.1
 
   # Security and storage
-  flutter_secure_storage: ^8.1.0
-  connectivity_plus: ^4.0.2
+  flutter_secure_storage: ^9.2.4
+  connectivity_plus: ^6.1.4
   sqflite: ^2.3.0
   sqflite_common_ffi: ^2.3.2
   path: ^1.8.3
   intl: ^0.20.2
   flutter_svg: ^2.1.0
-  package_info_plus: ^4.1.0
+  package_info_plus: ^8.3.0
   archive: ^4.0.7
 
 dev_dependencies:
