@@ -29,7 +29,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.eisenvault.eisenvaultappflutter"
+        applicationId = "com.eisenvault"
         minSdk = 24 // Android 7.0 (Nougat)
         targetSdk = 34 // Android 14
         versionCode = 1
