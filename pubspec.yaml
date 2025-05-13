@@ -48,7 +48,7 @@ dependencies:
   permission_handler: ^11.3.0
   
   # File selection
-  file_selector: ^1.0.1
+  file_selector: ^1.0.3
 
   # Security and storage
   flutter_secure_storage: ^9.2.4
@@ -60,6 +60,11 @@ dependencies:
   flutter_svg: ^2.1.0
   package_info_plus: ^8.3.0
   archive: ^4.0.7
+
+  # File Preview Dependencies
+  flutter_markdown: ^0.6.18
+  flutter_html: ^3.0.0-beta.2
+  csv: ^5.1.1
 
 dev_dependencies:
   flutter_test:

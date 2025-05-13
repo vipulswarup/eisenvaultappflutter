@@ -27,6 +27,14 @@ class BrowseAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     return AppBar(
       backgroundColor: EVColors.appBarBackground,
+      foregroundColor: EVColors.appBarForeground,
+      iconTheme: const IconThemeData(color: EVColors.appBarForeground),
+      titleTextStyle: const TextStyle(
+        color: EVColors.appBarForeground,
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+      ),
+      actionsIconTheme: const IconThemeData(color: EVColors.appBarForeground),
       leading: showBackButton
           ? IconButton(
               icon: const Icon(Icons.arrow_back),

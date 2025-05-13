@@ -39,6 +39,9 @@ class FileUtils {
     final subtype = mimeType.toLowerCase().split('/')[1];
 
     if (type == 'image') {
+      if (subtype == 'svg+xml') {
+        return FileType.vector;
+      }
       return FileType.image;
     } else if (type == 'application') {
       switch (subtype) {
@@ -46,13 +49,21 @@ class FileUtils {
           return FileType.pdf;
         case 'msword':
         case 'vnd.openxmlformats-officedocument.wordprocessingml.document':
-          return FileType.document;
-        case 'vnd.ms-excel':
-        case 'vnd.openxmlformats-officedocument.spreadsheetml.sheet':
-          return FileType.spreadsheet;
         case 'vnd.ms-powerpoint':
         case 'vnd.openxmlformats-officedocument.presentationml.presentation':
-          return FileType.presentation;
+          return FileType.officeDocument;
+        case 'vnd.oasis.opendocument.text':
+        case 'vnd.oasis.opendocument.presentation':
+          return FileType.openDocument;
+        case 'vnd.ms-excel':
+        case 'vnd.openxmlformats-officedocument.spreadsheetml.sheet':
+        case 'vnd.oasis.opendocument.spreadsheet':
+          return FileType.spreadsheet;
+        case 'acad':
+        case 'dxf':
+          return FileType.cad;
+        case 'postscript':
+          return FileType.vector;
         default:
           return FileType.other;
       }

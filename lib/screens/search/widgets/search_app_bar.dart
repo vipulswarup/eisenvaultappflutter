@@ -45,14 +45,21 @@ class _SearchAppBarState extends State<SearchAppBar> {
     return AppBar(
       backgroundColor: EVColors.appBarBackground,
       foregroundColor: EVColors.appBarForeground,
+      iconTheme: const IconThemeData(color: EVColors.appBarForeground),
+      titleTextStyle: const TextStyle(
+        color: EVColors.appBarForeground,
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+      ),
+      actionsIconTheme: const IconThemeData(color: EVColors.appBarForeground),
       title: TextField(
         controller: _searchController,
         decoration: InputDecoration(
           hintText: 'Search documents...',
-          hintStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
+          hintStyle: TextStyle(color: EVColors.appBarForeground.withOpacity(0.7)),
           border: InputBorder.none,
           suffixIcon: IconButton(
-            icon: const Icon(Icons.clear, color: Colors.white),
+            icon: const Icon(Icons.clear, color: EVColors.appBarForeground),
             onPressed: () {
               _searchController.clear();
               // If query is already empty, don't trigger search again
@@ -62,7 +69,7 @@ class _SearchAppBarState extends State<SearchAppBar> {
             },
           ),
         ),
-        style: const TextStyle(color: Colors.white),
+        style: const TextStyle(color: EVColors.appBarForeground),
         textInputAction: TextInputAction.search,
         onSubmitted: widget.onSearch,
         autofocus: widget.initialQuery.isEmpty,

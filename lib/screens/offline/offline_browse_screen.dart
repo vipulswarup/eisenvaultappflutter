@@ -212,8 +212,6 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
 
   /// Handles tapping on a file: attempts to open it from offline storage.
   Future<void> _handleFileTap(BrowseItem file) async {
-    
-    
     if (_offlineManager == null) {
       EVLogger.error('Offline manager not initialized');
       return;
@@ -227,8 +225,6 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
         ),
       );
 
-      
-      
       final fileContent = await _offlineManager!.getFileContent(file.id);
 
       if (fileContent == null) {
@@ -245,8 +241,6 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
         return;
       }
 
-      
-
       _openFileViewer(file, fileContent);
     } catch (e) {
       EVLogger.error('Error opening offline file', e);
@@ -261,8 +255,6 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
 
   /// Opens the file in an appropriate viewer based on file type.
   void _openFileViewer(BrowseItem file, dynamic fileContent) {
-    
-    
     final fileType = FileTypeUtils.getFileType(file.name);
     
     switch (fileType) {
@@ -288,9 +280,14 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
         );
         break;
         
-      case FileType.document:
+      case FileType.officeDocument:
+      case FileType.openDocument:
+      case FileType.text:
       case FileType.spreadsheet:
-      case FileType.presentation:
+      case FileType.cad:
+      case FileType.vector:
+      case FileType.video:
+      case FileType.audio:
         // Convert file type to appropriate MIME type
         String mimeType = _getMimeTypeFromFileType(file.name, fileType);
         Navigator.of(context).push(
@@ -304,8 +301,8 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
         );
         break;
         
+      case FileType.other:
       case FileType.unknown:
-      default:
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Preview not supported for ${file.name}'),
@@ -317,31 +314,112 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
 
   /// Helper method to convert FileType to MIME type
   String _getMimeTypeFromFileType(String fileName, FileType fileType) {
+    final extension = fileName.toLowerCase().split('.').last;
+    
     switch (fileType) {
-      case FileType.document:
-        if (fileName.toLowerCase().endsWith('.docx')) {
-          return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-        } else if (fileName.toLowerCase().endsWith('.doc')) {
-          return 'application/msword';
+      case FileType.officeDocument:
+        switch (extension) {
+          case 'doc':
+            return 'application/msword';
+          case 'docx':
+            return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+          case 'xls':
+            return 'application/vnd.ms-excel';
+          case 'xlsx':
+            return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+          case 'ppt':
+            return 'application/vnd.ms-powerpoint';
+          case 'pptx':
+            return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+          default:
+            return 'application/octet-stream';
         }
-        return 'application/octet-stream';
-        
+      case FileType.openDocument:
+        switch (extension) {
+          case 'odt':
+            return 'application/vnd.oasis.opendocument.text';
+          case 'ods':
+            return 'application/vnd.oasis.opendocument.spreadsheet';
+          case 'odp':
+            return 'application/vnd.oasis.opendocument.presentation';
+          default:
+            return 'application/octet-stream';
+        }
       case FileType.spreadsheet:
-        if (fileName.toLowerCase().endsWith('.xlsx')) {
-          return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-        } else if (fileName.toLowerCase().endsWith('.xls')) {
-          return 'application/vnd.ms-excel';
+        switch (extension) {
+          case 'csv':
+            return 'text/csv';
+          case 'tsv':
+            return 'text/tab-separated-values';
+          default:
+            return 'application/octet-stream';
         }
-        return 'application/octet-stream';
-        
-      case FileType.presentation:
-        if (fileName.toLowerCase().endsWith('.pptx')) {
-          return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-        } else if (fileName.toLowerCase().endsWith('.ppt')) {
-          return 'application/vnd.ms-powerpoint';
+      case FileType.text:
+        switch (extension) {
+          case 'txt':
+            return 'text/plain';
+          case 'md':
+            return 'text/markdown';
+          case 'html':
+          case 'htm':
+            return 'text/html';
+          case 'json':
+            return 'application/json';
+          case 'xml':
+            return 'application/xml';
+          default:
+            return 'text/plain';
         }
-        return 'application/octet-stream';
-        
+      case FileType.vector:
+        switch (extension) {
+          case 'svg':
+            return 'image/svg+xml';
+          case 'ai':
+            return 'application/postscript';
+          default:
+            return 'application/octet-stream';
+        }
+      case FileType.cad:
+        switch (extension) {
+          case 'dwg':
+            return 'application/acad';
+          case 'dxf':
+            return 'application/dxf';
+          default:
+            return 'application/octet-stream';
+        }
+      case FileType.video:
+        switch (extension) {
+          case 'mp4':
+            return 'video/mp4';
+          case 'mov':
+            return 'video/quicktime';
+          case 'avi':
+            return 'video/x-msvideo';
+          case 'wmv':
+            return 'video/x-ms-wmv';
+          case 'flv':
+            return 'video/x-flv';
+          case 'mkv':
+            return 'video/x-matroska';
+          default:
+            return 'video/octet-stream';
+        }
+      case FileType.audio:
+        switch (extension) {
+          case 'mp3':
+            return 'audio/mpeg';
+          case 'wav':
+            return 'audio/wav';
+          case 'ogg':
+            return 'audio/ogg';
+          case 'm4a':
+            return 'audio/mp4';
+          case 'flac':
+            return 'audio/flac';
+          default:
+            return 'audio/octet-stream';
+        }
       default:
         return 'application/octet-stream';
     }

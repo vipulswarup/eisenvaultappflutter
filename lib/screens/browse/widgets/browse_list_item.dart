@@ -121,14 +121,23 @@ class BrowseListItem extends StatelessWidget {
         return Icons.picture_as_pdf;
       case FileType.image:
         return Icons.image;
-      case FileType.document:
+      case FileType.officeDocument:
+      case FileType.openDocument:
         return Icons.description;
+      case FileType.text:
+        return Icons.text_snippet;
       case FileType.spreadsheet:
         return Icons.table_chart;
-      case FileType.presentation:
-        return Icons.slideshow;
+      case FileType.cad:
+        return Icons.architecture;
+      case FileType.vector:
+        return Icons.brush;
+      case FileType.video:
+        return Icons.video_file;
+      case FileType.audio:
+        return Icons.audio_file;
+      case FileType.other:
       case FileType.unknown:
-      default:
         return Icons.insert_drive_file;
     }
   }

@@ -21,7 +21,7 @@ class BrowseScreenState extends ChangeNotifier {
   
   // Connectivity monitoring
   final Connectivity _connectivity = Connectivity();
-  late StreamSubscription<ConnectivityResult> _connectivitySubscription;
+  late StreamSubscription<List<ConnectivityResult>> _connectivitySubscription;
   
   // Constructor that properly initializes the controller
   BrowseScreenState({
@@ -59,14 +59,14 @@ class BrowseScreenState extends ChangeNotifier {
       );
       
       // Initialize connectivity monitoring
-      _connectivitySubscription = _connectivity.onConnectivityChanged.listen((result) {
-        _isOffline = result == ConnectivityResult.none;
+      _connectivitySubscription = _connectivity.onConnectivityChanged.listen((results) {
+        _isOffline = results.first == ConnectivityResult.none;
         notifyListeners();
       });
       
       // Check initial connectivity
-      final result = await _connectivity.checkConnectivity();
-      _isOffline = result == ConnectivityResult.none;
+      final results = await _connectivity.checkConnectivity();
+      _isOffline = results.first == ConnectivityResult.none;
       notifyListeners();
       
       // Notify listeners that controller is ready

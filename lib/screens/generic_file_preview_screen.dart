@@ -43,12 +43,37 @@ class GenericFilePreviewScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: _buildPreview(),
+      body: _buildPreview(context),
     );
   }
 
-  Widget _buildPreview() {
+  Widget _buildPreview(BuildContext context) {
     try {
+      // Show external app button for any unsupported file type
+      if (!FileTypeUtils.isPreviewSupported(title)) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(_getFileTypeIcon(), size: 64),
+              const SizedBox(height: 16),
+              Text('This file type is best viewed in an external application.',
+                  style: Theme.of(context).textTheme.bodyLarge,
+                  textAlign: TextAlign.center),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.open_in_new),
+                label: const Text('Open in External Application'),
+                onPressed: () => _openWithExternalApp(context),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  textStyle: const TextStyle(fontSize: 18),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
       if (fileContent is Uint8List) {
         return Center(
           child: Column(
@@ -109,11 +134,25 @@ class GenericFilePreviewScreen extends StatelessWidget {
     switch (FileTypeUtils.getFileTypeFromMimeType(mimeType)) {
       case FileType.spreadsheet:
         return Icons.table_chart;
-      case FileType.document:
+      case FileType.officeDocument:
+      case FileType.openDocument:
         return Icons.description;
-      case FileType.presentation:
-        return Icons.present_to_all;
-      default:
+      case FileType.text:
+        return Icons.text_snippet;
+      case FileType.pdf:
+        return Icons.picture_as_pdf;
+      case FileType.image:
+        return Icons.image;
+      case FileType.video:
+        return Icons.video_file;
+      case FileType.audio:
+        return Icons.audio_file;
+      case FileType.cad:
+        return Icons.architecture;
+      case FileType.vector:
+        return Icons.brush;
+      case FileType.other:
+      case FileType.unknown:
         return Icons.insert_drive_file;
     }
   }
@@ -122,11 +161,25 @@ class GenericFilePreviewScreen extends StatelessWidget {
     switch (FileTypeUtils.getFileTypeFromMimeType(mimeType)) {
       case FileType.spreadsheet:
         return Colors.green;
-      case FileType.document:
+      case FileType.officeDocument:
+      case FileType.openDocument:
         return Colors.blue;
-      case FileType.presentation:
+      case FileType.text:
         return Colors.orange;
-      default:
+      case FileType.pdf:
+        return Colors.red;
+      case FileType.image:
+        return Colors.purple;
+      case FileType.video:
+        return Colors.indigo;
+      case FileType.audio:
+        return Colors.teal;
+      case FileType.cad:
+        return Colors.brown;
+      case FileType.vector:
+        return Colors.pink;
+      case FileType.other:
+      case FileType.unknown:
         return Colors.grey;
     }
   }
@@ -197,6 +250,45 @@ class GenericFilePreviewScreen extends StatelessWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error sharing file: ${e.toString()}')),
       );
+    }
+  }
+
+  void _handleFileType(FileType fileType) {
+    switch (fileType) {
+      case FileType.pdf:
+        // Handle PDF
+        break;
+      case FileType.image:
+        // Handle image
+        break;
+      case FileType.officeDocument:
+        // Handle office documents
+        break;
+      case FileType.openDocument:
+        // Handle open documents
+        break;
+      case FileType.text:
+        // Handle text files
+        break;
+      case FileType.spreadsheet:
+        // Handle spreadsheets
+        break;
+      case FileType.cad:
+        // Handle CAD files
+        break;
+      case FileType.vector:
+        // Handle vector files
+        break;
+      case FileType.video:
+        // Handle video files
+        break;
+      case FileType.audio:
+        // Handle audio files
+        break;
+      case FileType.other:
+      case FileType.unknown:
+        // Handle unknown files
+        break;
     }
   }
 }

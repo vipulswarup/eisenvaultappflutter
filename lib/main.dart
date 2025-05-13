@@ -70,6 +70,17 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
         scaffoldBackgroundColor: EVColors.screenBackground,
+        appBarTheme: AppBarTheme(
+          backgroundColor: EVColors.appBarBackground,
+          foregroundColor: EVColors.appBarForeground,
+          iconTheme: IconThemeData(color: EVColors.appBarForeground),
+          titleTextStyle: TextStyle(
+            color: EVColors.appBarForeground,
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+          ),
+          actionsIconTheme: IconThemeData(color: EVColors.appBarForeground),
+        ),
       ),
       home: Consumer<AuthStateManager>(
         builder: (context, authState, _) {

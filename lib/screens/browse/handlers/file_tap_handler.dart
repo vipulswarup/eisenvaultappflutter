@@ -2,6 +2,8 @@ import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/screens/generic_file_preview_screen.dart';
 import 'package:eisenvaultappflutter/screens/image_viewer_screen.dart';
 import 'package:eisenvaultappflutter/screens/pdf_viewer_screen.dart';
+import 'package:eisenvaultappflutter/screens/preview/text_preview_screen.dart';
+import 'package:eisenvaultappflutter/screens/preview/svg_preview_screen.dart';
 import 'package:eisenvaultappflutter/services/api/angora_base_service.dart';
 import 'package:eisenvaultappflutter/services/document/document_service.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
@@ -102,7 +104,6 @@ class FileTapHandler {
           ),
         );
         break;
-        
       case FileType.image:
         Navigator.of(context).push(
           MaterialPageRoute(
@@ -113,32 +114,61 @@ class FileTapHandler {
           ),
         );
         break;
-        
-      case FileType.document:
-      case FileType.spreadsheet:
-      case FileType.presentation:
-        // Convert file type to appropriate MIME type
-        String mimeType = _getMimeTypeFromFileType(fileName, fileType);
+      case FileType.text:
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (context) => GenericFilePreviewScreen(
+            builder: (context) => TextPreviewScreen(
               title: fileName,
               fileContent: fileContent,
-              mimeType: mimeType,
+              mimeType: _getMimeTypeFromFileType(fileName, fileType),
             ),
           ),
         );
         break;
+      
+      case FileType.vector:
+        if (fileName.toLowerCase().endsWith('.svg')) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => SvgPreviewScreen(
+                title: fileName,
+                fileContent: fileContent,
+                mimeType: _getMimeTypeFromFileType(fileName, fileType),
+              ),
+            ),
+          );
+        } else {
+          _openGenericPreview(fileName, fileType, fileContent);
+        }
+        break;
+      case FileType.spreadsheet:
+      case FileType.officeDocument:
+      case FileType.openDocument:
+      case FileType.cad:
+      case FileType.video:
+      case FileType.audio:
+      case FileType.other:
+      case FileType.unknown:{
+        EVLogger.debug('Opening generic preview for file: $fileName of type $fileType');
+_openGenericPreview(fileName, fileType, fileContent);
+      }
         
-      case FileType.unknown:
-      default:
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Preview not supported for $fileName'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        break;
     }
+  }
+
+  void _openGenericPreview(String fileName, FileType fileType, dynamic fileContent) {
+    String mimeType = _getMimeTypeFromFileType(fileName, fileType);
+    EVLogger.debug('Opening generic preview for file: $fileName of type $fileType with mime type $mimeType');
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => GenericFilePreviewScreen(
+          title: fileName,
+          fileContent: fileContent,
+          mimeType: mimeType,
+        ),
+      ),
+    );
   }
 
   /// Helper method to convert FileType to MIME type
@@ -146,40 +176,108 @@ class FileTapHandler {
     final extension = fileName.toLowerCase().split('.').last;
     
     switch (fileType) {
-      case FileType.document:
+      case FileType.officeDocument:
         switch (extension) {
           case 'doc':
             return 'application/msword';
           case 'docx':
             return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+          case 'xls':
+            return 'application/vnd.ms-excel';
+          case 'xlsx':
+            return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+          case 'ppt':
+            return 'application/vnd.ms-powerpoint';
+          case 'pptx':
+            return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+          default:
+            return 'application/octet-stream';
+        }
+      case FileType.openDocument:
+        switch (extension) {
           case 'odt':
             return 'application/vnd.oasis.opendocument.text';
+          case 'ods':
+            return 'application/vnd.oasis.opendocument.spreadsheet';
+          case 'odp':
+            return 'application/vnd.oasis.opendocument.presentation';
           default:
             return 'application/octet-stream';
         }
       case FileType.spreadsheet:
         switch (extension) {
-          case 'xls':
-            return 'application/vnd.ms-excel';
-          case 'xlsx':
-            return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-          case 'ods':
-            return 'application/vnd.oasis.opendocument.spreadsheet';
           case 'csv':
             return 'text/csv';
+          case 'tsv':
+            return 'text/tab-separated-values';
           default:
             return 'application/octet-stream';
         }
-      case FileType.presentation:
+      case FileType.text:
         switch (extension) {
-          case 'ppt':
-            return 'application/vnd.ms-powerpoint';
-          case 'pptx':
-            return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-          case 'odp':
-            return 'application/vnd.oasis.opendocument.presentation';
+          case 'txt':
+            return 'text/plain';
+          case 'md':
+            return 'text/markdown';
+          case 'html':
+          case 'htm':
+            return 'text/html';
+          case 'json':
+            return 'application/json';
+          case 'xml':
+            return 'application/xml';
+          default:
+            return 'text/plain';
+        }
+      case FileType.vector:
+        switch (extension) {
+          case 'svg':
+            return 'image/svg+xml';
+          case 'ai':
+            return 'application/postscript';
           default:
             return 'application/octet-stream';
+        }
+      case FileType.cad:
+        switch (extension) {
+          case 'dwg':
+            return 'application/acad';
+          case 'dxf':
+            return 'application/dxf';
+          default:
+            return 'application/octet-stream';
+        }
+      case FileType.video:
+        switch (extension) {
+          case 'mp4':
+            return 'video/mp4';
+          case 'mov':
+            return 'video/quicktime';
+          case 'avi':
+            return 'video/x-msvideo';
+          case 'wmv':
+            return 'video/x-ms-wmv';
+          case 'flv':
+            return 'video/x-flv';
+          case 'mkv':
+            return 'video/x-matroska';
+          default:
+            return 'video/octet-stream';
+        }
+      case FileType.audio:
+        switch (extension) {
+          case 'mp3':
+            return 'audio/mpeg';
+          case 'wav':
+            return 'audio/wav';
+          case 'ogg':
+            return 'audio/ogg';
+          case 'm4a':
+            return 'audio/mp4';
+          case 'flac':
+            return 'audio/flac';
+          default:
+            return 'audio/octet-stream';
         }
       default:
         return 'application/octet-stream';
