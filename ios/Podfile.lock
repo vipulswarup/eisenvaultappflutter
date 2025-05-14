@@ -1,7 +1,6 @@
 PODS:
   - connectivity_plus (0.0.1):
     - Flutter
-    - ReachabilitySwift
   - device_info_plus (0.0.1):
     - Flutter
   - file_selector_ios (0.0.1):
@@ -20,7 +19,6 @@ PODS:
     - Flutter
   - printing (1.0.0):
     - Flutter
-  - ReachabilitySwift (5.2.4)
   - share_plus (0.0.1):
     - Flutter
   - sqflite_darwin (0.0.4):
@@ -46,10 +44,6 @@ DEPENDENCIES:
   - sqflite_darwin (from `.symlinks/plugins/sqflite_darwin/darwin`)
   - syncfusion_flutter_pdfviewer (from `.symlinks/plugins/syncfusion_flutter_pdfviewer/ios`)
   - url_launcher_ios (from `.symlinks/plugins/url_launcher_ios/ios`)
-
-SPEC REPOS:
-  trunk:
-    - ReachabilitySwift
 
 EXTERNAL SOURCES:
   connectivity_plus:
@@ -82,21 +76,20 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/url_launcher_ios/ios"
 
 SPEC CHECKSUMS:
-  connectivity_plus: 07c49e96d7fc92bc9920617b83238c4d178b446a
-  device_info_plus: bf2e3232933866d73fe290f2942f2156cdd10342
-  file_selector_ios: f0670c1064a8c8450e38145d8043160105d0b97c
+  connectivity_plus: cb623214f4e1f6ef8fe7403d580fdad517d2f7dd
+  device_info_plus: 21fcca2080fbcd348be798aa36c3e5ed849eefbe
+  file_selector_ios: f92e583d43608aebc2e4a18daac30b8902845502
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
-  flutter_secure_storage: 23fc622d89d073675f2eaa109381aefbcf5a49be
-  open_file_ios: 461db5853723763573e140de3193656f91990d9e
-  package_info_plus: 115f4ad11e0698c8c1c5d8a689390df880f47e85
-  path_provider_foundation: 2b6b4c569c0fb62ec74538f866245ac84301af46
-  permission_handler_apple: 9878588469a2b0d0fc1e048d9f43605f92e6cec2
-  printing: 233e1b73bd1f4a05615548e9b5a324c98588640b
-  ReachabilitySwift: 32793e867593cfc1177f5d16491e3a197d2fccda
-  share_plus: 8b6f8b3447e494cca5317c8c3073de39b3600d1f
-  sqflite_darwin: 5a7236e3b501866c1c9befc6771dfd73ffb8702d
-  syncfusion_flutter_pdfviewer: cfcf23c03816192575902e615fa50adc9f95b724
-  url_launcher_ios: 5334b05cef931de560670eeae103fd3e431ac3fe
+  flutter_secure_storage: 1ed9476fba7e7a782b22888f956cce43e2c62f13
+  open_file_ios: 5ff7526df64e4394b4fe207636b67a95e83078bb
+  package_info_plus: af8e2ca6888548050f16fa2f1938db7b5a5df499
+  path_provider_foundation: 080d55be775b7414fd5a5ef3ac137b97b097e564
+  permission_handler_apple: 4ed2196e43d0651e8ff7ca3483a069d469701f2d
+  printing: 54ff03f28fe9ba3aa93358afb80a8595a071dd07
+  share_plus: 50da8cb520a8f0f65671c6c6a99b3617ed10a58a
+  sqflite_darwin: 20b2a3a3b70e43edae938624ce550a3cbf66a3d0
+  syncfusion_flutter_pdfviewer: 90dc48305d2e33d4aa20681d1e98ddeda891bc14
+  url_launcher_ios: 694010445543906933d732453a59da0a173ae33d
 
 PODFILE CHECKSUM: 4305caec6b40dde0ae97be1573c53de1882a07e5
 
