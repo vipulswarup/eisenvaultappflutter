@@ -32,5 +32,11 @@
 	<string>NSApplication</string>
 	<key>PrivacyManifestPath</key>
 	<string>Resources/PrivacyInfo.xcprivacy</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>EisenVault needs access to store files for offline use</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>EisenVault needs access to download files for offline use</string>
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>EisenVault needs access to save files to your desktop</string>
 </dict>
 </plist>

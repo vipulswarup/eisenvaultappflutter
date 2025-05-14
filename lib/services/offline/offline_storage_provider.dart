@@ -7,7 +7,7 @@ import 'package:eisenvaultappflutter/services/offline/offline_core.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 
-/// Implementation of [OfflineStorageProvider] that stores files on the device's local storage
+/// Implementation of [OfflineStorageProvider] that stores files in app-specific storage
 class LocalStorageProvider implements OfflineStorageProvider {
   static const String _offlineDir = 'offline_files';
   late final Directory _baseDir;
@@ -18,26 +18,7 @@ class LocalStorageProvider implements OfflineStorageProvider {
     if (_initialized) return;
     
     try {
-      // Request storage permissions on Android
-      if (Platform.isAndroid) {
-        final deviceInfo = await DeviceInfoPlugin().androidInfo;
-        final sdkVersion = deviceInfo.version.sdkInt;
-        
-        if (sdkVersion >= 30) {
-          // Android 11 and above
-          final status = await Permission.manageExternalStorage.request();
-          if (!status.isGranted) {
-            throw Exception('Storage permission is required for offline access. Please grant permission in Settings.');
-          }
-        } else {
-          // Android 10 and below
-          final status = await Permission.storage.request();
-          if (!status.isGranted) {
-            throw Exception('Storage permission is required for offline access');
-          }
-        }
-      }
-      
+      // Get app-specific directory
       final appDir = await getApplicationDocumentsDirectory();
       _baseDir = Directory(path.join(appDir.path, _offlineDir));
       
@@ -96,7 +77,6 @@ class LocalStorageProvider implements OfflineStorageProvider {
       final file = File(_getFilePath(itemId));
       if (await file.exists()) {
         await file.delete();
-        
       }
     } catch (e) {
       EVLogger.error('Failed to delete file', {'itemId': itemId, 'error': e});
@@ -130,7 +110,6 @@ class LocalStorageProvider implements OfflineStorageProvider {
       if (await _baseDir.exists()) {
         await _baseDir.delete(recursive: true);
         await _baseDir.create(recursive: true);
-        
       }
     } catch (e) {
       EVLogger.error('Failed to clear storage', {'error': e});
