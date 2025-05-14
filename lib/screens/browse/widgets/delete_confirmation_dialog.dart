@@ -9,11 +9,11 @@ class DeleteConfirmationDialog extends StatelessWidget {
   final bool isBatchDelete;
 
   const DeleteConfirmationDialog({
-    Key? key,
+    super.key,
     required this.items,
     required this.onConfirm,
     this.isBatchDelete = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

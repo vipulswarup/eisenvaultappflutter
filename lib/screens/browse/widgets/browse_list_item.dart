@@ -12,14 +12,14 @@ class BrowseListItem extends StatelessWidget {
   final Function(bool) onSelectionChanged;
 
   const BrowseListItem({
-    Key? key,
+    super.key,
     required this.item,
     required this.onTap,
     required this.onLongPress,
     this.isSelected = false,
     this.showSelectionCheckbox = false,
     required this.onSelectionChanged,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

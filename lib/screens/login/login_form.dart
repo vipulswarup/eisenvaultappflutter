@@ -6,9 +6,9 @@ class LoginForm extends StatefulWidget {
   final Function(dynamic error) onLoginFailed;
 
   const LoginForm({
-    Key? key,
+    super.key,
     required this.onLoginFailed,
-  }) : super(key: key);
+  });
 
   @override
   State<LoginForm> createState() => _LoginFormState();

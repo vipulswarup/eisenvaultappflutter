@@ -8,10 +8,10 @@ class ErrorDisplay extends StatelessWidget {
   final VoidCallback onRetry;
 
   const ErrorDisplay({
-    Key? key,
+    super.key,
     required this.error,
     required this.onRetry,
-  }) : super(key: key);
+  });
 
   @override
   /// Builds a widget that displays a service error with a retry button.

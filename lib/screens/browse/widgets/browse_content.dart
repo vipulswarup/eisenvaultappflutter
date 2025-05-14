@@ -18,14 +18,14 @@ class BrowseContent extends StatelessWidget {
   final Function(String, bool)? onSelectionChanged;
 
   const BrowseContent({
-    Key? key,
+    super.key,
     required this.onFolderTap,
     required this.onFileTap,
     this.onDeleteTap,
     this.selectionMode = false,
     this.selectedItems = const {},
     this.onSelectionChanged,
-  }) : super(key: key);
+  });
   @override
   Widget build(BuildContext context) {
     return Consumer<BrowseScreenController>(

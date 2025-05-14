@@ -9,12 +9,12 @@ class BreadcrumbNavigation extends StatelessWidget {
   final Function(int) onBreadcrumbTap;
 
   const BreadcrumbNavigation({
-    Key? key,
+    super.key,
     required this.navigationStack,
     required this.currentFolder,
     required this.onRootTap,
     required this.onBreadcrumbTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

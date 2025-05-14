@@ -17,7 +17,7 @@ class OfflineAvailabilityButton extends StatefulWidget {
   final String? parentId;
 
   const OfflineAvailabilityButton({
-    Key? key,
+    super.key,
     required this.item,
     required this.instanceType,
     required this.baseUrl,
@@ -25,7 +25,7 @@ class OfflineAvailabilityButton extends StatefulWidget {
     required this.isAvailableOffline,
     required this.onAvailabilityChanged,
     this.parentId,
-  }) : super(key: key);
+  });
 
   @override
   State<OfflineAvailabilityButton> createState() => _OfflineAvailabilityButtonState();

@@ -9,11 +9,11 @@ class FailedUploadList extends StatelessWidget {
   final Function(FailedUpload) onRemove;
 
   const FailedUploadList({
-    Key? key,
+    super.key,
     required this.failedUploads,
     required this.onRetry,
     required this.onRemove,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

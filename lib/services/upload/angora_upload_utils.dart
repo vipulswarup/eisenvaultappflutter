@@ -1,5 +1,4 @@
 import 'dart:typed_data';
-import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:eisenvaultappflutter/services/upload/upload_constants.dart';
 
 /// Utility functions for Angora uploads

@@ -137,7 +137,7 @@ class BatchUploadManager {
   void _initializeFileProgress(List<UploadFileItem> files) {
     for (var i = 0; i < files.length; i++) {
       final file = files[i];
-      final fileId = 'file-${i}-${DateTime.now().millisecondsSinceEpoch}';
+      final fileId = 'file-$i-${DateTime.now().millisecondsSinceEpoch}';
       file.id = fileId;
       
       _fileProgressMap[fileId] = FileUploadProgress(
@@ -199,7 +199,7 @@ class BatchUploadManager {
       int uploadedBytes = 0;
       int completedFiles = 0;
       
-      _fileProgressMap.values.forEach((fileProgress) {
+      for (var fileProgress in _fileProgressMap.values) {
         totalBytes += fileProgress.totalBytes;
         uploadedBytes += fileProgress.uploadedBytes;
         
@@ -207,7 +207,7 @@ class BatchUploadManager {
             fileProgress.status == FileUploadStatus.failed) {
           completedFiles++;
         }
-      });
+      }
       
       // Determine batch status
       final String status;

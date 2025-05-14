@@ -12,13 +12,13 @@ class BrowseNavigation extends StatelessWidget {
   final dynamic currentFolder;
 
   const BrowseNavigation({
-    Key? key,
+    super.key,
     required this.onHomeTap,
     required this.onBreadcrumbTap,
     required this.currentFolderName,
     required this.navigationStack,
     required this.currentFolder,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

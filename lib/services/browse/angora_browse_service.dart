@@ -12,10 +12,10 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
   
   /// Constructor initializes the service with base URL, token and permission service
   AngoraBrowseService(
-    String baseUrl, 
+    super.baseUrl, 
     String token,
     this._permissionService
-  ) : super(baseUrl) {
+  ) {
     setToken(token);
   }
 

@@ -1,4 +1,5 @@
 /// Core interfaces and types for offline functionality
+library;
 import 'package:flutter/foundation.dart';
 
 /// Status of an offline item

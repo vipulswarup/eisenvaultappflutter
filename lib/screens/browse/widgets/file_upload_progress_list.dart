@@ -8,10 +8,10 @@ class FileUploadProgressList extends StatelessWidget {
   final Function(String)? onCancelUpload;
 
   const FileUploadProgressList({
-    Key? key,
+    super.key,
     required this.uploadProgresses,
     this.onCancelUpload,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

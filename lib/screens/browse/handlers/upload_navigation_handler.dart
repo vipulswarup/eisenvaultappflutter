@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../models/browse_item.dart';
 import '../../../screens/document_upload_screen.dart';
 import '../../../screens/browse/browse_screen_controller.dart';
 

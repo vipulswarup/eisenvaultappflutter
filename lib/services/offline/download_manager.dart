@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:eisenvaultappflutter/services/offline/download_progress.dart';
-import 'package:eisenvaultappflutter/utils/logger.dart';
 
 class DownloadManager extends ChangeNotifier {
   DownloadManager() {

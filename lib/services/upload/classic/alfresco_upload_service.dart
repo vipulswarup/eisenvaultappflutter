@@ -28,9 +28,8 @@ class AlfrescoUploadService extends BaseUploadService {
   AlfrescoUploadService({
     required String baseUrl,
     required String authToken,
-    Function(UploadProgress)? onProgressUpdate,
-  }) : _baseService = ClassicBaseService(baseUrl),
-       super(onProgressUpdate: onProgressUpdate) {
+    super.onProgressUpdate,
+  }) : _baseService = ClassicBaseService(baseUrl) {
     // Ensure the token has the 'Basic ' prefix if it doesn't already
     final token = authToken.startsWith('Basic ') ? authToken : 'Basic $authToken';
     _baseService.setToken(token);

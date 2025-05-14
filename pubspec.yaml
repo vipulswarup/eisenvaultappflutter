@@ -81,13 +81,14 @@ flutter:
 flutter_icons:
   android: true
   ios: true
-  image_path: "assets/icon/app_icon.png"  # For Android and iOS
+  image_path: "assets/icon/app_icon_other.png"  # For Android
+  ios_image_path: "assets/icon/app_icon_ios.png"  # For iOS
   macos:
     generate: true
-    image_path: "assets/icon/app_icon_mac.png"
+    image_path: "assets/icon/app_icon_other.png"
   windows:
     generate: true
-    image_path: "assets/icon/app_icon_mac.png"
+    image_path: "assets/icon/app_icon_other.png"
   linux:
     generate: true
-    image_path: "assets/icon/app_icon_mac.png"
+    image_path: "assets/icon/app_icon_other.png"

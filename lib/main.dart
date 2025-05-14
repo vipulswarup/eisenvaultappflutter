@@ -1,10 +1,8 @@
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_database_service.dart';
-import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/services/offline/sync_service.dart';
 import 'package:eisenvaultappflutter/services/auth/auth_state_manager.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
-import 'package:eisenvaultappflutter/widgets/offline_mode_indicator.dart';
 import 'package:flutter/material.dart';
 import 'screens/login_screen.dart';
 import 'screens/browse/browse_screen.dart';

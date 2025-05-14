@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:open_file/open_file.dart';
-import 'package:path/path.dart' as path;
 import '../utils/file_type_utils.dart';
 
 class UnsupportedFilePreview extends StatelessWidget {

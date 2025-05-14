@@ -29,13 +29,13 @@ class ActionButtonBuilder {
           : () {
               onShowNoPermissionMessage('You don\'t have permission to upload files to this folder.');
             },
-        child: const Icon(Icons.upload_file),
         tooltip: hasWritePermission 
           ? 'Upload Document' 
           : 'You don\'t have permission to upload here',
         backgroundColor: hasWritePermission 
           ? EVColors.buttonErrorBackground 
           : Colors.grey,
+        child: const Icon(Icons.upload_file),
       );
     }
     

@@ -7,9 +7,9 @@ class SyncStatusIndicator extends StatefulWidget {
   final SyncService syncService;
 
   const SyncStatusIndicator({
-    Key? key,
+    super.key,
     required this.syncService,
-  }) : super(key: key);
+  });
 
   @override
   State<SyncStatusIndicator> createState() => _SyncStatusIndicatorState();

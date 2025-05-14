@@ -10,10 +10,10 @@ class ImageViewerScreen extends StatelessWidget {
   final dynamic imageContent; // Can be a File path (String) or bytes (Uint8List)
 
   const ImageViewerScreen({
-    Key? key,
+    super.key,
     required this.title,
     required this.imageContent,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

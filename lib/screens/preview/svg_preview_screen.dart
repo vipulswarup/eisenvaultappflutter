@@ -12,11 +12,11 @@ class SvgPreviewScreen extends StatefulWidget {
   final String mimeType;
 
   const SvgPreviewScreen({
-    Key? key,
+    super.key,
     required this.title,
     required this.fileContent,
     required this.mimeType,
-  }) : super(key: key);
+  });
 
   @override
   State<SvgPreviewScreen> createState() => _SvgPreviewScreenState();

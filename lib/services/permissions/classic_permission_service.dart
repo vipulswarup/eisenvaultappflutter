@@ -2,7 +2,7 @@ import 'package:eisenvaultappflutter/services/permissions/permission_service.dar
 import 'package:eisenvaultappflutter/services/api/classic_base_service.dart';
 
 class ClassicPermissionService extends ClassicBaseService implements PermissionService {
-  ClassicPermissionService(String baseUrl, String token) : super(baseUrl) {
+  ClassicPermissionService(super.baseUrl, String token) {
     setToken(token);
   }
   

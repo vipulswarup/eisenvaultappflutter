@@ -10,7 +10,7 @@ class AngoraPermissionService extends AngoraBaseService implements PermissionSer
   /// Cache for storing node permissions to avoid redundant API calls
   final Map<String, List<String>> _permissionsCache = {};
   
-  AngoraPermissionService(String baseUrl, String token) : super(baseUrl) {
+  AngoraPermissionService(super.baseUrl, String token) {
     setToken(token);
   }
   

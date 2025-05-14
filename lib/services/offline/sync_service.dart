@@ -139,7 +139,7 @@ class SyncService {
     for (var item in allItems) {
       current++;
       
-      _notifyProgress('Syncing item ${current}/${total}: ${item['name']}');
+      _notifyProgress('Syncing item $current/$total: ${item['name']}');
       
       try {
         // Get the item type and ID

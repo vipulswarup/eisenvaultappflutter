@@ -5,10 +5,10 @@ class EmptySearchResults extends StatelessWidget {
   final VoidCallback onClearSearch;
 
   const EmptySearchResults({
-    Key? key,
+    super.key,
     required this.searchQuery,
     required this.onClearSearch,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

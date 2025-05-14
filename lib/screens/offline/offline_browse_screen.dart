@@ -26,12 +26,12 @@ class OfflineBrowseScreen extends StatefulWidget {
   final String instanceType;
 
   const OfflineBrowseScreen({
-    Key? key,
+    super.key,
     required this.baseUrl,
     required this.authToken,
     required this.firstName,
     required this.instanceType,
-  }) : super(key: key);
+  });
 
   @override
   State<OfflineBrowseScreen> createState() => _OfflineBrowseScreenState();

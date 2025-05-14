@@ -11,11 +11,11 @@ class BrowseActions extends StatelessWidget {
   final VoidCallback onBatchOfflineTap;
 
   const BrowseActions({
-    Key? key,
+    super.key,
     required this.onUploadTap,
     required this.onBatchDeleteTap,
     required this.onBatchOfflineTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

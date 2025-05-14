@@ -8,12 +8,12 @@ class SearchAppBar extends StatefulWidget implements PreferredSizeWidget {
   final TextEditingController? searchController;
   
   const SearchAppBar({
-    Key? key,
+    super.key,
     this.initialQuery = '',
     required this.onSearch,
     required this.onBack,
     this.searchController,
-  }) : super(key: key);
+  });
   
   @override
   State<SearchAppBar> createState() => _SearchAppBarState();

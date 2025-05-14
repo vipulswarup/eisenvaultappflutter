@@ -31,9 +31,8 @@ class AngoraUploadService extends BaseUploadService {
   AngoraUploadService({
     required String baseUrl,
     required String authToken,
-    Function(UploadProgress)? onProgressUpdate,
-  }) : _baseService = AngoraBaseService(baseUrl),
-       super(onProgressUpdate: onProgressUpdate) {
+    super.onProgressUpdate,
+  }) : _baseService = AngoraBaseService(baseUrl) {
     _baseService.setToken(authToken);
   }
   

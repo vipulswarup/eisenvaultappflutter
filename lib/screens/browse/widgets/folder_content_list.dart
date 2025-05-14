@@ -24,7 +24,7 @@ class FolderContentList extends StatelessWidget {
   final Function(BrowseItem)? onOfflineToggle;
 
   const FolderContentList({
-    Key? key,
+    super.key,
     required this.items,
     required this.onFolderTap,
     required this.onFileTap,
@@ -39,7 +39,7 @@ class FolderContentList extends StatelessWidget {
     this.onItemSelected,
     this.isItemAvailableOffline,
     this.onOfflineToggle,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

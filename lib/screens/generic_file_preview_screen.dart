@@ -17,11 +17,11 @@ class GenericFilePreviewScreen extends StatelessWidget {
   final String mimeType;
 
   const GenericFilePreviewScreen({
-    Key? key,
+    super.key,
     required this.title,
     required this.fileContent,
     required this.mimeType,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

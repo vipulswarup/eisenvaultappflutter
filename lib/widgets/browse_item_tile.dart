@@ -18,7 +18,7 @@ class BrowseItemTile extends StatelessWidget {
   final Function(BrowseItem)? onOfflineToggle;
 
   const BrowseItemTile({
-    Key? key,
+    super.key,
     required this.item,
     required this.onTap,
     this.onDeleteTap,
@@ -31,7 +31,7 @@ class BrowseItemTile extends StatelessWidget {
     this.onSelectionChanged,
     this.isAvailableOffline = false,
     this.onOfflineToggle,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

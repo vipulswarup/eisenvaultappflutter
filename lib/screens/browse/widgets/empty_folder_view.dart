@@ -5,9 +5,9 @@ class EmptyFolderView extends StatelessWidget {
   final VoidCallback? onUpload;
 
   const EmptyFolderView({
-    Key? key,
+    super.key,
     this.onUpload,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

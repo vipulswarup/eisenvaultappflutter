@@ -14,12 +14,12 @@ class OfflineModeIndicator extends StatefulWidget {
   final bool forceOfflineMode; // New parameter
 
   const OfflineModeIndicator({
-    Key? key,
+    super.key,
     required this.child,
     this.onConnectivityChanged,
     required this.syncService,
     this.forceOfflineMode = false, // Default to false
-  }) : super(key: key);
+  });
 
   @override
   State<OfflineModeIndicator> createState() => _OfflineModeIndicatorState();

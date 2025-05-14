@@ -19,12 +19,12 @@ class FailedUploadList extends StatelessWidget {
   final VoidCallback onRetryAll;
   
   const FailedUploadList({
-    Key? key,
+    super.key,
     required this.failedFiles,
     required this.isUploading,
     required this.onRetryFile,
     required this.onRetryAll,
-  }) : super(key: key);
+  });
   
   @override
   Widget build(BuildContext context) {

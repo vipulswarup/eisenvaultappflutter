@@ -2,7 +2,6 @@ import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/screens/browse/browse_screen.dart';
 import 'package:eisenvaultappflutter/screens/offline/offline_browse_screen.dart';
 import 'package:eisenvaultappflutter/services/api/base_service.dart';
-import 'package:eisenvaultappflutter/services/auth/angora_auth_service.dart';
 import 'package:eisenvaultappflutter/services/auth/classic_auth_service.dart';
 import 'package:eisenvaultappflutter/services/auth/auth_state_manager.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';

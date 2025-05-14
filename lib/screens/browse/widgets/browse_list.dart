@@ -16,7 +16,7 @@ class BrowseList extends StatelessWidget {
   final Function(String, bool) onItemSelectionChanged;
 
   const BrowseList({
-    Key? key,
+    super.key,
     required this.items,
     required this.isLoading,
     this.errorMessage,
@@ -26,7 +26,7 @@ class BrowseList extends StatelessWidget {
     this.isInSelectionMode = false,
     this.selectedItems = const {},
     required this.onItemSelectionChanged,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -1,5 +1,4 @@
 import 'package:eisenvaultappflutter/screens/login_screen.dart';
-import 'package:eisenvaultappflutter/services/auth/angora_auth_service.dart';
 import 'package:eisenvaultappflutter/services/auth/auth_state_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';

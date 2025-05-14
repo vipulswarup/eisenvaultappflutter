@@ -39,12 +39,10 @@ class AuthStateManager extends ChangeNotifier {
       final hasValidCredentials = await _persistentAuth.hasValidCredentials();
       if (hasValidCredentials) {
         final credentials = await _persistentAuth.getStoredCredentials();
-        if (credentials != null) {
-          _restoreFromCredentials(credentials);
-          _isAuthenticated = true;
-          notifyListeners();
-        }
-      }
+        _restoreFromCredentials(credentials);
+        _isAuthenticated = true;
+        notifyListeners();
+            }
     } catch (e) {
       EVLogger.error('Failed to initialize auth state', e);
       _clearState();

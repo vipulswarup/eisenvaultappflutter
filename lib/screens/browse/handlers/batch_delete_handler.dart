@@ -107,9 +107,9 @@ class BatchDeleteHandler {
             onPressed: () => Navigator.of(context).pop(false),
           ),
           TextButton(
-            child: const Text('Delete'),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
           ),
         ],
       ),

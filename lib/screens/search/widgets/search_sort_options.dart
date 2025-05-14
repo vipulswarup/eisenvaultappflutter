@@ -7,11 +7,11 @@ class SearchSortOptions extends StatelessWidget {
   final Function(String, bool) onSortChanged;
 
   const SearchSortOptions({
-    Key? key,
+    super.key,
     required this.currentSortBy,
     required this.isAscending,
     required this.onSortChanged,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

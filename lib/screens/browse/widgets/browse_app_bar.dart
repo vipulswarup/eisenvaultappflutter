@@ -12,7 +12,7 @@ class BrowseAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback? onSelectionModeToggle;
 
   const BrowseAppBar({
-    Key? key,
+    super.key,
     this.onDrawerOpen,
     this.onSearchTap,
     this.onLogoutTap,
@@ -21,7 +21,7 @@ class BrowseAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.isOfflineMode = false,
     this.isInSelectionMode = false,
     this.onSelectionModeToggle,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

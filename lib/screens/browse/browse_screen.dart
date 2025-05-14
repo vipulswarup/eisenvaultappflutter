@@ -34,13 +34,13 @@ class BrowseScreen extends StatefulWidget {
   final String customerHostname;
 
   const BrowseScreen({
-    Key? key,
+    super.key,
     required this.baseUrl,
     required this.authToken,
     required this.firstName,
     required this.instanceType,
     required this.customerHostname,
-  }) : super(key: key);
+  });
 
   @override
   State<BrowseScreen> createState() => _BrowseScreenState();
@@ -125,7 +125,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
   // Show/hide download indicator
-  bool _showDownloadIndicator = true;
+  final bool _showDownloadIndicator = true;
 
   BrowseScreenController? _controller;
   late FileTapHandler _fileTapHandler;
@@ -161,7 +161,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
   }
 
   // Add a debounce flag
-  bool _navigatingToOffline = false;
+  final bool _navigatingToOffline = false;
 
   void _setupConnectivityListener() {
     _connectivitySubscription = _connectivity.onConnectivityChanged.listen(_updateConnectionStatus);

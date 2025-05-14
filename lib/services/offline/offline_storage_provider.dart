@@ -2,10 +2,8 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_core.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 
 /// Implementation of [OfflineStorageProvider] that stores files in app-specific storage
 class LocalStorageProvider implements OfflineStorageProvider {

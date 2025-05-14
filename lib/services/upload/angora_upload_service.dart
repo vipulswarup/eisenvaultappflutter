@@ -28,8 +28,8 @@ class AngoraUploadService {
           ? AngoraBaseService(baseUrl)
           : null {
     if (_baseService != null && authToken != null) {
-      _baseService!.setToken(authToken);
-      _chunkUploader = AngoraChunkUploader(_baseService!);
+      _baseService.setToken(authToken);
+      _chunkUploader = AngoraChunkUploader(_baseService);
     } else {
       _chunkUploader = null;
     }
@@ -221,7 +221,7 @@ class AngoraUploadService {
         final url = _baseService!.buildUrl('uploads/$documentId');
         final response = await http.get(
           Uri.parse(url),
-          headers: _baseService!.createHeaders(),
+          headers: _baseService.createHeaders(),
         ).timeout(const Duration(seconds: 10));
         
         if (response.statusCode == 200) {

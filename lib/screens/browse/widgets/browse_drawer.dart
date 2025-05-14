@@ -15,14 +15,14 @@ class BrowseDrawer extends StatelessWidget {
   final OfflineManager offlineManager;
 
   const BrowseDrawer({
-    Key? key,
+    super.key,
     required this.firstName,
     required this.baseUrl,
     required this.authToken,
     required this.instanceType,
     required this.onLogoutTap,
     required this.offlineManager,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -18,12 +18,12 @@ class DocumentUploadScreen extends StatefulWidget {
   final String authToken;
 
   const DocumentUploadScreen({
-    Key? key, 
+    super.key, 
     required this.repositoryType, 
     required this.parentFolderId,
     required this.baseUrl,
     required this.authToken,
-  }) : super(key: key);
+  });
 
   @override
   _DocumentUploadScreenState createState() => _DocumentUploadScreenState();

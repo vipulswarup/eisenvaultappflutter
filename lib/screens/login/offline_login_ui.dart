@@ -8,9 +8,9 @@ class OfflineLoginUI extends StatefulWidget {
   final VoidCallback onTryOnlineLogin;
 
   const OfflineLoginUI({
-    Key? key,
+    super.key,
     required this.onTryOnlineLogin,
-  }) : super(key: key);
+  });
 
   @override
   State<OfflineLoginUI> createState() => _OfflineLoginUIState();

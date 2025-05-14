@@ -16,11 +16,11 @@ class FileUploadProgressList extends StatelessWidget {
   final Function(FileUploadProgress)? onItemTap;
   
   const FileUploadProgressList({
-    Key? key,
+    super.key,
     required this.fileProgresses,
     this.isUploading = false,
     this.onItemTap,
-  }) : super(key: key);
+  });
   
   @override
   Widget build(BuildContext context) {
@@ -52,11 +52,11 @@ class FileUploadProgressItem extends StatelessWidget {
   final VoidCallback? onTap;
   
   const FileUploadProgressItem({
-    Key? key,
+    super.key,
     required this.progress,
     this.isUploading = false,
     this.onTap,
-  }) : super(key: key);
+  });
   
   @override
   Widget build(BuildContext context) {

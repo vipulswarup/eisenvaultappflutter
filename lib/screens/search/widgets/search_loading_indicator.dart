@@ -5,9 +5,9 @@ class SearchLoadingIndicator extends StatelessWidget {
   final String searchQuery;
   
   const SearchLoadingIndicator({
-    Key? key,
+    super.key,
     required this.searchQuery,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
