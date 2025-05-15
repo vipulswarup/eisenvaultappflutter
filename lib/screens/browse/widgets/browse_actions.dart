@@ -1,7 +1,5 @@
-import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:eisenvaultappflutter/constants/colors.dart';
 import '../state/browse_screen_state.dart';
 import '../browse_screen_controller.dart';
 

@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:eisenvaultappflutter/constants/colors.dart';
-import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:eisenvaultappflutter/services/offline/sync_service.dart';
 
 /// Widget that displays a banner when the device is offline

@@ -1,8 +1,5 @@
-import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
-import '../browse_screen_controller.dart';
 
 class BrowseNavigation extends StatelessWidget {
   final Function() onHomeTap;

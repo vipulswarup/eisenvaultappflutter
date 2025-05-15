@@ -5,7 +5,6 @@ import 'package:eisenvaultappflutter/services/browse/browse_service_factory.dart
 import 'package:eisenvaultappflutter/services/document/document_service.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_database_service.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_file_service.dart';
-import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 
 /// Service responsible for synchronizing offline content with the server

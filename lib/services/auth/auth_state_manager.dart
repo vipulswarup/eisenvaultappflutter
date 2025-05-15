@@ -1,7 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:eisenvaultappflutter/services/auth/persistent_auth_service.dart';
-import 'package:eisenvaultappflutter/services/auth/angora_auth_service.dart';
-import 'package:eisenvaultappflutter/services/auth/classic_auth_service.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 
 /// Manages the authentication state of the application

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_list_item.dart';
-import 'package:eisenvaultappflutter/utils/file_type_utils.dart';
 
 class BrowseList extends StatelessWidget {
   final List<BrowseItem> items;

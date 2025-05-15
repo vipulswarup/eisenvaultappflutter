@@ -1,6 +1,5 @@
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
-import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:flutter/material.dart';
 
 class BrowseItemTile extends StatelessWidget {

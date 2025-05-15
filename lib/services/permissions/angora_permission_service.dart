@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:eisenvaultappflutter/services/permissions/permission_service.dart';
 import 'package:eisenvaultappflutter/services/api/angora_base_service.dart';
-import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:http/http.dart' as http;
 
 /// Implementation of PermissionService for Angora API

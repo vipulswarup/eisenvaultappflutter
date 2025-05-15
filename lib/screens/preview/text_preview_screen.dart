@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
-import 'package:eisenvaultappflutter/utils/file_type_utils.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';

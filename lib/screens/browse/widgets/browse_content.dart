@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/folder_content_list.dart';
 import '../state/browse_screen_state.dart';
-import 'package:eisenvaultappflutter/utils/logger.dart';
 import '../browse_screen_controller.dart';
 
 /// Displays the main content area for browsing folders and files.

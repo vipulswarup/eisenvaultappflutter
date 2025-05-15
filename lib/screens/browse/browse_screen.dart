@@ -9,13 +9,11 @@ import 'package:eisenvaultappflutter/screens/browse/handlers/batch_offline_handl
 import 'package:eisenvaultappflutter/screens/browse/handlers/delete_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/file_tap_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/search_navigation_handler.dart';
-import 'package:eisenvaultappflutter/screens/browse/handlers/upload_navigation_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_app_bar.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_drawer.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_list.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_navigation.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/download_progress_indicator.dart';
-import 'package:eisenvaultappflutter/screens/offline/offline_browse_screen.dart';
 import 'package:eisenvaultappflutter/services/delete/delete_service.dart';
 import 'package:eisenvaultappflutter/services/offline/download_manager.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
