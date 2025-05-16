@@ -62,7 +62,7 @@ class LoginHandler {
         customerHostname: customerHostname,
       );
       
-      // Initialize offline components
+      // Initialize offline components and wait for completion
       await _initializeOfflineComponents(
         instanceType: instanceType,
         baseUrl: baseUrl,

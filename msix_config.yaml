@@ -1,0 +1,17 @@
+msix_config:
+  display_name: EisenVault Desktop
+  publisher_display_name: EisenVault
+  identity_name: EisenVault.EisenVaultDesktop
+  msix_version: 1.0.2.3
+  logo_path: assets/icon/app_icon_other.png
+  capabilities: internetClient
+  os_min_version: 10.0.17763.0
+  store: true
+  languages: en-us
+  publisher: CN=95E049EA-2EEE-4276-80A1-1B29770CF6A1
+  package_name: EisenVaultDesktop
+  privacy_url: https://eisenvault.com/privacy
+  terms_of_use_url: https://eisenvault.com/terms
+  website_url: https://eisenvault.com
+  description: EisenVault Desktop - Document Management System
+  sign_msix: false

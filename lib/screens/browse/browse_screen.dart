@@ -183,7 +183,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
   }
 
   Future<void> _initializeComponents() async {
-    _offlineManager = await OfflineManager.createDefault();
+    _offlineManager = await OfflineManager.createDefault(requireCredentials: false);
     if (!mounted) return;
 
     _controller = BrowseScreenController(
@@ -279,7 +279,6 @@ class _BrowseScreenState extends State<BrowseScreen> {
     );
 
     _controller?.loadDepartments();
-    
   }
 
   bool _isInSelectionMode = false;
@@ -295,6 +294,14 @@ class _BrowseScreenState extends State<BrowseScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_controller == null) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: EVColors.screenBackground,

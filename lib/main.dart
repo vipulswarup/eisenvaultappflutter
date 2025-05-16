@@ -11,12 +11,20 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import 'package:eisenvaultappflutter/services/offline/download_manager.dart';
+import 'dart:io'; // Required for Platform.isWindows check
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  if (kIsWeb) {
-    databaseFactory = databaseFactoryFfi;
+  // Initialize FFI for desktop (Windows/Linux)
+  if (!kIsWeb) {
+    sqfliteFfiInit();
+
+    // Import dart:io to use Platform
+    if (Platform.isWindows || Platform.isLinux) {
+      databaseFactory = databaseFactoryFfi;
+    }
   }
 
   await OfflineDatabaseService.instance.database;
@@ -27,7 +35,7 @@ void main() async {
   try {
     // Initialize auth state
     await authStateManager.initialize();
-    
+
     // If authenticated, initialize sync service
     if (authStateManager.isAuthenticated) {
       syncService.initialize(
@@ -44,8 +52,8 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
-    ChangeNotifierProvider<DownloadManager>(
-      create: (_) => DownloadManager(),
+        ChangeNotifierProvider<DownloadManager>(
+          create: (_) => DownloadManager(),
         ),
         ChangeNotifierProvider<AuthStateManager>(
           create: (_) => authStateManager,
@@ -55,6 +63,7 @@ void main() async {
     ),
   );
 }
+
 
 class MyApp extends StatelessWidget {
   final SyncService syncService;

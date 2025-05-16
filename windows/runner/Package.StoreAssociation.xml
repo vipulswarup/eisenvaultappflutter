@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<StoreAssociation xmlns="http://schemas.microsoft.com/appx/2010/manifest">
+  <Identity
+    Name="EisenVault.EisenVaultDesktop"
+    Publisher="CN=95E049EA-2EEE-4276-80A1-1B29770CF6A1" />
+  <Properties>
+    <PublisherDisplayName>EisenVault</PublisherDisplayName>
+  </Properties>
+</StoreAssociation>
