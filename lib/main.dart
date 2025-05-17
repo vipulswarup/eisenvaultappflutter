@@ -12,6 +12,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import 'package:eisenvaultappflutter/services/offline/download_manager.dart';
 import 'dart:io'; // Required for Platform.isWindows check
+import 'package:permission_handler/permission_handler.dart';
 
 
 void main() async {
@@ -48,6 +49,11 @@ void main() async {
   } catch (e) {
     EVLogger.error('Failed to initialize auth state: $e');
   }
+
+  // Request permissions when app starts
+  await Permission.photos.request();
+  await Permission.videos.request();
+  await Permission.audio.request();
 
   runApp(
     MultiProvider(

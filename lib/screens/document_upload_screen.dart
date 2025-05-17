@@ -10,6 +10,7 @@ import '../services/upload/upload_service_factory.dart';
 
 import '../utils/logger.dart';
 import '../widgets/failed_upload_list.dart';
+import '../services/permission_service.dart';
 
 class DocumentUploadScreen extends StatefulWidget {
   final String repositoryType;
@@ -48,6 +49,23 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
   // File picker method using file_selector package
   Future<void> _pickFiles() async {
     try {
+      // Check if we have the necessary permissions
+      final hasPermissions = await PermissionService.checkMediaPermissions();
+      if (!hasPermissions) {
+        // Request permissions
+        final granted = await PermissionService.requestMediaPermissions(context);
+        if (!granted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Media permissions are required to select files'),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: Colors.red,
+            )
+          );
+          return;
+        }
+      }
+
       // Define accepted file types for documents with proper UTIs for Apple platforms
       final XTypeGroup documentsTypeGroup = XTypeGroup(
         label: 'Documents',

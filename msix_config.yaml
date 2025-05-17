@@ -1,8 +1,8 @@
 msix_config:
-  display_name: EisenVault Desktop
+  display_name: EisenVault
   publisher_display_name: EisenVault
-  identity_name: EisenVault.EisenVaultDesktop
-  msix_version: 1.0.2.3
+  identity_name: com.eisenvault.eisenvaultappflutter
+  msix_version: 1.0.3.5
   logo_path: assets/icon/app_icon_other.png
   capabilities: internetClient
   os_min_version: 10.0.17763.0
