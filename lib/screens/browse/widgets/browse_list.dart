@@ -13,6 +13,9 @@ class BrowseList extends StatelessWidget {
   final bool isInSelectionMode;
   final Set<String> selectedItems;
   final Function(String, bool) onItemSelectionChanged;
+  final VoidCallback? onLoadMore;
+  final bool isLoadingMore;
+  final bool hasMoreItems;
 
   const BrowseList({
     super.key,
@@ -25,6 +28,9 @@ class BrowseList extends StatelessWidget {
     this.isInSelectionMode = false,
     this.selectedItems = const {},
     required this.onItemSelectionChanged,
+    this.onLoadMore,
+    this.isLoadingMore = false,
+    this.hasMoreItems = false,
   });
 
   @override
@@ -59,31 +65,59 @@ class BrowseList extends StatelessWidget {
       );
     }
 
-    return ListView.builder(
-      itemCount: items.length,
-      itemBuilder: (context, index) {
-        final item = items[index];
-        final isSelected = selectedItems.contains(item.id);
-        
-        return BrowseListItem(
-          item: item,
-          onTap: () {
-            if (isInSelectionMode) {
-              onItemSelectionChanged(item.id, !isSelected);
-            } else {
-              onItemTap(item);
+    final ScrollController _scrollController = ScrollController();
+
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+        if (hasMoreItems && !isLoadingMore && onLoadMore != null) {
+          onLoadMore!();
+        }
+      }
+    });
+
+    return NotificationListener<ScrollNotification>(
+      onNotification: (scrollNotification) {
+        if (scrollNotification is ScrollEndNotification) {
+          if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+            if (hasMoreItems && !isLoadingMore && onLoadMore != null) {
+              onLoadMore!();
             }
-          },
-          onLongPress: () {
-            if (!isInSelectionMode) {
-              onItemLongPress(item);
-            }
-          },
-          isSelected: isSelected,
-          showSelectionCheckbox: isInSelectionMode,
-          onSelectionChanged: (selected) => onItemSelectionChanged(item.id, selected),
-        );
+          }
+        }
+        return false;
       },
+      child: ListView.builder(
+        controller: _scrollController,
+        itemCount: items.length + (isLoadingMore ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index == items.length && isLoadingMore) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+          final item = items[index];
+          final isSelected = selectedItems.contains(item.id);
+          return BrowseListItem(
+            item: item,
+            onTap: () {
+              if (isInSelectionMode) {
+                onItemSelectionChanged(item.id, !isSelected);
+              } else {
+                onItemTap(item);
+              }
+            },
+            onLongPress: () {
+              if (!isInSelectionMode) {
+                onItemLongPress(item);
+              }
+            },
+            isSelected: isSelected,
+            showSelectionCheckbox: isInSelectionMode,
+            onSelectionChanged: (selected) => onItemSelectionChanged(item.id, selected),
+          );
+        },
+      ),
     );
   }
 } 

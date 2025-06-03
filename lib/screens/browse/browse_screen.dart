@@ -404,6 +404,9 @@ class _BrowseScreenState extends State<BrowseScreen> {
                                     }
                                   });
                                 },
+                                onLoadMore: _controller!.loadMoreItems,
+                                isLoadingMore: _controller!.isLoadingMore,
+                                hasMoreItems: _controller!.hasMoreItems,
                               ),
               ),
             ],

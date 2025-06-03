@@ -135,34 +135,34 @@ class BrowseScreenController extends ChangeNotifier {
 
   /// Load more items when scrolling to the end of the list
   Future<void> loadMoreItems() async {
+    if (currentFolder == null) {
+      await loadMoreDepartments();
+    } else {
+      await _loadMoreFolderItems();
+    }
+  }
+
+  Future<void> _loadMoreFolderItems() async {
     if (!_hasMoreItems || _isLoadingMore || currentFolder == null) return;
-    
     _isLoadingMore = true;
     onStateChanged?.call();
-    
     try {
       final nextPage = _currentPage + 1;
       final skipCount = nextPage * _itemsPerPage;
-      
-      // Get the browse service
       final browseService = BrowseServiceFactory.getService(
         instanceType, 
         baseUrl, 
         authToken
       );
-      
-      // Fetch more items with pagination parameters
       final moreItems = await browseService.getChildren(
         currentFolder!,
         skipCount: skipCount,
         maxItems: _itemsPerPage,
       );
-      
       if (moreItems.isEmpty) {
         _hasMoreItems = false;
       } else {
         _currentPage = nextPage;
-        // Add the new items to the existing list
         items.addAll(moreItems);
       }
     } catch (e) {
@@ -244,6 +244,7 @@ class BrowseScreenController extends ChangeNotifier {
     // Clear navigation stack and current folder when going to home
     navigationStack.clear();
     currentFolder = null;
+    items = [];
     
     _notifyListeners();
 
@@ -274,15 +275,51 @@ class BrowseScreenController extends ChangeNotifier {
           skipCount: 0,
           maxItems: _itemsPerPage,
         );
-        
         items = loadedItems;
-        if (loadedItems.length < _itemsPerPage) {
-          _hasMoreItems = false;
-        }
+        _hasMoreItems = loadedItems.length >= _itemsPerPage;
       }
     } catch (e) {
       EVLogger.error('Error loading departments', e);
       errorMessage = 'Failed to load departments: ${e.toString()}';
+    } finally {
+      isLoading = false;
+      _notifyListeners();
+    }
+  }
+
+  /// Loads more departments/sites for pagination
+  Future<void> loadMoreDepartments() async {
+    if (!_hasMoreItems || isLoading || currentFolder != null) return;
+    isLoading = true;
+    _notifyListeners();
+    try {
+      final browseService = BrowseServiceFactory.getService(
+        instanceType, 
+        baseUrl, 
+        authToken
+      );
+      final rootItem = BrowseItem(
+        id: 'root',
+        name: 'Root',
+        type: 'folder',
+        isDepartment: instanceType == 'Angora',
+      );
+      final nextPage = _currentPage + 1;
+      final skipCount = nextPage * _itemsPerPage;
+      final loadedItems = await browseService.getChildren(
+        rootItem,
+        skipCount: skipCount,
+        maxItems: _itemsPerPage,
+      );
+      items.addAll(loadedItems);
+      if (loadedItems.length < _itemsPerPage) {
+        _hasMoreItems = false;
+      } else {
+        _currentPage = nextPage;
+      }
+    } catch (e) {
+      EVLogger.error('Error loading more departments', e);
+      errorMessage = 'Failed to load more departments: ${e.toString()}';
     } finally {
       isLoading = false;
       _notifyListeners();
