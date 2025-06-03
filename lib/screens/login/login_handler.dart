@@ -25,6 +25,8 @@ class LoginHandler {
       // Force Classic instance type
       const instanceType = 'Classic';
       
+      // Strip known suffixes (e.g., /share/page, /share, /page, /alfresco, /s, trailing slashes)
+      baseUrl = _stripUrlSuffixes(baseUrl);
       // For Classic instances, append /alfresco if not present
       if (!baseUrl.endsWith('/alfresco')) {
         baseUrl = '$baseUrl/alfresco';
@@ -244,5 +246,28 @@ class LoginHandler {
         );
       }
     }
+  }
+
+  String _stripUrlSuffixes(String url) {
+    // Remove trailing slashes first
+    url = url.replaceAll(RegExp(r'/+\u0000'), '');
+    // List of known suffixes to strip
+    final suffixes = [
+      '/share/page',
+      '/share',
+      '/page',
+      '/alfresco',
+      '/s',
+    ];
+    for (final suffix in suffixes) {
+      if (url.endsWith(suffix)) {
+        url = url.substring(0, url.length - suffix.length);
+        // Remove any trailing slashes after removing suffix
+        url = url.replaceAll(RegExp(r'/+\u0000'), '');
+      }
+    }
+    // Remove any trailing slashes again
+    url = url.replaceAll(RegExp(r'/+\u0000'), '');
+    return url;
   }
 }

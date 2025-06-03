@@ -51,9 +51,13 @@ void main() async {
   }
 
   // Request permissions when app starts
-  await Permission.photos.request();
-  await Permission.videos.request();
-  await Permission.audio.request();
+  if (!kIsWeb) {
+    if (Platform.isAndroid || Platform.isIOS) {
+      await Permission.photos.request();
+      await Permission.videos.request();
+      await Permission.audio.request();
+    }
+  }
 
   runApp(
     MultiProvider(

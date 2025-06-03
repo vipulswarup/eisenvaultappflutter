@@ -65,7 +65,7 @@ class _LoginFormState extends State<LoginForm> {
                   _buildTextField(
                     controller: _urlController,
                     label: 'Server URL',
-                    hint: 'https://your-instance.eisenvault.com',
+                    hint: 'https://your-instance.eisenvault.net',
                     icon: Icons.link,
                   ),
                   SizedBox(height: elementSpacing),
@@ -192,6 +192,9 @@ class _LoginFormState extends State<LoginForm> {
           baseUrl = 'https://$baseUrl';
         }
 
+        // Strip known suffixes (e.g., /share/page, /share, /page, /alfresco, /s, trailing slashes)
+        baseUrl = _stripUrlSuffixes(baseUrl);
+
         await _loginHandler.performLogin(
           context: context,
           baseUrl: baseUrl,
@@ -202,6 +205,26 @@ class _LoginFormState extends State<LoginForm> {
       } catch (e) {
         widget.onLoginFailed(e);
       }
+    }
+  }
+
+  String _stripUrlSuffixes(String url) {
+    // Ensure the URL has a scheme for parsing
+    String workingUrl = url;
+    if (!workingUrl.startsWith('http://') && !workingUrl.startsWith('https://')) {
+      workingUrl = 'https://$workingUrl';
+    }
+    try {
+      final uri = Uri.parse(workingUrl);
+      // Rebuild the base URL with scheme, host, and port (if present)
+      String base = uri.scheme + '://' + uri.host;
+      if (uri.hasPort && uri.port != 80 && uri.port != 443) {
+        base += ':${uri.port}';
+      }
+      return base;
+    } catch (e) {
+      // If parsing fails, return the original input
+      return url;
     }
   }
   
