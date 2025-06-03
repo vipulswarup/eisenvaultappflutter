@@ -309,7 +309,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
         onDrawerOpen: () => _scaffoldKey.currentState?.openDrawer(),
         onSearchTap: () => _searchHandler.navigateToSearch(),
         onLogoutTap: () => _authHandler.showLogoutConfirmation(),
-        showBackButton: _controller?.navigationStack.isNotEmpty ?? false || _controller?.currentFolder != null,
+        showBackButton: _controller?.currentFolder != null && _controller?.currentFolder?.id != 'root',
         onBackPressed: _controller?.handleBackNavigation,
         isOfflineMode: _isOffline,
         isInSelectionMode: _isInSelectionMode,
