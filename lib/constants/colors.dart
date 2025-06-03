@@ -9,8 +9,14 @@ class EVColors {
   static const successGreen = Color(0xFF5CB85C);
   static const infoBlue = Color(0xFF5BC0DE);
 
+  // Custom Palette
+  static const paletteBackground = Color(0xFFF4EAD2); // #f4ead2
+  static const paletteButton = Color(0xFFB24A3B); // #b24a3b
+  static const paletteTextDark = Color(0xFF222222); // #222222
+  static const paletteAccent = Color(0xFF74B7A0); // #74b7a0
+
   // Card & List Backgrounds
-  static const cardBackground = Color(0xFFFFFFFF);
+  static const cardBackground = paletteBackground;
   static const cardShadow = Color(0x0D000000); // 5% black
 
   // Icon Colors
@@ -20,7 +26,7 @@ class EVColors {
   static const iconTeal = Color(0xFF009688); // teal
 
   // Text colors
-  static const textDefault = Color(0xFF333333);
+  static const textDefault = paletteTextDark;
   static const textSecondary = Color(0xFFAAAAAA);
   static const textGrey = Color(0xFF757575); // grey[600]
   static const textLightGrey = Color(0xFF9E9E9E); // grey[500]
@@ -30,16 +36,16 @@ class EVColors {
   static const searchHighlightText = Color(0xFF0056A6);
 
   // Sort Option
-  static const sortOptionBackground = Color(0xFFFFFFFF);
+  static const sortOptionBackground = paletteBackground;
   static const sortOptionShadow = Color(0x0D000000); // 5% black
-  static const sortOptionText = Color(0xFF333333);
+  static const sortOptionText = paletteTextDark;
   static const sortOptionIcon = Color(0xFF0056A6);
 
   // Browse Navigation
-  static const browseNavBackground = Color(0xFFFFFFFF);
+  static const browseNavBackground = paletteBackground;
   static const browseNavChevron = Color(0xFFBDBDBD); // grey[400]
-  static const browseNavText = Color(0xFF0056A6);
-  static const browseNavCurrentText = Color(0xFF333333);
+  static const browseNavText = paletteButton;
+  static const browseNavCurrentText = paletteTextDark;
   static const browseNavSeparator = Color(0xFFAAAAAA);
 
   // Search Result Item Icons
@@ -51,23 +57,23 @@ class EVColors {
   static const documentIconForeground = Color(0xFF009688); // teal[500]
 
   // Screen & Background Colors
-  static const screenBackground = Color(0xFFF8F9FB);
+  static const screenBackground = paletteBackground;
 
   // TextField Colors
-  static const textFieldPrefixIcon = Color(0xFF0056A6);
+  static const textFieldPrefixIcon = paletteButton;
   static const textFieldFill = Color(0xFFFFFFFF);
   static const textFieldBorder = Color(0xFF8CB3E8);
   static const textFieldErrorBorder = Color(0xFFD9534F);
-  static const textFieldLabel = Color(0xFF333333);
+  static const textFieldLabel = paletteTextDark;
   static const textFieldHint = Color(0xFFAAAAAA);
 
   // Button Colors
-  static const buttonBackground = Color(0xFF0056A6);
+  static const buttonBackground = paletteButton;
   static const buttonForeground = Color(0xFFFFFFFF);
-  static const buttonDisabledBackground = Color(0xFF8CB3E8);
+  static const buttonDisabledBackground = Color(0xFFDEB6A2); // lighter brown
   static const buttonDisabledForeground = Color(0xFFCCCCCC);
-  static const buttonBorder = Color(0xFF003D7A);
-  static const buttonDisabledBorder = Color(0xFF8CB3E8);
+  static const buttonBorder = paletteButton;
+  static const buttonDisabledBorder = Color(0xFFDEB6A2);
 
   // Error Button Colors
   static const buttonErrorBackground = Color(0xFFD9534F);
@@ -99,23 +105,23 @@ class EVColors {
   static const onlineText = Color(0xFF3C763D);
 
   // RadioListTile Colors
-  static const radioActive = Color(0xFF0056A6);
+  static const radioActive = paletteButton;
   static const radioInactive = Color(0xFFAAAAAA);
 
   // AppBar Colors
-  static const appBarBackground = Color(0xFF0056A6);
+  static const appBarBackground = paletteButton;
   static const appBarForeground = Color(0xFFFFFFFF);
 
   // Upload Button Colors
-  static const uploadButtonBackground = Color(0xFFE6F0F9);
-  static const uploadButtonForeground = Color(0xFF0056A6);
+  static const uploadButtonBackground = Color(0xFFF4EAD2);
+  static const uploadButtonForeground = paletteButton;
 
   // List Item Colors
-  static const listItemBackground = Color(0xFFFFFFFF);
+  static const listItemBackground = paletteBackground;
   static const listItemDivider = Color(0xFFEFEFEF);
 
   // Breadcrumb Navigation Colors
-  static const breadcrumbText = Color(0xFF333333);
-  static const breadcrumbCurrentText = Color(0xFF0056A6);
+  static const breadcrumbText = paletteTextDark;
+  static const breadcrumbCurrentText = paletteButton;
   static const breadcrumbSeparator = Color(0xFFAAAAAA);
 }

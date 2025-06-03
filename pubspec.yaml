@@ -84,14 +84,19 @@ flutter:
 flutter_icons:
   android: true
   ios: true
-  image_path: "assets/icon/app_icon_other.png"  # For Android
-  ios_image_path: "assets/icon/app_icon_ios.png"  # For iOS
+  image_path: "assets/icon/app_icon_other.png"  # Used for Android
+  ios_image_path: "assets/icon/app_icon_ios_flat.png"  # Used for iOS
+  #remove_alpha_ios: true  # Important to avoid App Store rejection due to transparent icon
+
   macos:
     generate: true
     image_path: "assets/icon/app_icon_other.png"
+
   windows:
     generate: true
     image_path: "assets/icon/app_icon_other.png"
+
   linux:
     generate: true
     image_path: "assets/icon/app_icon_other.png"
+
