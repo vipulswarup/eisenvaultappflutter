@@ -100,3 +100,12 @@ flutter_icons:
     generate: true
     image_path: "assets/icon/app_icon_other.png"
 
+msix_config:
+  display_name: EisenVault Desktop
+  publisher_display_name: EisenVault
+  identity_name: EisenVault.EisenVaultDesktop
+  publisher: CN=95E049EA-2EEE-4276-80A1-1B29770CF6A1
+  msix_version: 1.0.0.0
+  logo_path: assets/icon/app_icon_other.png
+  capabilities: "internetClient,privateNetworkClientServer,documentsLibrary"
+
