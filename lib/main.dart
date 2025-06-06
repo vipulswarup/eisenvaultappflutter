@@ -14,9 +14,51 @@ import 'package:eisenvaultappflutter/services/offline/download_manager.dart';
 import 'dart:io'; // Required for Platform.isWindows check
 import 'package:permission_handler/permission_handler.dart';
 
+Future<bool> _checkWindowsElevation() async {
+  if (!Platform.isWindows) return true;
+  
+  try {
+    // Try to create a file in Program Files to check elevation
+    final testFile = File('C:\\Program Files\\eisenvault_test.txt');
+    await testFile.writeAsString('test');
+    await testFile.delete();
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Check for elevated permissions on Windows
+  if (Platform.isWindows) {
+    final hasElevation = await _checkWindowsElevation();
+    if (!hasElevation) {
+      // Show error dialog and exit
+      runApp(MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: AlertDialog(
+              title: const Text('Elevated Permissions Required'),
+              content: const Text(
+                'EisenVault requires elevated permissions to run properly on Windows. '
+                'Please run the application as Administrator.\n\n'
+                'This is required for secure storage, database operations, and file system access.'
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => exit(0),
+                  child: const Text('Exit'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ));
+      return;
+    }
+  }
 
   // Initialize FFI for desktop (Windows/Linux)
   if (!kIsWeb) {
