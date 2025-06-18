@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
@@ -22,6 +23,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:eisenvaultappflutter/screens/document_upload_screen.dart';
 import 'package:eisenvaultappflutter/screens/browse/components/action_button_builder.dart';
+import 'package:http/http.dart' as http;
+import 'package:eisenvaultappflutter/services/browse/browse_service_factory.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:eisenvaultappflutter/services/upload/upload_service_factory.dart';
+import 'package:eisenvaultappflutter/services/permission_service.dart';
+import 'dart:io' show Platform;
+import 'package:eisenvaultappflutter/models/upload/batch_upload_models.dart';
 
 /// BrowseScreen handles online browsing of the repository content.
 class BrowseScreen extends StatefulWidget {
@@ -421,7 +429,10 @@ class _BrowseScreenState extends State<BrowseScreen> {
         isInFolder: _controller?.currentFolder != null && !_controller!.currentFolder!.isDepartment,
         hasWritePermission: _controller?.currentFolder?.allowableOperations?.contains('create') ?? false,
         onBatchDelete: () => _batchDeleteHandler.handleBatchDelete(),
-        onUpload: () => _uploadHandler.navigateToUploadScreen(),
+        onCreateFolder: _handleCreateFolder,
+        onTakePicture: _handleTakePicture,
+        onUploadFromGallery: _handleUploadFromGallery,
+        onUploadFromFilePicker: _handleUploadFromFilePicker,
         onShowNoPermissionMessage: (message) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -556,5 +567,264 @@ class _BrowseScreenState extends State<BrowseScreen> {
     } else {
       _fileTapHandler.handleFileTap(item);
     }
+  }
+
+  Future<void> _handleCreateFolder() async {
+    final TextEditingController _folderNameController = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: EVColors.cardBackground,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Create Folder', style: TextStyle(color: EVColors.textDefault)),
+        content: TextField(
+          controller: _folderNameController,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Folder Name',
+            labelStyle: TextStyle(color: EVColors.textFieldLabel),
+            enabledBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: EVColors.textFieldBorder),
+            ),
+            focusedBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: EVColors.buttonBackground),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('CANCEL', style: TextStyle(color: EVColors.textSecondary)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: EVColors.buttonBackground,
+              foregroundColor: EVColors.buttonForeground,
+            ),
+            onPressed: () => Navigator.of(context).pop(_folderNameController.text.trim()),
+            child: const Text('CREATE'),
+          ),
+        ],
+      ),
+    );
+    if (result != null && result.isNotEmpty) {
+      await _createFolder(result);
+    }
+  }
+
+  Future<void> _createFolder(String folderName) async {
+    final currentFolder = _controller?.currentFolder;
+    if (currentFolder == null) return;
+    try {
+      final browseService = BrowseServiceFactory.getService(
+        widget.instanceType,
+        widget.baseUrl,
+        widget.authToken,
+      );
+      // Angora and Classic APIs differ, so handle both
+      if (widget.instanceType.toLowerCase() == 'angora') {
+        // POST /folders for Angora
+        final response = await http.post(
+          Uri.parse('${widget.baseUrl}/api/folders'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': widget.authToken,
+            'x-portal': 'web',
+            'x-customer-hostname': widget.customerHostname,
+          },
+          body: jsonEncode({
+            'name': folderName,
+            'parent_id': currentFolder.id,
+          }),
+        );
+        if (response.statusCode == 201) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Folder created successfully'),
+              backgroundColor: EVColors.successGreen,
+            ),
+          );
+          await _refreshCurrentFolder();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to create folder: ${response.body}'),
+              backgroundColor: EVColors.statusError,
+            ),
+          );
+        }
+      } else {
+        // Classic/Alfresco: POST to /nodes/{parentId}/children
+        final response = await http.post(
+          Uri.parse('${widget.baseUrl}/api/-default-/public/alfresco/versions/1/nodes/${currentFolder.id}/children'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': widget.authToken,
+          },
+          body: jsonEncode({
+            'name': folderName,
+            'nodeType': 'cm:folder',
+          }),
+        );
+        if (response.statusCode == 201) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Folder created successfully'),
+              backgroundColor: EVColors.successGreen,
+            ),
+          );
+          await _refreshCurrentFolder();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to create folder: ${response.body}'),
+              backgroundColor: EVColors.statusError,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: EVColors.statusError,
+        ),
+      );
+    }
+  }
+
+  void _handleTakePicture() async {
+    // Only run on mobile
+    if (!(Platform.isAndroid || Platform.isIOS)) return;
+    // Detect iOS simulator
+    bool isIOSSimulator = false;
+    try {
+      isIOSSimulator = Platform.isIOS && !Platform.isMacOS &&
+        (Platform.environment['SIMULATOR_DEVICE_NAME'] != null);
+    } catch (_) {}
+    if (isIOSSimulator) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Camera is not supported on the iOS simulator. Please use the gallery option.'),
+          backgroundColor: EVColors.statusWarning,
+        ),
+      );
+      return;
+    }
+    final picker = ImagePicker();
+    XFile? image;
+    if (Platform.isAndroid) {
+      // Android: check/request permission
+      final hasCameraPermission = await PermissionService.checkCameraPermission();
+      if (!hasCameraPermission) {
+        final granted = await PermissionService.requestCameraPermission(context);
+        if (!granted) return;
+      }
+      image = await picker.pickImage(source: ImageSource.camera);
+    } else if (Platform.isIOS) {
+      // iOS: directly open camera, system will prompt for permission
+      image = await picker.pickImage(source: ImageSource.camera);
+    }
+    if (image == null) return; // User cancelled
+    // Upload the image using the same logic as the upload screen
+    try {
+      String uploadName = image.name;
+      if (Platform.isIOS && uploadName.startsWith('image_picker_')) {
+        uploadName = uploadName.replaceFirst('image_picker_', 'ios_camera_');
+      }
+      final fileItem = UploadFileItem(
+        name: uploadName,
+        path: image.path,
+      );
+      final uploadService = UploadServiceFactory.getService(
+        instanceType: widget.instanceType,
+        baseUrl: widget.baseUrl,
+        authToken: widget.authToken,
+      );
+      final parentFolderId = _controller?.currentFolder?.id;
+      if (parentFolderId == null) throw Exception('No folder selected');
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+      await uploadService.uploadDocument(
+        parentFolderId: parentFolderId,
+        filePath: image.path,
+        fileName: uploadName,
+      );
+      Navigator.of(context).pop(); // Close progress dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Image uploaded successfully'),
+          backgroundColor: EVColors.successGreen,
+        ),
+      );
+      _refreshCurrentFolder();
+    } catch (e) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to upload image: $e'),
+          backgroundColor: EVColors.statusError,
+        ),
+      );
+    }
+  }
+
+  void _handleUploadFromGallery() async {
+    // Only run on mobile
+    if (!(Platform.isAndroid || Platform.isIOS)) return;
+    try {
+      final picker = ImagePicker();
+      final List<XFile> images = await picker.pickMultiImage();
+      if (images.isEmpty) return; // User cancelled
+      // Use the same upload service as the upload screen
+      final uploadService = UploadServiceFactory.getService(
+        instanceType: widget.instanceType,
+        baseUrl: widget.baseUrl,
+        authToken: widget.authToken,
+      );
+      final parentFolderId = _controller?.currentFolder?.id;
+      if (parentFolderId == null) throw Exception('No folder selected');
+      // Show progress indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+      for (final image in images) {
+        String uploadName = image.name;
+        if (Platform.isIOS && uploadName.startsWith('image_picker_')) {
+          uploadName = uploadName.replaceFirst('image_picker_', 'ios_photo_');
+        }
+        await uploadService.uploadDocument(
+          parentFolderId: parentFolderId,
+          filePath: image.path,
+          fileName: uploadName,
+        );
+      }
+      Navigator.of(context).pop(); // Close progress dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Images uploaded successfully'),
+          backgroundColor: EVColors.successGreen,
+        ),
+      );
+      _refreshCurrentFolder();
+    } catch (e) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to upload images: $e'),
+          backgroundColor: EVColors.statusError,
+        ),
+      );
+    }
+  }
+
+  void _handleUploadFromFilePicker() {
+    _uploadHandler.navigateToUploadScreen();
+    // TODO: Pass file picker intent to upload screen if needed
   }
 }

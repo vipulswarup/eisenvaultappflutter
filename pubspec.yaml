@@ -2,7 +2,7 @@ name: eisenvaultappflutter
 description: "EisenVault Desktop - Document Management System"
 publish_to: 'none'
 
-version: 1.0.4+6
+version: 1.0.5+7
 
 environment:
   sdk: '>=3.7.0 <4.0.0'
@@ -65,6 +65,7 @@ dependencies:
   flutter_markdown: ^0.6.18
   flutter_html: ^3.0.0-beta.2
   csv: ^5.1.1
+  image_picker: ^1.0.7
  
 
 dev_dependencies:
@@ -105,7 +106,7 @@ msix_config:
   publisher_display_name: EisenVault
   identity_name: EisenVault.EisenVaultDesktop
   publisher: CN=95E049EA-2EEE-4276-80A1-1B29770CF6A1
-  msix_version: 1.0.0.0
+  msix_version: 1.0.1.0
   logo_path: assets/icon/app_icon_other.png
   capabilities: "internetClient,privateNetworkClientServer,documentsLibrary"
 
