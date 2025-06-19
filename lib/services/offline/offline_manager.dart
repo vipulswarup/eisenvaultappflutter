@@ -114,7 +114,9 @@ class OfflineManager {
   
   void _initConnectivityMonitoring() {
     _connectivitySubscription = _connectivity.onConnectivityChanged.listen((results) {
-      if (!results.contains(ConnectivityResult.none) && !results.contains(ConnectivityResult.other) && _config.autoSync) {
+      // Only consider ConnectivityResult.none as offline
+      // ConnectivityResult.other can be VPN connections and should not be treated as offline
+      if (!results.contains(ConnectivityResult.none) && _config.autoSync) {
         _sync.startSync();
       }
     });
@@ -122,7 +124,9 @@ class OfflineManager {
   
   void _initConnectivityListener() {
     Connectivity().onConnectivityChanged.listen((results) {
-      _connectivityStream.add(results.contains(ConnectivityResult.none) || results.contains(ConnectivityResult.other));
+      // Only consider ConnectivityResult.none as offline
+      // ConnectivityResult.other can be VPN connections and should not be treated as offline
+      _connectivityStream.add(results.contains(ConnectivityResult.none));
     });
   }
   
@@ -194,8 +198,9 @@ class OfflineManager {
     
     // Check connectivity first
     final result = await _connectivity.checkConnectivity();
-    // Consider both ConnectivityResult.none and ConnectivityResult.other as offline states
-    final noConnectivity = result == ConnectivityResult.none || result == ConnectivityResult.other;
+    // Only consider ConnectivityResult.none as offline
+    // ConnectivityResult.other can be VPN connections and should not be treated as offline
+    final noConnectivity = result == ConnectivityResult.none;
     
     // If we have connectivity, we're not offline
     if (!noConnectivity) {
@@ -240,32 +245,67 @@ class OfflineManager {
       await _metadata.saveItem(offlineItem);
       
       if (item.type == 'folder' || item.isDepartment) {
-        downloadManager?.startDownload();
-        try {
-          // For sites/departments, we need to handle them specially
-          if (item.isDepartment) {
-            await _downloadSiteContents(
-              item,
-              downloadManager: downloadManager,
-              onError: onError,
-            );
-          } else {
-            // For regular folders, use the existing recursive approach
-            await _downloadFolderContents(
-              item,
-              downloadManager: downloadManager,
-              onError: onError,
-            );
+        // Only start download if this is the root folder/department being processed
+        // (i.e., when totalFiles is provided, meaning we're in a batch operation)
+        if (totalFiles != null && currentFileIndex != null) {
+          // This is part of a larger download operation, don't start/complete download here
+          try {
+            // For sites/departments, we need to handle them specially
+            if (item.isDepartment) {
+              await _downloadSiteContents(
+                item,
+                downloadManager: downloadManager,
+                onError: onError,
+                totalFiles: totalFiles,
+                currentFileIndex: currentFileIndex,
+              );
+            } else {
+              // For regular folders, use the existing recursive approach
+              await _downloadFolderContents(
+                item,
+                downloadManager: downloadManager,
+                onError: onError,
+                totalFiles: totalFiles,
+                currentFileIndex: currentFileIndex,
+              );
+            }
+            return true;
+          } catch (e) {
+            EVLogger.error('Error keeping folder offline', e);
+            if (onError != null) {
+              onError('Failed to download folder: ${item.name}\n${e.toString()}');
+            }
+            rethrow;
           }
-          downloadManager?.completeDownload();
-          return true;
-        } catch (e) {
-          downloadManager?.completeDownload();
-          EVLogger.error('Error keeping folder offline', e);
-          if (onError != null) {
-            onError('Failed to download folder: ${item.name}\n${e.toString()}');
+        } else {
+          // This is a standalone folder download, start the download process
+          downloadManager?.startDownload();
+          try {
+            // For sites/departments, we need to handle them specially
+            if (item.isDepartment) {
+              await _downloadSiteContents(
+                item,
+                downloadManager: downloadManager,
+                onError: onError,
+              );
+            } else {
+              // For regular folders, use the existing recursive approach
+              await _downloadFolderContents(
+                item,
+                downloadManager: downloadManager,
+                onError: onError,
+              );
+            }
+            downloadManager?.completeDownload();
+            return true;
+          } catch (e) {
+            downloadManager?.completeDownload();
+            EVLogger.error('Error keeping folder offline', e);
+            if (onError != null) {
+              onError('Failed to download folder: ${item.name}\n${e.toString()}');
+            }
+            rethrow;
           }
-          rethrow;
         }
       } else {
         // For files, we need to download the content
@@ -291,8 +331,12 @@ class OfflineManager {
           final updatedItem = offlineItem.copyWith(filePath: filePath);
           await _metadata.saveItem(updatedItem);
           
-          // Update progress to 100%
-          downloadManager?.updateProgress(progress.copyWith(progress: 1.0));
+          // Update progress to 100% and increment file index
+          final nextFileIndex = (currentFileIndex ?? 1) + 1;
+          downloadManager?.updateProgress(progress.copyWith(
+            progress: 1.0,
+            currentFileIndex: nextFileIndex,
+          ));
           
           // Only complete the download if this is the last file
           if (currentFileIndex == totalFiles) {
@@ -324,6 +368,8 @@ class OfflineManager {
     BrowseItem site, {
     DownloadManager? downloadManager,
     void Function(String message)? onError,
+    int? totalFiles,
+    int? currentFileIndex,
   }) async {
     try {
       // First get all containers for the site using the correct API endpoint
@@ -336,31 +382,34 @@ class OfflineManager {
       int skipCount = 0;
       const int maxItems = 25;
       List<BrowseItem> containers;
-      int totalFiles = 0;
-      int currentFileIndex = 0;
+      int actualTotalFiles = totalFiles ?? 0;
+      int actualCurrentFileIndex = currentFileIndex ?? 1; // Use 1-based indexing
       
-      // First pass: count total files
-      do {
-        containers = await browseService.getChildren(
-          site,
-          skipCount: skipCount,
-          maxItems: maxItems,
-        );
+      // If totalFiles is not provided, we need to count them first
+      if (totalFiles == null) {
+        // First pass: count total files
+        do {
+          containers = await browseService.getChildren(
+            site,
+            skipCount: skipCount,
+            maxItems: maxItems,
+          );
 
-        for (final container in containers) {
-          if (container.type == 'folder') {
-            // For folders, we need to count their contents
-            totalFiles += await _countFolderContents(container);
-          } else {
-            totalFiles++;
+          for (final container in containers) {
+            if (container.type == 'folder') {
+              // For folders, we need to count their contents
+              actualTotalFiles += await _countFolderContents(container);
+            } else {
+              actualTotalFiles++;
+            }
           }
-        }
 
-        skipCount += maxItems;
-      } while (containers.length >= maxItems);
+          skipCount += maxItems;
+        } while (containers.length >= maxItems);
 
-      // Reset skip count for actual download
-      skipCount = 0;
+        // Reset skip count for actual download
+        skipCount = 0;
+      }
       
       // Second pass: download files
       do {
@@ -372,37 +421,34 @@ class OfflineManager {
 
         // Process each container
         for (final container in containers) {
-          // First save the container itself with the site as parent
-          await keepOffline(
-            container,
-            parentId: site.id,
-            downloadManager: downloadManager,
-            onError: onError,
-          );
-
           if (container.type == 'folder') {
-            // For document libraries and other site containers, use regular folder download
+            // For folders, just save the folder metadata and then download its contents
+            // Don't call keepOffline here as it would cause double downloads
+            final offlineItem = OfflineItem.fromBrowseItem(container, parentId: site.id);
+            await _metadata.saveItem(offlineItem);
+            
+            // Download folder contents
             await _downloadFolderContents(
               container,
               downloadManager: downloadManager,
               onError: onError,
-              totalFiles: totalFiles,
-              currentFileIndex: currentFileIndex,
+              totalFiles: actualTotalFiles,
+              currentFileIndex: actualCurrentFileIndex,
               parentId: container.id, // Use the container's ID as parent for its contents
             );
             // Update currentFileIndex based on folder contents
-            currentFileIndex += await _countFolderContents(container);
+            actualCurrentFileIndex += await _countFolderContents(container);
           } else {
             // For files directly in site containers, download them
-            currentFileIndex++;
             await keepOffline(
               container,
               parentId: site.id,
               downloadManager: downloadManager,
               onError: onError,
-              totalFiles: totalFiles,
-              currentFileIndex: currentFileIndex,
+              totalFiles: actualTotalFiles,
+              currentFileIndex: actualCurrentFileIndex,
             );
+            actualCurrentFileIndex++; // Increment after the file is processed
           }
         }
 
@@ -470,7 +516,7 @@ class OfflineManager {
       int skipCount = 0;
       const int maxItems = 25;
       List<BrowseItem> contents;
-      int fileIndex = currentFileIndex ?? 0;
+      int fileIndex = currentFileIndex ?? 1; // Use 1-based indexing
       do {
         if (downloadManager?.isCancelled == true) return;
         contents = await browseService.getChildren(
@@ -482,13 +528,11 @@ class OfflineManager {
         for (final content in contents) {
           if (downloadManager?.isCancelled == true) return;
           if (content.type == 'folder') {
-            // First save the folder with its parent ID
-            await keepOffline(
-              content,
-              parentId: parentId ?? folder.id,
-              downloadManager: downloadManager,
-              onError: onError,
-            );
+            // For folders, just save the folder metadata and then download its contents
+            // Don't call keepOffline here as it would cause double downloads
+            final offlineItem = OfflineItem.fromBrowseItem(content, parentId: parentId ?? folder.id);
+            await _metadata.saveItem(offlineItem);
+            
             // Then download its contents
             fileIndex = await _downloadFolderContentsWithIndex(
               content,
@@ -499,7 +543,6 @@ class OfflineManager {
               parentId: content.id, // Use the folder's ID as parent for its contents
             );
           } else {
-            fileIndex++;
             await keepOffline(
               content,
               parentId: parentId ?? folder.id,
@@ -508,6 +551,7 @@ class OfflineManager {
               totalFiles: totalFiles,
               currentFileIndex: fileIndex,
             );
+            fileIndex++; // Increment after the file is processed
           }
         }
 
@@ -531,7 +575,7 @@ class OfflineManager {
     int? currentFileIndex,
     String? parentId,
   }) async {
-    int fileIndex = currentFileIndex ?? 0;
+    int fileIndex = currentFileIndex ?? 1; // Use 1-based indexing
     final browseService = BrowseServiceFactory.getService(
       _sync.instanceType,
       _sync.baseUrl,
@@ -550,13 +594,11 @@ class OfflineManager {
       for (final content in contents) {
         if (downloadManager?.isCancelled == true) return fileIndex;
         if (content.type == 'folder') {
-          // First save the folder with its parent ID
-          await keepOffline(
-            content,
-            parentId: parentId,
-            downloadManager: downloadManager,
-            onError: onError,
-          );
+          // For folders, just save the folder metadata and then download its contents
+          // Don't call keepOffline here as it would cause double downloads
+          final offlineItem = OfflineItem.fromBrowseItem(content, parentId: parentId);
+          await _metadata.saveItem(offlineItem);
+          
           // Then download its contents
           fileIndex = await _downloadFolderContentsWithIndex(
             content,
@@ -567,7 +609,6 @@ class OfflineManager {
             parentId: content.id, // Use the folder's ID as parent for its contents
           );
         } else {
-          fileIndex++;
           await keepOffline(
             content,
             parentId: parentId,
@@ -576,6 +617,7 @@ class OfflineManager {
             totalFiles: totalFiles,
             currentFileIndex: fileIndex,
           );
+          fileIndex++; // Increment after the file is processed
         }
       }
       skipCount += maxItems;

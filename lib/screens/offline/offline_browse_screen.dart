@@ -67,7 +67,9 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
       baseUrl: widget.baseUrl,
     );
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen((results) {
-      final isOnline = !results.contains(ConnectivityResult.none) && !results.contains(ConnectivityResult.other);
+      // Only consider ConnectivityResult.none as offline
+      // ConnectivityResult.other can be VPN connections and should not be treated as offline
+      final isOnline = !results.contains(ConnectivityResult.none);
       if (isOnline) {
         if (_navigatingToOnline) return;
         _navigatingToOnline = true;
@@ -499,12 +501,12 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: EVColors.departmentIconBackground,
+          color: EVColors.paletteAccent.withOpacity(0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: const Icon(
           Icons.business,
-          color: EVColors.departmentIconForeground,
+          color: EVColors.paletteAccent,
           size: 24,
         ),
       );

@@ -32,8 +32,8 @@ android {
         applicationId = "com.eisenvault"
         minSdk = 24 // Android 7.0 (Nougat)
         targetSdk = 34 // Android 14
-        versionCode = 7
-        versionName = "1.0.5"
+        versionCode = 106
+        versionName = "1.0.6"
     }
 
     signingConfigs {

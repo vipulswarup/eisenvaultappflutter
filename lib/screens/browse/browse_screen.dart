@@ -8,6 +8,7 @@ import 'package:eisenvaultappflutter/screens/browse/handlers/auth_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/batch_delete_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/batch_offline_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/delete_handler.dart';
+import 'package:eisenvaultappflutter/screens/browse/handlers/rename_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/file_tap_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/search_navigation_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_app_bar.dart';
@@ -16,6 +17,7 @@ import 'package:eisenvaultappflutter/screens/browse/widgets/browse_list.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_navigation.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/download_progress_indicator.dart';
 import 'package:eisenvaultappflutter/services/delete/delete_service.dart';
+import 'package:eisenvaultappflutter/services/rename/rename_service.dart';
 import 'package:eisenvaultappflutter/services/offline/download_manager.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
@@ -138,6 +140,8 @@ class _BrowseScreenState extends State<BrowseScreen> {
   late AuthHandler _authHandler;
   late DeleteHandler _deleteHandler;
   late DeleteService _deleteService;
+  late RenameHandler _renameHandler;
+  late RenameService _renameService;
   late BatchDeleteHandler _batchDeleteHandler;
   late BatchOfflineHandler _batchOfflineHandler;
   late UploadNavigationHandler _uploadHandler;
@@ -173,14 +177,34 @@ class _BrowseScreenState extends State<BrowseScreen> {
     _connectivitySubscription = _connectivity.onConnectivityChanged.listen(_updateConnectionStatus);
   }
 
-  void _updateConnectionStatus(List<ConnectivityResult> results) {
+  Future<void> _updateConnectionStatus(List<ConnectivityResult> results) async {
     if (!mounted) return;
     
-    final isNowOffline = results.contains(ConnectivityResult.none) || results.contains(ConnectivityResult.other);
+    // Only consider ConnectivityResult.none as offline
+    // ConnectivityResult.other can be VPN connections and should not be treated as offline
+    final isNowOffline = results.contains(ConnectivityResult.none);
     
-    setState(() {
-      _isOffline = isNowOffline;
-    });
+    if (isNowOffline != _isOffline) {
+      setState(() {
+        _isOffline = isNowOffline;
+      });
+      
+      if (isNowOffline) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('You are offline. Switching to offline mode.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('You are back online.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -220,6 +244,24 @@ class _BrowseScreenState extends State<BrowseScreen> {
       authToken: widget.authToken,
       deleteService: _deleteService,
       onDeleteSuccess: () {
+        _refreshCurrentFolder();
+      },
+    );
+
+    _renameService = RenameService(
+      repositoryType: widget.instanceType,
+      baseUrl: widget.baseUrl,
+      authToken: widget.authToken,
+      customerHostname: widget.customerHostname,
+    );
+
+    _renameHandler = RenameHandler(
+      context: context,
+      repositoryType: widget.instanceType,
+      baseUrl: widget.baseUrl,
+      authToken: widget.authToken,
+      renameService: _renameService,
+      onRenameSuccess: () {
         _refreshCurrentFolder();
       },
     );
@@ -483,14 +525,24 @@ class _BrowseScreenState extends State<BrowseScreen> {
                 _fileTapHandler.handleFileTap(item);
               },
             ),
-          ListTile(
-            leading: const Icon(Icons.delete),
-            title: const Text('Delete'),
-            onTap: () {
-              Navigator.pop(sheetContext);
-              _deleteHandler.showDeleteConfirmation(item);
-            },
-          ),
+          if (item.allowableOperations?.contains('update') == true && !item.isSystemFolder)
+            ListTile(
+              leading: const Icon(Icons.edit),
+              title: const Text('Rename'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _renameHandler.showRenameDialog(item);
+              },
+            ),
+          if (item.canDelete && !item.isSystemFolder)
+            ListTile(
+              leading: const Icon(Icons.delete),
+              title: const Text('Delete'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _deleteHandler.showDeleteConfirmation(item);
+              },
+            ),
         ],
       ),
     );

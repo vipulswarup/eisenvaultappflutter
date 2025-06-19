@@ -33,15 +33,30 @@ class BatchDeleteHandler {
           
       if (itemsToDelete.isEmpty) return;
       
+      // Filter out system folders
+      final systemFolders = itemsToDelete.where((item) => item.isSystemFolder).toList();
+      final regularItems = itemsToDelete.where((item) => !item.isSystemFolder).toList();
+      
+      if (systemFolders.isNotEmpty) {
+        _showMessage(
+          'System folders cannot be deleted: ${systemFolders.map((item) => item.name).join(', ')}',
+          Colors.orange,
+        );
+      }
+      
+      if (regularItems.isEmpty) {
+        return; // No regular items to delete
+      }
+      
       // Show permission checking dialog
-      bool canProceed = await _checkPermissions(itemsToDelete);
+      bool canProceed = await _checkPermissions(regularItems);
       
       if (canProceed) {
         // Show confirmation dialog
-        bool confirmed = await _showConfirmationDialog(itemsToDelete.length);
+        bool confirmed = await _showConfirmationDialog(regularItems.length);
         
         if (confirmed) {
-          await _performDelete(itemsToDelete);
+          await _performDelete(regularItems);
         }
       } else {
         // Show error if user doesn't have permission
@@ -191,6 +206,13 @@ class BatchDeleteHandler {
 
   /// Check if the user has permission to delete all selected items
   Future<bool> _checkDeletePermissions(List<BrowseItem> items) async {
+    // Filter out system folders - they cannot be deleted regardless of permissions
+    final deletableItems = items.where((item) => !item.isSystemFolder).toList();
+    
+    if (deletableItems.isEmpty) {
+      return false; // No deletable items
+    }
+    
     // For Angora repositories, use PermissionService
     if (instanceType.toLowerCase() == 'angora') {
       final permissionService = PermissionServiceFactory.getService(
@@ -200,7 +222,7 @@ class BatchDeleteHandler {
       );
       
       // Check each item for delete permission
-      for (final item in items) {
+      for (final item in deletableItems) {
         
         try {
           final hasPermission = await permissionService.hasPermission(item.id, 'delete');
@@ -218,7 +240,7 @@ class BatchDeleteHandler {
       return true; // All items passed
     } else {
       // For Classic/Alfresco repositories, use the item's canDelete property
-      return items.every((item) => item.canDelete);
+      return deletableItems.every((item) => item.canDelete);
     }
   }
 

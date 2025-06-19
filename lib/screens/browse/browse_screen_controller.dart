@@ -113,11 +113,12 @@ class BrowseScreenController extends ChangeNotifier {
   Future<void> _checkConnectivity() async {
     try {
       final result = await _connectivity.checkConnectivity();
-      _isOffline = result == ConnectivityResult.none || result == ConnectivityResult.other;
-      
+      // Only consider ConnectivityResult.none as offline
+      // ConnectivityResult.other can be VPN connections and should not be treated as offline
+      _isOffline = result == ConnectivityResult.none;
+      _notifyListeners();
     } catch (e) {
       EVLogger.error('Error checking connectivity', e);
-      _isOffline = true; // Assume offline if we can't check
     }
   }
 
@@ -487,8 +488,9 @@ class BrowseScreenController extends ChangeNotifier {
 
   void _initConnectivityListener() {
     _offlineManager.onConnectivityChanged.listen((result) {
-      // Consider both ConnectivityResult.none and ConnectivityResult.other as offline states
-      final isOffline = result == ConnectivityResult.none || result == ConnectivityResult.other;
+      // Only consider ConnectivityResult.none as offline
+      // ConnectivityResult.other can be VPN connections and should not be treated as offline
+      final isOffline = result == ConnectivityResult.none;
       
       // Debounce connectivity changes to prevent rapid state updates
       _debounceTimer?.cancel();
@@ -513,7 +515,9 @@ class BrowseScreenController extends ChangeNotifier {
   
   Future<void> _checkOfflineState() async {
     final result = await _connectivity.checkConnectivity();
-    _isOffline = result == ConnectivityResult.none || result == ConnectivityResult.other;
+    // Only consider ConnectivityResult.none as offline
+    // ConnectivityResult.other can be VPN connections and should not be treated as offline
+    _isOffline = result == ConnectivityResult.none;
     
     notifyListeners();
     

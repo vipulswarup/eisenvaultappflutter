@@ -3,7 +3,7 @@ import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_list_item.dart';
 
-class BrowseList extends StatelessWidget {
+class BrowseList extends StatefulWidget {
   final List<BrowseItem> items;
   final bool isLoading;
   final String? errorMessage;
@@ -34,12 +34,53 @@ class BrowseList extends StatelessWidget {
   });
 
   @override
+  State<BrowseList> createState() => _BrowseListState();
+}
+
+class _BrowseListState extends State<BrowseList> {
+  late ScrollController _scrollController;
+  bool _isLoadingMore = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      if (widget.hasMoreItems && !widget.isLoadingMore && !_isLoadingMore && widget.onLoadMore != null) {
+        setState(() {
+          _isLoadingMore = true;
+        });
+        widget.onLoadMore!();
+        // Reset loading state after a short delay to allow the controller to update
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) {
+            setState(() {
+              _isLoadingMore = false;
+            });
+          }
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (isLoading) {
+    if (widget.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (errorMessage != null) {
+    if (widget.errorMessage != null) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -47,7 +88,7 @@ class BrowseList extends StatelessWidget {
             const Icon(Icons.error_outline, color: EVColors.statusError, size: 48),
             const SizedBox(height: 16),
             Text(
-              errorMessage!,
+              widget.errorMessage!,
               textAlign: TextAlign.center,
               style: const TextStyle(color: EVColors.statusError),
             ),
@@ -56,7 +97,7 @@ class BrowseList extends StatelessWidget {
       );
     }
 
-    if (items.isEmpty) {
+    if (widget.items.isEmpty) {
       return const Center(
         child: Text(
           'No items found',
@@ -65,59 +106,37 @@ class BrowseList extends StatelessWidget {
       );
     }
 
-    final ScrollController _scrollController = ScrollController();
-
-    _scrollController.addListener(() {
-      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
-        if (hasMoreItems && !isLoadingMore && onLoadMore != null) {
-          onLoadMore!();
-        }
-      }
-    });
-
-    return NotificationListener<ScrollNotification>(
-      onNotification: (scrollNotification) {
-        if (scrollNotification is ScrollEndNotification) {
-          if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
-            if (hasMoreItems && !isLoadingMore && onLoadMore != null) {
-              onLoadMore!();
-            }
-          }
-        }
-        return false;
-      },
-      child: ListView.builder(
-        controller: _scrollController,
-        itemCount: items.length + (isLoadingMore ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index == items.length && isLoadingMore) {
-            return const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: Center(child: CircularProgressIndicator()),
-            );
-          }
-          final item = items[index];
-          final isSelected = selectedItems.contains(item.id);
-          return BrowseListItem(
-            item: item,
-            onTap: () {
-              if (isInSelectionMode) {
-                onItemSelectionChanged(item.id, !isSelected);
-              } else {
-                onItemTap(item);
-              }
-            },
-            onLongPress: () {
-              if (!isInSelectionMode) {
-                onItemLongPress(item);
-              }
-            },
-            isSelected: isSelected,
-            showSelectionCheckbox: isInSelectionMode,
-            onSelectionChanged: (selected) => onItemSelectionChanged(item.id, selected),
+    return ListView.builder(
+      controller: _scrollController,
+      itemCount: widget.items.length + (widget.isLoadingMore || _isLoadingMore ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (index == widget.items.length && (widget.isLoadingMore || _isLoadingMore)) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(child: CircularProgressIndicator()),
           );
-        },
-      ),
+        }
+        final item = widget.items[index];
+        final isSelected = widget.selectedItems.contains(item.id);
+        return BrowseListItem(
+          item: item,
+          onTap: () {
+            if (widget.isInSelectionMode) {
+              widget.onItemSelectionChanged(item.id, !isSelected);
+            } else {
+              widget.onItemTap(item);
+            }
+          },
+          onLongPress: () {
+            if (!widget.isInSelectionMode) {
+              widget.onItemLongPress(item);
+            }
+          },
+          isSelected: isSelected,
+          showSelectionCheckbox: widget.isInSelectionMode,
+          onSelectionChanged: (selected) => widget.onItemSelectionChanged(item.id, selected),
+        );
+      },
     );
   }
 } 

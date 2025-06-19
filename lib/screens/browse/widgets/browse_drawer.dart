@@ -24,6 +24,31 @@ class BrowseDrawer extends StatelessWidget {
     required this.offlineManager,
   });
 
+  /// Cleans the server URL by removing common suffixes like /alfresco
+  String _cleanServerUrl(String url) {
+    // Remove trailing slashes first
+    String cleanedUrl = url.replaceAll(RegExp(r'/+$'), '');
+    
+    // List of known suffixes to strip
+    final suffixes = [
+      '/alfresco',
+      '/share/page',
+      '/share',
+      '/page',
+      '/s',
+    ];
+    
+    for (final suffix in suffixes) {
+      if (cleanedUrl.endsWith(suffix)) {
+        cleanedUrl = cleanedUrl.substring(0, cleanedUrl.length - suffix.length);
+        // Remove any trailing slashes after removing suffix
+        cleanedUrl = cleanedUrl.replaceAll(RegExp(r'/+$'), '');
+      }
+    }
+    
+    return cleanedUrl;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Drawer(
@@ -54,7 +79,7 @@ class BrowseDrawer extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Server: $baseUrl',
+                  'Server: ${_cleanServerUrl(baseUrl)}',
                   style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 12,

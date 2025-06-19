@@ -28,6 +28,11 @@ class DeleteHandler {
 
   /// Check if the user has permission to delete the specified item
   Future<bool> _checkDeletePermission(BrowseItem item) async {
+    // Check if this is a system folder - system folders cannot be deleted
+    if (item.isSystemFolder) {
+      return false;
+    }
+    
     // Check cache first
     if (_permissionCache.containsKey(item.id)) {
       return _permissionCache[item.id]!;
@@ -117,7 +122,11 @@ class DeleteHandler {
       // If user doesn't have permission, show error and exit
       if (!hasPermission || !context.mounted) {
         if (context.mounted) {
-          _showErrorMessage(context, 'You don\'t have permission to delete this item');
+          if (item.isSystemFolder) {
+            _showErrorMessage(context, 'System folders cannot be deleted');
+          } else {
+            _showErrorMessage(context, 'You don\'t have permission to delete this item');
+          }
         }
         return;
       }

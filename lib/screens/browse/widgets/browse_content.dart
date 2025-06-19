@@ -12,6 +12,7 @@ class BrowseContent extends StatelessWidget {
   final Function(BrowseItem) onFolderTap;
   final Function(BrowseItem) onFileTap;
   final Function(BrowseItem)? onDeleteTap;
+  final Function(BrowseItem)? onRenameTap;
   final bool selectionMode;
   final Set<String> selectedItems;
   final Function(String, bool)? onSelectionChanged;
@@ -21,6 +22,7 @@ class BrowseContent extends StatelessWidget {
     required this.onFolderTap,
     required this.onFileTap,
     this.onDeleteTap,
+    this.onRenameTap,
     this.selectionMode = false,
     this.selectedItems = const {},
     this.onSelectionChanged,
@@ -79,7 +81,9 @@ class BrowseContent extends StatelessWidget {
           onFolderTap: onFolderTap,
           onFileTap: onFileTap,
           onDeleteTap: onDeleteTap,
+          onRenameTap: onRenameTap,
           showDeleteOption: _shouldShowDeleteOption(state, controller),
+          showRenameOption: _shouldShowRenameOption(state, controller),
           onRefresh: () async {
             if (controller.currentFolder != null) {
               await controller.loadFolderContents(controller.currentFolder!);
@@ -103,6 +107,13 @@ class BrowseContent extends StatelessWidget {
   }
 
   bool _shouldShowDeleteOption(BrowseScreenState state, BrowseScreenController controller) {
+    return controller.currentFolder != null && 
+           controller.currentFolder?.id != 'root' && 
+           controller.currentFolder?.canWrite == true && 
+           !state.isOffline;
+  }
+
+  bool _shouldShowRenameOption(BrowseScreenState state, BrowseScreenController controller) {
     return controller.currentFolder != null && 
            controller.currentFolder?.id != 'root' && 
            controller.currentFolder?.canWrite == true && 

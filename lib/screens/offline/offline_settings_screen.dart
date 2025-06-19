@@ -4,6 +4,7 @@ import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/services/offline/sync_service.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 
 /// Screen for managing offline content settings and operations
 class OfflineSettingsScreen extends StatefulWidget {
@@ -27,7 +28,6 @@ class _OfflineSettingsScreenState extends State<OfflineSettingsScreen> {
   final SyncService _syncService = SyncService();
   
   String _storageUsage = "Calculating...";
-  String _availableStorage = "Calculating...";
   bool _isSyncing = false;
   String _syncStatus = "";
   bool _isClearing = false;
@@ -42,7 +42,6 @@ class _OfflineSettingsScreenState extends State<OfflineSettingsScreen> {
     _offlineManager = await OfflineManager.createDefault();
     _initSyncService();
     _loadStorageUsage();
-    _loadAvailableStorage();
   }
 
   void _initSyncService() {
@@ -116,63 +115,6 @@ class _OfflineSettingsScreenState extends State<OfflineSettingsScreen> {
     }
   }
 
-  Future<void> _loadAvailableStorage() async {
-    try {
-      final available = await _getAvailableStorage();
-      if (mounted) {
-        setState(() {
-          _availableStorage = available;
-        });
-      }
-    } catch (e) {
-      EVLogger.error('Failed to get available storage', e);
-      if (mounted) {
-        setState(() {
-          _availableStorage = "Error calculating";
-        });
-      }
-    }
-  }
-
-  Future<String> _getAvailableStorage() async {
-    try {
-      final available = await _getAvailableSpaceInBytes();
-      
-      if (available < 1024 * 1024 * 100) { // Less than 100MB
-        return '${(available / (1024 * 1024)).toStringAsFixed(2)} MB (Low)';
-      } else {
-        return '${(available / (1024 * 1024)).toStringAsFixed(2)} MB';
-      }
-    } catch (e) {
-      EVLogger.error('Error getting available storage', e);
-      return 'Unknown';
-    }
-  }
-
-  Future<int> _getAvailableSpaceInBytes() async {
-    try {
-      final directory = await getApplicationDocumentsDirectory();
-      
-      // Since FileStat doesn't provide free space information directly,
-      // we'll use a simpler approach that works cross-platform
-      
-      // Get the total app documents directory size as a rough estimate of used space
-      final stat = await directory.stat();
-      
-      // Rough estimation: Assume 2GB total space, subtract what we know is used
-      // This is a very rough approximation but serves as a simple indicator
-      final estimatedTotalSpace = 2 * 1024 * 1024 * 1024; // 2GB
-      final estimatedUsedSpace = stat.size;
-      final estimatedFreeSpace = estimatedTotalSpace - estimatedUsedSpace;
-      
-      // Ensure we don't return negative values
-      return estimatedFreeSpace > 0 ? estimatedFreeSpace.toInt() : 0;
-    } catch (e) {
-      EVLogger.error('Error calculating available space', e);
-      return 0;
-    }
-  }
-
   Future<void> _syncOfflineContent() async {
     if (_isSyncing) return;
     
@@ -180,7 +122,6 @@ class _OfflineSettingsScreenState extends State<OfflineSettingsScreen> {
       await _syncService.startSync();
       // Refresh storage info after sync
       await _loadStorageUsage();
-      await _loadAvailableStorage();
     } catch (e) {
       EVLogger.error('Failed to start sync', e);
       if (mounted) {
@@ -238,7 +179,6 @@ class _OfflineSettingsScreenState extends State<OfflineSettingsScreen> {
         
         // Refresh storage info
         await _loadStorageUsage();
-        await _loadAvailableStorage();
       }
     } catch (e) {
       EVLogger.error('Failed to clear offline content', e);
@@ -303,19 +243,6 @@ class _OfflineSettingsScreenState extends State<OfflineSettingsScreen> {
                     const Text('Used Space'),
                     Text(
                       _storageUsage,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Available Space'),
-                    Text(
-                      _availableStorage,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                       ),

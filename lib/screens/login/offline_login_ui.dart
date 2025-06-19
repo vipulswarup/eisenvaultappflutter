@@ -17,8 +17,9 @@ class OfflineLoginUI extends StatefulWidget {
 }
 
 class _OfflineLoginUIState extends State<OfflineLoginUI> {
-  late OfflineManager _offlineManager;
+  OfflineManager? _offlineManager;
   bool _isLoading = false;
+  bool _isInitializing = true;
 
   @override
   void initState() {
@@ -27,7 +28,18 @@ class _OfflineLoginUIState extends State<OfflineLoginUI> {
   }
 
   Future<void> _initOfflineManager() async {
-    _offlineManager = await OfflineManager.createDefault();
+    try {
+      _offlineManager = await OfflineManager.createDefault(requireCredentials: false);
+    } catch (e) {
+      EVLogger.error('Failed to initialize offline manager', e);
+      // Don't rethrow - we want to show a fallback UI
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isInitializing = false;
+        });
+      }
+    }
   }
 
   @override
@@ -46,56 +58,77 @@ class _OfflineLoginUIState extends State<OfflineLoginUI> {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 20),
-          FutureBuilder<bool>(
-            future: _offlineManager.hasOfflineContent(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const CircularProgressIndicator();
-              }
-              
-              final hasContent = snapshot.data ?? false;
-              
-              return Column(
-                children: [
-                  if (hasContent)
-                    ElevatedButton(
-                      onPressed: () => _browseOfflineContent(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: EVColors.buttonBackground,
-                        foregroundColor: EVColors.buttonForeground,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+          if (_isInitializing)
+            const CircularProgressIndicator()
+          else if (_offlineManager == null)
+            Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Text(
+                    'Unable to access offline content. Please check your connection and try again.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                ),
+                const SizedBox(height: 15),
+                TextButton(
+                  onPressed: widget.onTryOnlineLogin,
+                  child: const Text('Try Online Login'),
+                ),
+              ],
+            )
+          else
+            FutureBuilder<bool>(
+              future: _offlineManager!.hasOfflineContent(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const CircularProgressIndicator();
+                }
+                
+                final hasContent = snapshot.data ?? false;
+                
+                return Column(
+                  children: [
+                    if (hasContent)
+                      ElevatedButton(
+                        onPressed: () => _browseOfflineContent(context),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: EVColors.buttonBackground,
+                          foregroundColor: EVColors.buttonForeground,
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text('Browse Offline Content'),
+                      )
+                    else
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Text(
+                          'No offline content available. You need to mark content for offline access when online.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.grey[600]),
                         ),
                       ),
-                      child: const Text('Browse Offline Content'),
-                    )
-                  else
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 32),
-                      child: Text(
-                        'No offline content available. You need to mark content for offline access when online.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey[600]),
-                      ),
-                    ),
-                  const SizedBox(height: 15),
-                  TextButton(
-                    onPressed: widget.onTryOnlineLogin,
-                    child: const Text('Try Online Login'),
-                  ),
-                  // Add a debug button in development mode
-                  if (true) // Replace with a proper debug flag in production
+                    const SizedBox(height: 15),
                     TextButton(
-                      onPressed: () => _debugOfflineDatabase(context),
-                      child: const Text('Debug Offline Database', 
-                        style: TextStyle(color: Colors.grey),
-                      ),
+                      onPressed: widget.onTryOnlineLogin,
+                      child: const Text('Try Online Login'),
                     ),
-                ],
-              );
-            },
-          ),
+                    // Add a debug button in development mode
+                    if (true) // Replace with a proper debug flag in production
+                      TextButton(
+                        onPressed: () => _debugOfflineDatabase(context),
+                        child: const Text('Debug Offline Database', 
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
         ],
       ),
     );
@@ -108,10 +141,10 @@ class _OfflineLoginUIState extends State<OfflineLoginUI> {
 
     try {
       // Debug: Dump database contents
-      await _offlineManager.dumpOfflineDatabase();
+      await _offlineManager!.dumpOfflineDatabase();
       
       // Check if we have offline content
-      final items = await _offlineManager.getOfflineItems(null);
+      final items = await _offlineManager!.getOfflineItems(null);
       
       if (items.isEmpty) {
         if (context.mounted) {
@@ -126,7 +159,7 @@ class _OfflineLoginUIState extends State<OfflineLoginUI> {
       }
       
       // Get saved credentials for offline browsing
-      final credentials = await _offlineManager.getSavedCredentials();
+      final credentials = await _offlineManager!.getSavedCredentials();
       
       if (credentials == null) {
         if (context.mounted) {
@@ -141,7 +174,7 @@ class _OfflineLoginUIState extends State<OfflineLoginUI> {
       }
       
       // Navigate to offline browse screen
-      if (context.mounted) {
+      if (mounted) {
         await _handleOfflineLogin();
       }
     } catch (e) {
@@ -165,7 +198,7 @@ class _OfflineLoginUIState extends State<OfflineLoginUI> {
   
   Future<void> _debugOfflineDatabase(BuildContext context) async {
     try {
-      await _offlineManager.dumpOfflineDatabase();
+      await _offlineManager!.dumpOfflineDatabase();
       
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -193,7 +226,7 @@ class _OfflineLoginUIState extends State<OfflineLoginUI> {
     });
 
     try {
-      final credentials = await _offlineManager.getSavedCredentials();
+      final credentials = await _offlineManager!.getSavedCredentials();
       
       if (credentials == null) {
         throw Exception('No saved credentials found');
@@ -209,7 +242,7 @@ class _OfflineLoginUIState extends State<OfflineLoginUI> {
               instanceType: instanceType,
               baseUrl: credentials['baseUrl']!,
               authToken: credentials['authToken']!,
-              firstName: credentials['firstName'] ?? 'User',
+              firstName: credentials['firstName'] ?? credentials['username'] ?? 'User',
             ),
           ),
         );

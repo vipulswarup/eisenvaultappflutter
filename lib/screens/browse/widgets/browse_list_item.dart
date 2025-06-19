@@ -73,12 +73,12 @@ class BrowseListItem extends StatelessWidget {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: EVColors.departmentIconBackground,
+          color: EVColors.paletteAccent.withOpacity(0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: const Icon(
           Icons.business,
-          color: EVColors.departmentIconForeground,
+          color: EVColors.paletteAccent,
           size: 24,
         ),
       );

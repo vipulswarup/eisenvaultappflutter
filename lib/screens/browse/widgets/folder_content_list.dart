@@ -1,16 +1,19 @@
-import 'package:eisenvaultappflutter/models/browse_item.dart';
-import 'package:eisenvaultappflutter/widgets/browse_item_tile.dart';
 import 'package:flutter/material.dart';
+import 'package:eisenvaultappflutter/models/browse_item.dart';
+import 'package:eisenvaultappflutter/constants/colors.dart';
+import 'package:eisenvaultappflutter/widgets/browse_item_tile.dart';
 import 'package:provider/provider.dart';
 import '../state/browse_screen_state.dart';
 
 /// Widget that displays a list of folder contents
-class FolderContentList extends StatelessWidget {
+class FolderContentList extends StatefulWidget {
   final List<BrowseItem> items;
   final Function(BrowseItem) onFolderTap;
   final Function(BrowseItem) onFileTap;
-  final void Function(BrowseItem)? onDeleteTap;
+  final Function(BrowseItem)? onDeleteTap;
+  final Function(BrowseItem)? onRenameTap;
   final bool showDeleteOption;
+  final bool showRenameOption;
   final Future<void> Function() onRefresh;
   final VoidCallback onLoadMore;
   final bool isLoadingMore;
@@ -29,7 +32,9 @@ class FolderContentList extends StatelessWidget {
     required this.onFolderTap,
     required this.onFileTap,
     this.onDeleteTap,
+    this.onRenameTap,
     this.showDeleteOption = false,
+    this.showRenameOption = false,
     required this.onRefresh,
     required this.onLoadMore,
     required this.isLoadingMore,
@@ -42,38 +47,82 @@ class FolderContentList extends StatelessWidget {
   });
 
   @override
+  State<FolderContentList> createState() => _FolderContentListState();
+}
+
+class _FolderContentListState extends State<FolderContentList> {
+  late ScrollController _scrollController;
+  bool _isLoadingMore = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      if (widget.hasMoreItems && !widget.isLoadingMore && !_isLoadingMore) {
+        setState(() {
+          _isLoadingMore = true;
+        });
+        widget.onLoadMore();
+        // Reset loading state after a short delay to allow the controller to update
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) {
+            setState(() {
+              _isLoadingMore = false;
+            });
+          }
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final state = Provider.of<BrowseScreenState>(context, listen: false);
     return RefreshIndicator(
-      onRefresh: onRefresh,
+      onRefresh: widget.onRefresh,
       child: ListView.builder(
-        itemCount: items.length + (hasMoreItems ? 1 : 0),
+        controller: _scrollController,
+        itemCount: widget.items.length + (widget.hasMoreItems ? 1 : 0),
         itemBuilder: (context, index) {
-          if (index == items.length) {
+          if (index == widget.items.length) {
             return _buildLoadMoreIndicator();
           }
-          final item = items[index];
-          final isSelected = selectedItems.contains(item.id);
+          final item = widget.items[index];
+          final isSelected = widget.selectedItems.contains(item.id);
 
           // Always pass onSelectionChanged to BrowseItemTile
-          return selectionMode
+          return widget.selectionMode
               ? _buildSelectableItem(context, item, isSelected)
               : FutureBuilder<bool>(
-                  future: isItemAvailableOffline?.call(item.id) ?? Future.value(false),
+                  future: widget.isItemAvailableOffline?.call(item.id) ?? Future.value(false),
                   builder: (context, snapshot) {
                     return BrowseItemTile(
                       item: item,
                       onTap: () {
                         if (item.type == 'folder' || item.isDepartment) {
-                          onFolderTap(item);
+                          widget.onFolderTap(item);
                         } else {
-                          onFileTap(item);
+                          widget.onFileTap(item);
                         }
                       },
-                      onDeleteTap: showDeleteOption ? onDeleteTap : null,
-                      showDeleteOption: showDeleteOption,
+                      onDeleteTap: widget.showDeleteOption ? widget.onDeleteTap : null,
+                      onRenameTap: widget.showRenameOption ? widget.onRenameTap : null,
+                      showDeleteOption: widget.showDeleteOption,
+                      showRenameOption: widget.showRenameOption,
                       isAvailableOffline: snapshot.data ?? false,
-                      onOfflineToggle: onOfflineToggle,
+                      onOfflineToggle: widget.onOfflineToggle,
                       selectionMode: false,
                       isSelected: isSelected,
                       onSelectionChanged: (selected) {
@@ -93,7 +142,7 @@ class FolderContentList extends StatelessWidget {
   
   Widget _buildSelectableItem(BuildContext context, BrowseItem item, bool isSelected) {
     return FutureBuilder<bool>(
-      future: isItemAvailableOffline?.call(item.id) ?? Future.value(false),
+      future: widget.isItemAvailableOffline?.call(item.id) ?? Future.value(false),
       builder: (context, snapshot) {
         final isAvailableOffline = snapshot.data ?? false;
         
@@ -110,11 +159,11 @@ class FolderContentList extends StatelessWidget {
           trailing: Checkbox(
             value: isSelected,
             onChanged: (value) {
-              onItemSelected?.call(item.id, value ?? false);
+              widget.onItemSelected?.call(item.id, value ?? false);
             },
           ),
           onTap: () {
-            onItemSelected?.call(item.id, !isSelected);
+            widget.onItemSelected?.call(item.id, !isSelected);
           },
         );
       },
@@ -138,12 +187,12 @@ class FolderContentList extends StatelessWidget {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: Colors.blue.withOpacity(0.1),
+          color: EVColors.paletteAccent.withOpacity(0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(
           Icons.business,
-          color: Colors.blue,
+          color: EVColors.paletteAccent,
           size: 24,
         ),
       );

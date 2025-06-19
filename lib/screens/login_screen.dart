@@ -71,8 +71,9 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _updateConnectionStatus(List<ConnectivityResult> results) async {
     if (!mounted) return;
     
-    // Consider both ConnectivityResult.none and ConnectivityResult.other as offline states
-    final isNowOffline = results.contains(ConnectivityResult.none) || results.contains(ConnectivityResult.other);
+    // Only consider ConnectivityResult.none as offline
+    // ConnectivityResult.other can be VPN connections and should not be treated as offline
+    final isNowOffline = results.contains(ConnectivityResult.none);
     
     if (isNowOffline) {
       if (mounted) {

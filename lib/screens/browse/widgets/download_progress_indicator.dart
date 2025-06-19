@@ -52,9 +52,7 @@ class DownloadProgressIndicator extends StatelessWidget {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        progress.totalFiles > 1
-                          ? 'Downloading file ${progress.currentFileIndex} of ${progress.totalFiles}'
-                          : 'Downloading file',
+                        progress.progressDescription,
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 18,
@@ -76,14 +74,14 @@ class DownloadProgressIndicator extends StatelessWidget {
                       SizedBox(
                         width: 260,
                         child: LinearProgressIndicator(
-                          value: progress.progress,
+                          value: progress.overallProgress,
                           backgroundColor: EVColors.textFieldHint.withOpacity(0.2),
                           valueColor: const AlwaysStoppedAnimation<Color>(EVColors.buttonBackground),
                         ),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '${(progress.progress * 100).toStringAsFixed(1)}%',
+                        '${(progress.overallProgress * 100).toStringAsFixed(1)}%',
                         style: const TextStyle(
                           color: EVColors.textGrey,
                           fontSize: 14,

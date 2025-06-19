@@ -41,4 +41,19 @@
           op == 'delete' ||
           op == 'all');
     }
+
+    /// Returns true if this is a system folder that should not be renamed or deleted.
+    /// System folders include departments, documentLibrary, and dataLists.
+    bool get isSystemFolder {
+      // Departments are system folders
+      if (isDepartment) return true;
+      
+      // documentLibrary is a system folder (identified by name or folderId)
+      if (name == 'documentLibrary') return true;
+      
+      // dataLists is a system folder (identified by name)
+      if (name == 'dataLists') return true;
+      
+      return false;
+    }
   }

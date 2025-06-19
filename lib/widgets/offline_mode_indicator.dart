@@ -49,13 +49,15 @@ class _OfflineModeIndicatorState extends State<OfflineModeIndicator> {
   }
 
   void _updateConnectionStatus(List<ConnectivityResult> results) {
-    if (!mounted) return;
+    // Only consider ConnectivityResult.none as offline
+    // ConnectivityResult.other can be VPN connections and should not be treated as offline
+    final isNowOffline = results.contains(ConnectivityResult.none);
     
-    final isNowOffline = results.contains(ConnectivityResult.none) || results.contains(ConnectivityResult.other);
-    
-    setState(() {
-      _isOffline = isNowOffline;
-    });
+    if (isNowOffline != _isOffline) {
+      setState(() {
+        _isOffline = isNowOffline;
+      });
+    }
     
     if (_isOffline) {
       widget.syncService.stopPeriodicSync();

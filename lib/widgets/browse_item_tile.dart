@@ -6,7 +6,9 @@ class BrowseItemTile extends StatelessWidget {
   final BrowseItem item;
   final VoidCallback onTap;
   final Function(BrowseItem)? onDeleteTap;
+  final Function(BrowseItem)? onRenameTap;
   final bool showDeleteOption;
+  final bool showRenameOption;
   final String? repositoryType;
   final String? baseUrl;
   final String? authToken;
@@ -21,7 +23,9 @@ class BrowseItemTile extends StatelessWidget {
     required this.item,
     required this.onTap,
     this.onDeleteTap,
+    this.onRenameTap,
     this.showDeleteOption = false,
+    this.showRenameOption = false,
     this.repositoryType,
     this.baseUrl,
     this.authToken,
@@ -70,13 +74,15 @@ class BrowseItemTile extends StatelessWidget {
         onChanged: (value) => onSelectionChanged?.call(value ?? false),
       );
     }
-    if (showDeleteOption || onOfflineToggle != null) {
+    if (showDeleteOption || showRenameOption || onOfflineToggle != null) {
       return PopupMenuButton<String>(
         onSelected: (value) {
           if (value == 'offline' && onOfflineToggle != null) {
             onOfflineToggle!(item);
-          } else if (value == 'delete' && onDeleteTap != null) {
+          } else if (value == 'delete' && onDeleteTap != null && !item.isSystemFolder) {
             onDeleteTap!(item);
+          } else if (value == 'rename' && onRenameTap != null && !item.isSystemFolder) {
+            onRenameTap!(item);
           }
         },
         itemBuilder: (context) => [
@@ -94,7 +100,18 @@ class BrowseItemTile extends StatelessWidget {
                 ],
               ),
             ),
-          if (showDeleteOption && item.canDelete && onDeleteTap != null)
+          if (showRenameOption && item.allowableOperations?.contains('update') == true && onRenameTap != null && !item.isSystemFolder)
+            PopupMenuItem<String>(
+              value: 'rename',
+              child: Row(
+                children: [
+                  const Icon(Icons.edit, color: EVColors.infoBlue),
+                  const SizedBox(width: 10),
+                  const Text('Rename'),
+                ],
+              ),
+            ),
+          if (showDeleteOption && item.canDelete && onDeleteTap != null && !item.isSystemFolder)
             PopupMenuItem<String>(
               value: 'delete',
               child: Row(
@@ -118,12 +135,12 @@ class BrowseItemTile extends StatelessWidget {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: EVColors.departmentIconBackground,
+          color: EVColors.paletteAccent.withOpacity(0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: const Icon(
           Icons.business,
-          color: EVColors.departmentIconForeground,
+          color: EVColors.paletteAccent,
           size: 24,
         ),
       );

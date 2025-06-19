@@ -41,6 +41,9 @@ class LoginHandler {
 
       if (!context.mounted) return;
       
+      // Extract firstName from the profile
+      final firstName = loginResult['profile']?['firstName'] ?? username;
+      
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -58,7 +61,7 @@ class LoginHandler {
       await authStateManager.handleSuccessfulLogin(
         token: loginResult['token'],
         username: username,
-        firstName: loginResult['firstName'] ?? 'User',
+        firstName: firstName,
         instanceType: instanceType,
         baseUrl: baseUrl,
         customerHostname: customerHostname,
@@ -79,7 +82,7 @@ class LoginHandler {
             builder: (context) => BrowseScreen(
               baseUrl: baseUrl,
               authToken: loginResult['token'],
-              firstName: loginResult['firstName'] ?? 'User',
+              firstName: firstName,
               instanceType: instanceType,
               customerHostname: customerHostname,
             ),
@@ -230,7 +233,7 @@ class LoginHandler {
               instanceType: credentials['instanceType']!,
               baseUrl: credentials['baseUrl']!,
               authToken: credentials['authToken']!,
-              firstName: credentials['firstName'] ?? 'User',
+              firstName: credentials['firstName'] ?? credentials['username'] ?? 'User',
             ),
           ),
         );
