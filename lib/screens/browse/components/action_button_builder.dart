@@ -13,6 +13,7 @@ class ActionButtonBuilder {
     required VoidCallback onBatchDelete,
     required VoidCallback onCreateFolder,
     required VoidCallback onTakePicture,
+    required VoidCallback onScanDocument,
     required VoidCallback onUploadFromGallery,
     required VoidCallback onUploadFromFilePicker,
     required Function(String) onShowNoPermissionMessage,
@@ -32,6 +33,7 @@ class ActionButtonBuilder {
           ? _UploadMenuFab(
               onCreateFolder: onCreateFolder,
               onTakePicture: onTakePicture,
+              onScanDocument: onScanDocument,
               onUploadFromGallery: onUploadFromGallery,
               onUploadFromFilePicker: onUploadFromFilePicker,
             )
@@ -53,12 +55,14 @@ class ActionButtonBuilder {
 class _UploadMenuFab extends StatelessWidget {
   final VoidCallback onCreateFolder;
   final VoidCallback onTakePicture;
+  final VoidCallback onScanDocument;
   final VoidCallback onUploadFromGallery;
   final VoidCallback onUploadFromFilePicker;
 
   const _UploadMenuFab({
     required this.onCreateFolder,
     required this.onTakePicture,
+    required this.onScanDocument,
     required this.onUploadFromGallery,
     required this.onUploadFromFilePicker,
   });
@@ -93,6 +97,9 @@ class _UploadMenuFab extends StatelessWidget {
           case _UploadMenuAction.takePicture:
             onTakePicture();
             break;
+          case _UploadMenuAction.scanDocument:
+            onScanDocument();
+            break;
           case _UploadMenuAction.uploadFromGallery:
             onUploadFromGallery();
             break;
@@ -126,6 +133,18 @@ class _UploadMenuFab extends StatelessWidget {
                   Icon(Icons.camera_alt, color: EVColors.infoBlue),
                   SizedBox(width: 12),
                   Text('Take Picture & Upload', style: TextStyle(color: EVColors.textDefault)),
+                ],
+              ),
+            ),
+          );
+          items.add(
+            PopupMenuItem<_UploadMenuAction>(
+              value: _UploadMenuAction.scanDocument,
+              child: Row(
+                children: const [
+                  Icon(Icons.document_scanner, color: EVColors.iconTeal),
+                  SizedBox(width: 12),
+                  Text('Scan & Upload', style: TextStyle(color: EVColors.textDefault)),
                 ],
               ),
             ),
@@ -175,6 +194,7 @@ class _UploadMenuFab extends StatelessWidget {
 enum _UploadMenuAction {
   createFolder,
   takePicture,
+  scanDocument,
   uploadFromGallery,
   uploadFromFilePicker,
 }

@@ -32,6 +32,9 @@ import 'package:eisenvaultappflutter/services/upload/upload_service_factory.dart
 import 'package:eisenvaultappflutter/services/permission_service.dart';
 import 'dart:io' show Platform;
 import 'package:eisenvaultappflutter/models/upload/batch_upload_models.dart';
+import 'package:aio_scanner/aio_scanner.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 /// BrowseScreen handles online browsing of the repository content.
 class BrowseScreen extends StatefulWidget {
@@ -473,6 +476,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
         onBatchDelete: () => _batchDeleteHandler.handleBatchDelete(),
         onCreateFolder: _handleCreateFolder,
         onTakePicture: _handleTakePicture,
+        onScanDocument: _handleScanDocument,
         onUploadFromGallery: _handleUploadFromGallery,
         onUploadFromFilePicker: _handleUploadFromFilePicker,
         onShowNoPermissionMessage: (message) {
@@ -824,6 +828,339 @@ class _BrowseScreenState extends State<BrowseScreen> {
     }
   }
 
+  void _handleScanDocument() async {
+    // Only run on mobile
+    if (!(Platform.isAndroid || Platform.isIOS)) return;
+    
+    // Detect iOS simulator
+    bool isIOSSimulator = false;
+    try {
+      isIOSSimulator = Platform.isIOS && !Platform.isMacOS &&
+        (Platform.environment['SIMULATOR_DEVICE_NAME'] != null);
+    } catch (_) {}
+    if (isIOSSimulator) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Document scanning is not supported on the iOS simulator. Please use a physical device.'),
+          backgroundColor: EVColors.statusWarning,
+        ),
+      );
+      return;
+    }
+
+    try {
+      // Check if document scanning is supported
+      if (!await AioScanner.isDocumentScanningSupported()) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Document scanning is not supported on this device'),
+            backgroundColor: EVColors.statusError,
+          ),
+        );
+        return;
+      }
+
+      // Request permissions
+      final hasPermissions = await _requestScannerPermissions();
+      if (!hasPermissions) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Camera and storage permissions are required for document scanning'),
+            backgroundColor: EVColors.statusError,
+          ),
+        );
+        return;
+      }
+
+      // Show scan options dialog
+      final scanOptions = await _showScanOptionsDialog();
+      if (scanOptions == null) return; // User cancelled
+
+      // Start document scanning with selected options
+      final result = await AioScanner.startDocumentScanning(
+        maxNumPages: scanOptions.maxPages,
+        initialMessage: 'Position document in frame',
+        scanningMessage: 'Hold still...',
+        allowGalleryImport: true,
+        outputFormat: scanOptions.outputFormat,
+        mergePDF: scanOptions.mergePDF,
+      );
+
+      if (result != null && result.isSuccessful) {
+        // Get custom filename from user
+        final fileName = await _getCustomFileName(scanOptions.outputFormat);
+        if (fileName == null) return; // User cancelled
+
+        // Upload scanned files
+        final uploadService = UploadServiceFactory.getService(
+          instanceType: widget.instanceType,
+          baseUrl: widget.baseUrl,
+          authToken: widget.authToken,
+        );
+        final parentFolderId = _controller?.currentFolder?.id;
+        if (parentFolderId == null) throw Exception('No folder selected');
+
+        // Show progress dialog
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const Center(child: CircularProgressIndicator()),
+        );
+
+        try {
+          if (scanOptions.mergePDF && scanOptions.outputFormat == ScanOutputFormat.pdf) {
+            // Upload single merged PDF
+            final scannedFile = result.scannedFiles.first;
+            await uploadService.uploadDocument(
+              parentFolderId: parentFolderId,
+              filePath: scannedFile.filePath,
+              fileName: fileName,
+            );
+          } else {
+            // Upload individual files
+            for (int i = 0; i < result.scannedFiles.length; i++) {
+              final scannedFile = result.scannedFiles[i];
+              final individualFileName = result.scannedFiles.length > 1 
+                ? '${fileName.replaceAll(RegExp(r'\.[^.]*$'), '')}_page_${i + 1}${_getFileExtension(scanOptions.outputFormat)}'
+                : fileName;
+              await uploadService.uploadDocument(
+                parentFolderId: parentFolderId,
+                filePath: scannedFile.filePath,
+                fileName: individualFileName,
+              );
+            }
+          }
+
+          Navigator.of(context).pop(); // Close progress dialog
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${result.scannedFiles.length} scanned document(s) uploaded successfully'),
+              backgroundColor: EVColors.successGreen,
+            ),
+          );
+          _refreshCurrentFolder();
+        } catch (e) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to upload scanned documents: $e'),
+              backgroundColor: EVColors.statusError,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error scanning document: $e'),
+          backgroundColor: EVColors.statusError,
+        ),
+      );
+    }
+  }
+
+  Future<ScanOptions?> _showScanOptionsDialog() async {
+    ScanOutputFormat selectedFormat = ScanOutputFormat.image;
+    bool mergePDF = false;
+    int maxPages = 5;
+
+    return showDialog<ScanOptions>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          backgroundColor: EVColors.cardBackground,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Scan Options', style: TextStyle(color: EVColors.textDefault)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Output Format Selection
+              const Text('Output Format:', style: TextStyle(color: EVColors.textDefault, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              DropdownButton<ScanOutputFormat>(
+                value: selectedFormat,
+                items: const [
+                  DropdownMenuItem(
+                    value: ScanOutputFormat.image,
+                    child: Text('Images (JPG)'),
+                  ),
+                  DropdownMenuItem(
+                    value: ScanOutputFormat.pdf,
+                    child: Text('PDF'),
+                  ),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    selectedFormat = value!;
+                    if (selectedFormat == ScanOutputFormat.image) {
+                      mergePDF = false;
+                    }
+                  });
+                },
+              ),
+              const SizedBox(height: 16),
+              
+              // Max Pages Selection
+              const Text('Maximum Pages:', style: TextStyle(color: EVColors.textDefault, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              DropdownButton<int>(
+                value: maxPages,
+                items: [1, 2, 3, 4, 5, 10].map((pages) => DropdownMenuItem(
+                  value: pages,
+                  child: Text('$pages page${pages > 1 ? 's' : ''}'),
+                )).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    maxPages = value!;
+                  });
+                },
+              ),
+              const SizedBox(height: 16),
+              
+              // Merge PDF Option (only for PDF format)
+              if (selectedFormat == ScanOutputFormat.pdf) ...[
+                Row(
+                  children: [
+                    Checkbox(
+                      value: mergePDF,
+                      onChanged: (value) {
+                        setState(() {
+                          mergePDF = value!;
+                        });
+                      },
+                    ),
+                    const Expanded(
+                      child: Text(
+                        'Merge all pages into single PDF',
+                        style: TextStyle(color: EVColors.textDefault),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('CANCEL', style: TextStyle(color: EVColors.textSecondary)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: EVColors.buttonBackground,
+                foregroundColor: EVColors.buttonForeground,
+              ),
+              onPressed: () {
+                Navigator.of(context).pop(ScanOptions(
+                  outputFormat: selectedFormat,
+                  maxPages: maxPages,
+                  mergePDF: mergePDF,
+                ));
+              },
+              child: const Text('SCAN'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<String?> _getCustomFileName(ScanOutputFormat format) async {
+    final TextEditingController fileNameController = TextEditingController();
+    final extension = _getFileExtension(format);
+    fileNameController.text = 'scanned_document_${DateTime.now().millisecondsSinceEpoch}$extension';
+
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: EVColors.cardBackground,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Name Your File', style: TextStyle(color: EVColors.textDefault)),
+        content: TextField(
+          controller: fileNameController,
+          autofocus: true,
+          decoration: InputDecoration(
+            labelText: 'File Name',
+            labelStyle: const TextStyle(color: EVColors.textFieldLabel),
+            enabledBorder: const UnderlineInputBorder(
+              borderSide: BorderSide(color: EVColors.textFieldBorder),
+            ),
+            focusedBorder: const UnderlineInputBorder(
+              borderSide: BorderSide(color: EVColors.buttonBackground),
+            ),
+            suffixText: extension,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('CANCEL', style: TextStyle(color: EVColors.textSecondary)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: EVColors.buttonBackground,
+              foregroundColor: EVColors.buttonForeground,
+            ),
+            onPressed: () {
+              final fileName = fileNameController.text.trim();
+              if (fileName.isNotEmpty) {
+                Navigator.of(context).pop('$fileName$extension');
+              }
+            },
+            child: const Text('SAVE'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getFileExtension(ScanOutputFormat format) {
+    switch (format) {
+      case ScanOutputFormat.image:
+        return '.jpg';
+      case ScanOutputFormat.pdf:
+        return '.pdf';
+    }
+  }
+
+  Future<bool> _requestScannerPermissions() async {
+    if (Platform.isAndroid) {
+      // Get Android SDK version using device_info_plus
+      final deviceInfo = DeviceInfoPlugin();
+      final androidInfo = await deviceInfo.androidInfo;
+      final sdkVersion = androidInfo.version.sdkInt;
+
+      final bool isAndroid13OrHigher = sdkVersion >= 33; // SDK 33 = Android 13
+      final bool isAndroid10OrHigher = sdkVersion >= 29; // SDK 29 = Android 10
+
+      // Request camera permission
+      final cameraStatus = await Permission.camera.request();
+      if (cameraStatus.isDenied || cameraStatus.isPermanentlyDenied) {
+        return false;
+      }
+
+      // Request storage permissions based on Android version
+      if (isAndroid13OrHigher) {
+        // Android 13+ uses more granular storage permissions
+        final photosStatus = await Permission.photos.request();
+        if (photosStatus.isDenied || photosStatus.isPermanentlyDenied) {
+          return false;
+        }
+      } else {
+        // Android < 13 uses general storage permission
+        final storageStatus = await Permission.storage.request();
+        if (storageStatus.isDenied || storageStatus.isPermanentlyDenied) {
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+    // iOS permissions are requested automatically when using the scanner
+    return true;
+  }
+
   void _handleUploadFromGallery() async {
     // Only run on mobile
     if (!(Platform.isAndroid || Platform.isIOS)) return;
@@ -879,4 +1216,16 @@ class _BrowseScreenState extends State<BrowseScreen> {
     _uploadHandler.navigateToUploadScreen();
     // TODO: Pass file picker intent to upload screen if needed
   }
+}
+
+class ScanOptions {
+  final ScanOutputFormat outputFormat;
+  final int maxPages;
+  final bool mergePDF;
+
+  ScanOptions({
+    required this.outputFormat,
+    required this.maxPages,
+    required this.mergePDF,
+  });
 }

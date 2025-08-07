@@ -128,4 +128,4 @@ if(NOT CMAKE_BUILD_TYPE MATCHES "Debug")
 endif()
 
 # Set app version for Linux
-set(VERSION "1.0.5")
+set(VERSION "1.0.7")
