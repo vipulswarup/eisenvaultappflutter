@@ -2,6 +2,7 @@ import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_database_service.dart';
 import 'package:eisenvaultappflutter/services/offline/sync_service.dart';
 import 'package:eisenvaultappflutter/services/auth/auth_state_manager.dart';
+import 'package:eisenvaultappflutter/services/sharing/upload_service.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:flutter/material.dart';
 import 'screens/login_screen.dart';
@@ -74,10 +75,14 @@ void main() async {
 
   final syncService = SyncService();
   final authStateManager = AuthStateManager();
+  final uploadService = UploadService();
 
   try {
     // Initialize auth state
     await authStateManager.initialize();
+
+    // Initialize upload service
+    uploadService.initialize();
 
     // If authenticated, initialize sync service
     if (authStateManager.isAuthenticated) {
@@ -111,16 +116,60 @@ void main() async {
           create: (_) => authStateManager,
         ),
       ],
-      child: MyApp(syncService: syncService),
+      child: MyApp(syncService: syncService, uploadService: uploadService),
     ),
   );
 }
 
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   final SyncService syncService;
+  final UploadService uploadService;
 
-  const MyApp({super.key, required this.syncService});
+  const MyApp({super.key, required this.syncService, required this.uploadService});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _listenForUploads();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      widget.uploadService.checkForUploadDataWhenAppForeground();
+    }
+  }
+
+  void _listenForUploads() {
+    widget.uploadService.uploadStream.listen((uploadData) {
+      _showUploadNotification(uploadData);
+    });
+  }
+
+  void _showUploadNotification(UploadData uploadData) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✅ Uploaded ${uploadData.fileCount} files to ${uploadData.folder}'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
