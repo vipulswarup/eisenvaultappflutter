@@ -5,12 +5,14 @@ import 'package:eisenvaultappflutter/utils/logger.dart';
 
 class UploadData {
   final String folder;
+  final String folderId;
   final int fileCount;
   final double timestamp;
   final String status;
 
   UploadData({
     required this.folder,
+    required this.folderId,
     required this.fileCount,
     required this.timestamp,
     required this.status,
@@ -19,6 +21,7 @@ class UploadData {
   factory UploadData.fromMap(Map<String, dynamic> map) {
     return UploadData(
       folder: map['folder'] ?? 'Unknown',
+      folderId: map['folderId'] ?? '',
       fileCount: map['fileCount'] ?? 0,
       timestamp: map['timestamp'] ?? 0.0,
       status: map['status'] ?? 'unknown',
@@ -63,7 +66,7 @@ class UploadService {
         final result = await _channel.invokeMethod('getUploadData');
         if (result != null && result is Map<String, dynamic>) {
           final uploadData = UploadData.fromMap(result);
-          EVLogger.info('Received upload data: ${uploadData.folder}, ${uploadData.fileCount} files');
+          EVLogger.info('Received upload data: ${uploadData.folder} (${uploadData.folderId}), ${uploadData.fileCount} files');
           _uploadController.add(uploadData);
         }
       }

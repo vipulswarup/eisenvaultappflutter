@@ -21,6 +21,14 @@ import UIKit
       case "getUploadData":
         // Return any upload data from Share Extension
         result(self.getUploadDataFromAppGroups())
+      case "saveDMSCredentials":
+        // Save DMS credentials to App Groups for Share Extension
+        if let args = call.arguments as? [String: Any] {
+          self.saveDMSCredentialsToAppGroups(args: args)
+          result(nil)
+        } else {
+          result(FlutterError(code: "INVALID_ARGS", message: "Invalid arguments", details: nil))
+        }
       default:
         result(FlutterMethodNotImplemented)
       }
@@ -50,5 +58,31 @@ import UIKit
     }
 
     return uploadData
+  }
+
+  private func saveDMSCredentialsToAppGroups(args: [String: Any]) {
+    print("🔍 DEBUG: Saving DMS credentials to App Groups...")
+
+    guard let userDefaults = UserDefaults(suiteName: "group.com.eisenvault.eisenvaultappflutter") else {
+      print("🔍 DEBUG: Failed to access App Groups UserDefaults")
+      return
+    }
+
+    // Save DMS credentials
+    if let baseUrl = args["baseUrl"] as? String {
+      userDefaults.set(baseUrl, forKey: "DMSBaseUrl")
+    }
+    if let authToken = args["authToken"] as? String {
+      userDefaults.set(authToken, forKey: "DMSAuthToken")
+    }
+    if let instanceType = args["instanceType"] as? String {
+      userDefaults.set(instanceType, forKey: "DMSInstanceType")
+    }
+    if let customerHostname = args["customerHostname"] as? String {
+      userDefaults.set(customerHostname, forKey: "DMSCustomerHostname")
+    }
+
+    userDefaults.synchronize()
+    print("🔍 DEBUG: DMS credentials saved to App Groups successfully")
   }
 }

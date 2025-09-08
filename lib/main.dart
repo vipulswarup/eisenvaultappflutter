@@ -5,6 +5,7 @@ import 'package:eisenvaultappflutter/services/auth/auth_state_manager.dart';
 import 'package:eisenvaultappflutter/services/sharing/upload_service.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'screens/login_screen.dart';
 import 'screens/browse/browse_screen.dart';
 // Add imports for web database support
@@ -84,7 +85,7 @@ void main() async {
     // Initialize upload service
     uploadService.initialize();
 
-    // If authenticated, initialize sync service
+    // If authenticated, initialize sync service and save DMS credentials for Share Extension
     if (authStateManager.isAuthenticated) {
       syncService.initialize(
         instanceType: authStateManager.instanceType!,
@@ -92,6 +93,14 @@ void main() async {
         authToken: authStateManager.currentToken!,
       );
       syncService.startPeriodicSync();
+      
+      // Save DMS credentials to App Groups for Share Extension
+      await _saveDMSCredentialsToAppGroups(
+        baseUrl: authStateManager.baseUrl!,
+        authToken: authStateManager.currentToken!,
+        instanceType: authStateManager.instanceType!,
+        customerHostname: authStateManager.customerHostname ?? '',
+      );
     }
   } catch (e) {
     EVLogger.error('Failed to initialize auth state: $e');
@@ -119,6 +128,29 @@ void main() async {
       child: MyApp(syncService: syncService, uploadService: uploadService),
     ),
   );
+}
+
+/// Save DMS credentials to App Groups for Share Extension access
+Future<void> _saveDMSCredentialsToAppGroups({
+  required String baseUrl,
+  required String authToken,
+  required String instanceType,
+  required String customerHostname,
+}) async {
+  try {
+    if (Platform.isIOS) {
+      const MethodChannel channel = MethodChannel('uploadChannel');
+      await channel.invokeMethod('saveDMSCredentials', {
+        'baseUrl': baseUrl,
+        'authToken': authToken,
+        'instanceType': instanceType,
+        'customerHostname': customerHostname,
+      });
+      EVLogger.info('DMS credentials saved to App Groups for Share Extension');
+    }
+  } catch (e) {
+    EVLogger.error('Failed to save DMS credentials to App Groups: $e');
+  }
 }
 
 
