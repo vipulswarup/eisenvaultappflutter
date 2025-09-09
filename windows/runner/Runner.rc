@@ -69,7 +69,7 @@ IDI_APP_ICON            ICON                    "resources\\app_icon.ico"
 #if defined(FLUTTER_VERSION)
 #define VERSION_AS_STRING FLUTTER_VERSION
 #else
-#define VERSION_AS_STRING "1.0.7"
+#define VERSION_AS_STRING "1.0.8"
 #endif
 
 VS_VERSION_INFO VERSIONINFO
@@ -91,12 +91,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "com" "\0"
             VALUE "FileDescription", "eisenvaultappflutter" "\0"
-            VALUE "FileVersion", "1.0.7\0"
+            VALUE "FileVersion", "1.0.8\0"
             VALUE "InternalName", "eisenvaultappflutter" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2025 com. All rights reserved." "\0"
             VALUE "OriginalFilename", "eisenvaultappflutter.exe" "\0"
             VALUE "ProductName", "eisenvaultappflutter" "\0"
-            VALUE "ProductVersion", "1.0.7\0"
+            VALUE "ProductVersion", "1.0.8\0"
         END
     END
     BLOCK "VarFileInfo"
