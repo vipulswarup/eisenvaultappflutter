@@ -3,11 +3,14 @@ import 'package:eisenvaultappflutter/services/offline/offline_database_service.d
 import 'package:eisenvaultappflutter/services/offline/sync_service.dart';
 import 'package:eisenvaultappflutter/services/auth/auth_state_manager.dart';
 import 'package:eisenvaultappflutter/services/sharing/upload_service.dart';
+import 'package:eisenvaultappflutter/services/sharing/android_share_service.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'screens/login_screen.dart';
 import 'screens/browse/browse_screen.dart';
+import 'screens/sharing/android_share_screen.dart';
+import 'screens/sharing/share_activity_wrapper.dart';
 // Add imports for web database support
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -165,11 +168,34 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  static const MethodChannel _channel = MethodChannel('com.eisenvault.eisenvaultappflutter/main');
+  
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _listenForUploads();
+    _setupMethodChannel();
+    // Save credentials after a short delay to ensure auth state is ready
+    Future.delayed(const Duration(seconds: 1), () {
+      _saveDMSCredentialsToSharedPrefs();
+    });
+  }
+  
+  void _setupMethodChannel() {
+    _channel.setMethodCallHandler((call) async {
+      switch (call.method) {
+        case 'saveDMSCredentials':
+          // This method is called from the main app to save credentials
+          // The actual implementation is in the native Android code
+          return null;
+        default:
+          throw PlatformException(
+            code: 'UNIMPLEMENTED',
+            message: 'Method ${call.method} not implemented',
+          );
+      }
+    });
   }
 
   @override
@@ -182,6 +208,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       widget.uploadService.checkForUploadDataWhenAppForeground();
+      _saveDMSCredentialsToSharedPrefs();
     }
   }
 
@@ -190,6 +217,28 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       _showUploadNotification(uploadData);
     });
   }
+  
+  Future<void> _saveDMSCredentialsToSharedPrefs() async {
+    try {
+      final authState = Provider.of<AuthStateManager>(context, listen: false);
+      
+      if (authState.isAuthenticated) {
+        await _channel.invokeMethod('saveDMSCredentials', {
+          'baseUrl': authState.baseUrl!,
+          'authToken': authState.currentToken!,
+          'instanceType': authState.instanceType!,
+          'customerHostname': authState.customerHostname ?? '',
+        });
+        
+        EVLogger.info('DMS credentials saved to SharedPreferences for ShareActivity');
+      }
+    } catch (e) {
+      EVLogger.error('Failed to save DMS credentials to SharedPreferences', {
+        'error': e.toString()
+      });
+    }
+  }
+  
 
   void _showUploadNotification(UploadData uploadData) {
     if (mounted) {
@@ -222,6 +271,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           actionsIconTheme: IconThemeData(color: EVColors.appBarForeground),
         ),
       ),
+      routes: {
+        '/share': (context) => const ShareActivityWrapper(),
+      },
       home: Consumer<AuthStateManager>(
         builder: (context, authState, _) {
           if (authState.isAuthenticated) {
