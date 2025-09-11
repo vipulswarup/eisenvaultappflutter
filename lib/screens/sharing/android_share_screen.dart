@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/services/sharing/android_share_service.dart';
 import 'package:eisenvaultappflutter/services/browse/browse_service_factory.dart';
@@ -495,10 +496,10 @@ class _AndroidShareScreenState extends State<AndroidShareScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
+          // Header - Platform-specific compact sizing
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(Platform.isIOS ? 6 : 8),
             decoration: BoxDecoration(
               color: EVColors.paletteAccent.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
@@ -596,221 +597,307 @@ class _AndroidShareScreenState extends State<AndroidShareScreen> {
             ),
           ),
           
-          const SizedBox(height: 24),
+          SizedBox(height: Platform.isIOS ? 8 : 12),
           
-          // Folder Selection
+          // Folder Selection Header - Platform-specific compact sizing
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(Platform.isIOS ? 8 : 12),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: EVColors.sharingHeaderBackground,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: EVColors.paletteButton.withOpacity(0.3),
                 width: 1,
               ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                // Header with breadcrumb, back button, and create folder button
-                Row(
-                  children: [
-                    Icon(
-                      Icons.folder,
-                      color: EVColors.paletteButton,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        breadcrumb,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: EVColors.paletteTextDark,
-                        ),
-                      ),
-                    ),
-                    // Create Folder button
-                    TextButton.icon(
-                      onPressed: _createFolder,
-                      icon: Icon(
-                        Icons.create_new_folder,
-                        color: EVColors.paletteButton,
-                        size: 18,
-                      ),
-                      label: Text(
-                        'Create',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: EVColors.paletteButton,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                    ),
-                    if (navigationStack.isNotEmpty)
-                      IconButton(
-                        onPressed: _goBack,
-                        icon: Icon(
-                          Icons.arrow_back,
-                          color: EVColors.paletteButton,
-                          size: 20,
-                        ),
-                      ),
-                  ],
+                Icon(
+                  Icons.folder,
+                  color: EVColors.paletteButton,
+                  size: 24,
                 ),
-                const SizedBox(height: 16),
-                
-                // Folder list or error/loading state
-                if (folderError != null)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: EVColors.statusError.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: EVColors.statusError.withOpacity(0.3),
-                        width: 1,
-                      ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    breadcrumb,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: EVColors.paletteTextDark,
                     ),
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.error_outline,
-                          color: EVColors.statusError,
-                          size: 32,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          folderError!,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: EVColors.paletteTextDark,
-                          ),
-                        ),
-                      ],
+                  ),
+                ),
+                // Create Folder button
+                TextButton.icon(
+                  onPressed: _createFolder,
+                  icon: Icon(
+                    Icons.create_new_folder,
+                    color: EVColors.paletteButton,
+                    size: 18,
+                  ),
+                  label: Text(
+                    'Create',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: EVColors.paletteButton,
+                      fontWeight: FontWeight.w500,
                     ),
-                  )
-                else if (isLoadingFolders)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    child: const Center(
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(EVColors.paletteButton),
-                      ),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+                if (navigationStack.isNotEmpty)
+                  IconButton(
+                    onPressed: _goBack,
+                    icon: Icon(
+                      Icons.arrow_back,
+                      color: EVColors.paletteButton,
+                      size: 20,
                     ),
-                  )
-                else
-                  Container(
-                    height: 200,
-                    decoration: BoxDecoration(
-                      color: EVColors.paletteBackground,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: EVColors.paletteButton.withOpacity(0.2),
-                        width: 1,
-                      ),
-                    ),
-                    child: folders.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.folder_open,
-                                  size: 48,
-                                  color: EVColors.paletteButton.withOpacity(0.5),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'No folders available',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: EVColors.paletteTextDark,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        : ListView.builder(
-                            itemCount: folders.length,
-                            itemBuilder: (context, index) {
-                              final folder = folders[index];
-                              final isSelected = selectedFolder?.id == folder.id;
-                              
-                              return ListTile(
-                                leading: Icon(
-                                  isSelected ? Icons.check_circle : Icons.folder,
-                                  color: isSelected ? EVColors.paletteAccent : EVColors.paletteButton,
-                                ),
-                                title: Text(
-                                  folder.name,
-                                  style: TextStyle(
-                                    color: isSelected ? EVColors.paletteAccent : EVColors.paletteTextDark,
-                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                  ),
-                                ),
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (isSelected)
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: EVColors.paletteAccent.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(4),
-                                        ),
-                                        child: Text(
-                                          'Selected',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: EVColors.paletteAccent,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      )
-                                    else
-                                      TextButton(
-                                        onPressed: () => _selectFolder(folder),
-                                        style: TextButton.styleFrom(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                          minimumSize: Size.zero,
-                                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                        ),
-                                        child: Text(
-                                          'Select',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: EVColors.paletteButton,
-                                          ),
-                                        ),
-                                      ),
-                                    const SizedBox(width: 8),
-                                    IconButton(
-                                      onPressed: () => _navigateToFolder(folder),
-                                      icon: Icon(
-                                        Icons.chevron_right,
-                                        color: EVColors.paletteButton,
-                                        size: 20,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                onTap: () => _navigateToFolder(folder),
-                              );
-                            },
-                          ),
                   ),
               ],
+            ),
+          ),
+          
+          SizedBox(height: Platform.isIOS ? 4 : 6),
+          
+          // Folder Count and Scroll Indicator - Outside scrollable area
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: EVColors.sharingScrollIndicatorBackground,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.folder_outlined,
+                  size: 16,
+                  color: EVColors.paletteButton,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${folders.length} folder${folders.length != 1 ? 's' : ''} available',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: EVColors.paletteButton,
+                  ),
+                ),
+                const Spacer(),
+                // Always show scroll indicator if there are folders
+                if (folders.isNotEmpty)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.swipe_up,
+                        size: 16,
+                        color: EVColors.paletteButton.withOpacity(0.7),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        folders.length > 2 ? 'Scroll to see more' : 'Tap to select',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: EVColors.paletteButton.withOpacity(0.7),
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+          
+          SizedBox(height: Platform.isIOS ? 4 : 6),
+          
+          // Folder List - Expanded scrollable area with platform-specific constraints
+          Expanded(
+            flex: Platform.isIOS ? 4 : 3, // Give even more space to folder list on iOS
+            child: Container(
+              width: double.infinity,
+              constraints: BoxConstraints(
+                minHeight: Platform.isIOS ? 250 : 200, // Higher minimum height on iOS
+                maxHeight: Platform.isIOS 
+                    ? MediaQuery.of(context).size.height * 0.6  // 60% on iOS
+                    : MediaQuery.of(context).size.height * 0.5, // 50% on Android
+              ),
+              decoration: BoxDecoration(
+                color: EVColors.sharingContainerBackground,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: EVColors.paletteButton.withOpacity(0.2),
+                  width: 1,
+                ),
+              ),
+              child: Column(
+                children: [
+                
+                  // Folder list or error/loading state
+                  if (folderError != null)
+                    Expanded(
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: EVColors.statusErrorBackground,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: EVColors.statusError.withOpacity(0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              color: EVColors.statusError,
+                              size: 32,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              folderError!,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: EVColors.paletteTextDark,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else if (isLoadingFolders)
+                    Expanded(
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        child: const Center(
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(EVColors.paletteButton),
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: folders.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.folder_open,
+                                    size: 48,
+                                    color: EVColors.paletteButton.withOpacity(0.5),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'No folders available',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: EVColors.paletteTextDark,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              itemCount: folders.length,
+                              itemBuilder: (context, index) {
+                                final folder = folders[index];
+                                final isSelected = selectedFolder?.id == folder.id;
+                                
+                                return Container(
+                                  margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? EVColors.sharingFolderItemSelectedBackground : EVColors.sharingFolderItemBackground,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: isSelected ? Border.all(
+                                      color: EVColors.sharingFolderItemSelectedBorder,
+                                      width: 1,
+                                    ) : null,
+                                  ),
+                                  child: ListTile(
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                    leading: Icon(
+                                      isSelected ? Icons.check_circle : Icons.folder,
+                                      color: isSelected ? EVColors.paletteAccent : EVColors.paletteButton,
+                                      size: 24,
+                                    ),
+                                    title: Text(
+                                      folder.name,
+                                      style: TextStyle(
+                                        color: isSelected ? EVColors.paletteAccent : EVColors.paletteTextDark,
+                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    trailing: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (isSelected)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                            decoration: BoxDecoration(
+                                              color: EVColors.paletteAccent,
+                                              borderRadius: BorderRadius.circular(16),
+                                            ),
+                                            child: Text(
+                                              'SELECTED',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: EVColors.buttonForeground,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          )
+                                        else
+                                          ElevatedButton(
+                                            onPressed: () => _selectFolder(folder),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: EVColors.paletteButton,
+                                              foregroundColor: EVColors.buttonForeground,
+                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                              minimumSize: Size.zero,
+                                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                            ),
+                                            child: Text(
+                                              'Select',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ),
+                                        const SizedBox(width: 8),
+                                        IconButton(
+                                          onPressed: () => _navigateToFolder(folder),
+                                          icon: Icon(
+                                            Icons.chevron_right,
+                                            color: EVColors.paletteButton,
+                                            size: 20,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    onTap: () => _navigateToFolder(folder),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                ],
+              ),
             ),
           ),
           

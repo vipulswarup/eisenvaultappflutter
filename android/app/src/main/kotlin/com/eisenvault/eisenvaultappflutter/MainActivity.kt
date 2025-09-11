@@ -20,6 +20,12 @@ class MainActivity : FlutterActivity() {
                     val instanceType = call.argument<String>("instanceType")
                     val customerHostname = call.argument<String>("customerHostname")
                     
+                    Log.d("MainActivity", "=== SAVING DMS CREDENTIALS ===")
+                    Log.d("MainActivity", "baseUrl: ${baseUrl != null}")
+                    Log.d("MainActivity", "authToken: ${authToken != null}")
+                    Log.d("MainActivity", "instanceType: $instanceType")
+                    Log.d("MainActivity", "customerHostname: $customerHostname")
+                    
                     val sharedPrefs = getSharedPreferences("eisenvault_dms_credentials", Context.MODE_PRIVATE)
                     val editor = sharedPrefs.edit()
                     
@@ -28,9 +34,9 @@ class MainActivity : FlutterActivity() {
                     instanceType?.let { editor.putString("instanceType", it) }
                     customerHostname?.let { editor.putString("customerHostname", it) }
                     
-                    editor.apply()
+                    val success = editor.commit() // Use commit() instead of apply() for immediate write
                     
-                    Log.d("MainActivity", "Saved DMS credentials: baseUrl=${baseUrl != null}, authToken=${authToken != null}, instanceType=$instanceType")
+                    Log.d("MainActivity", "DMS credentials saved successfully: $success")
                     result.success(null)
                 }
                 else -> {

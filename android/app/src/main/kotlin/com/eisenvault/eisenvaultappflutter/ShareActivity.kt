@@ -122,14 +122,25 @@ class ShareActivity : FlutterActivity() {
                 }
                 "getDMSCredentials" -> {
                     val sharedPrefs = getSharedPreferences("eisenvault_dms_credentials", MODE_PRIVATE)
+                    val baseUrl = sharedPrefs.getString("baseUrl", null)
+                    val authToken = sharedPrefs.getString("authToken", null)
+                    val instanceType = sharedPrefs.getString("instanceType", null)
+                    val customerHostname = sharedPrefs.getString("customerHostname", null)
+                    
                     val credentials = mapOf(
-                        "baseUrl" to sharedPrefs.getString("baseUrl", null),
-                        "authToken" to sharedPrefs.getString("authToken", null),
-                        "instanceType" to sharedPrefs.getString("instanceType", null),
-                        "customerHostname" to sharedPrefs.getString("customerHostname", null)
+                        "baseUrl" to baseUrl,
+                        "authToken" to authToken,
+                        "instanceType" to instanceType,
+                        "customerHostname" to customerHostname
                     )
                     
-                    Log.d("ShareActivity", "Returning DMS credentials: ${credentials.keys}")
+                    Log.d("ShareActivity", "=== RETRIEVING DMS CREDENTIALS ===")
+                    Log.d("ShareActivity", "baseUrl: ${baseUrl != null}")
+                    Log.d("ShareActivity", "authToken: ${authToken != null}")
+                    Log.d("ShareActivity", "instanceType: $instanceType")
+                    Log.d("ShareActivity", "customerHostname: $customerHostname")
+                    Log.d("ShareActivity", "All credentials present: ${baseUrl != null && authToken != null && instanceType != null}")
+                    
                     result.success(credentials)
                 }
                 "saveDMSCredentials" -> {

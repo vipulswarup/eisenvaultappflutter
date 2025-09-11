@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
 
 class ImageViewerScreen extends StatelessWidget {
   final String title;
@@ -28,6 +30,11 @@ class ImageViewerScreen extends StatelessWidget {
             onPressed: () {
               // TODO: Implement zoom functionality
             },
+          ),
+          IconButton(
+            icon: const Icon(Icons.share),
+            tooltip: 'Share file',
+            onPressed: () => _shareFile(context),
           ),
         ],
       ),
@@ -74,6 +81,33 @@ class ImageViewerScreen extends StatelessWidget {
       EVLogger.error('Error displaying image', e);
       return Center(
         child: Text('Error displaying image: ${e.toString()}'),
+      );
+    }
+  }
+  
+  Future<void> _shareFile(BuildContext context) async {
+    try {
+      if (kIsWeb) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Sharing is not available on web')),
+        );
+        return;
+      }
+      
+      if (imageContent is String) {
+        await Share.shareXFiles([XFile(imageContent as String)], text: 'Sharing file: $title');
+      } else {
+        // If we have bytes instead of a file path, save to temp file first
+        final bytes = imageContent as Uint8List;
+        final tempDir = await getTemporaryDirectory();
+        final file = File('${tempDir.path}/$title');
+        await file.writeAsBytes(bytes);
+        await Share.shareXFiles([XFile(file.path)], text: 'Sharing file: $title');
+      }
+    } catch (e) {
+      EVLogger.error('Error sharing image file', e);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error sharing file: ${e.toString()}')),
       );
     }
   }

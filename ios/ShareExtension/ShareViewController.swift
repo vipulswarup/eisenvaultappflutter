@@ -26,6 +26,8 @@ class ShareViewController: UIViewController {
     private let selectedDestinationLabel = UILabel()
     private let changeDestinationButton = UIButton(type: .system)
     private let createFolderButton = UIButton(type: .system)
+    private let scrollIndicatorView = UIView()
+    private let scrollIndicatorLabel = UILabel()
     
     // MARK: - Properties
     private var sharedItems: [NSExtensionItem] = []
@@ -45,6 +47,12 @@ class ShareViewController: UIViewController {
         setupUI()
         loadSharedContent()
         loadDMSSettings()
+    }
+    
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        // Update scroll indicator after layout changes
+        updateScrollIndicator()
     }
     
     // MARK: - UI Setup
@@ -98,6 +106,8 @@ class ShareViewController: UIViewController {
         folderTableView.dataSource = self
         folderTableView.backgroundColor = UIColor.clear
         folderTableView.separatorStyle = .none
+        folderTableView.showsVerticalScrollIndicator = true
+        folderTableView.indicatorStyle = .default
         folderTableView.translatesAutoresizingMaskIntoConstraints = false
         folderSelectionView.addSubview(folderTableView)
         
@@ -135,6 +145,21 @@ class ShareViewController: UIViewController {
         createFolderButton.translatesAutoresizingMaskIntoConstraints = false
         createFolderButton.addTarget(self, action: #selector(createFolder), for: .touchUpInside)
         folderSelectionView.addSubview(createFolderButton)
+        
+        // Scroll Indicator View
+        scrollIndicatorView.backgroundColor = UIColor(red: 0.956, green: 0.918, blue: 0.824, alpha: 0.9) // paletteBackground with 90% opacity
+        scrollIndicatorView.layer.cornerRadius = 4
+        scrollIndicatorView.translatesAutoresizingMaskIntoConstraints = false
+        scrollIndicatorView.isHidden = true
+        folderSelectionView.addSubview(scrollIndicatorView)
+        
+        // Scroll Indicator Label
+        scrollIndicatorLabel.text = "↓ Scroll for more folders"
+        scrollIndicatorLabel.font = UIFont.systemFont(ofSize: 12)
+        scrollIndicatorLabel.textColor = UIColor(red: 0.698, green: 0.290, blue: 0.231, alpha: 1.0) // paletteButton
+        scrollIndicatorLabel.textAlignment = .center
+        scrollIndicatorLabel.translatesAutoresizingMaskIntoConstraints = false
+        scrollIndicatorView.addSubview(scrollIndicatorLabel)
         
         // Upload Button
         uploadButton.setTitle("Upload Files", for: .normal)
@@ -183,11 +208,12 @@ class ShareViewController: UIViewController {
             fileCountLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             fileCountLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             
-            // Folder Selection View
+            // Folder Selection View - Dynamic height based on available space
             folderSelectionView.topAnchor.constraint(equalTo: fileCountLabel.bottomAnchor, constant: 20),
             folderSelectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             folderSelectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-            folderSelectionView.heightAnchor.constraint(equalToConstant: 200),
+            folderSelectionView.heightAnchor.constraint(greaterThanOrEqualToConstant: 280),
+            folderSelectionView.heightAnchor.constraint(lessThanOrEqualToConstant: 450),
             
             // Selected Destination View
             selectedDestinationView.topAnchor.constraint(equalTo: folderSelectionView.bottomAnchor, constant: 15),
@@ -214,7 +240,17 @@ class ShareViewController: UIViewController {
             folderTableView.topAnchor.constraint(equalTo: createFolderButton.bottomAnchor, constant: 8),
             folderTableView.leadingAnchor.constraint(equalTo: folderSelectionView.leadingAnchor, constant: 15),
             folderTableView.trailingAnchor.constraint(equalTo: folderSelectionView.trailingAnchor, constant: -15),
-            folderTableView.bottomAnchor.constraint(equalTo: folderSelectionView.bottomAnchor, constant: -15),
+            folderTableView.bottomAnchor.constraint(equalTo: scrollIndicatorView.topAnchor, constant: -8),
+            
+            // Scroll Indicator View
+            scrollIndicatorView.leadingAnchor.constraint(equalTo: folderSelectionView.leadingAnchor, constant: 15),
+            scrollIndicatorView.trailingAnchor.constraint(equalTo: folderSelectionView.trailingAnchor, constant: -15),
+            scrollIndicatorView.bottomAnchor.constraint(equalTo: folderSelectionView.bottomAnchor, constant: -15),
+            scrollIndicatorView.heightAnchor.constraint(equalToConstant: 24),
+            
+            // Scroll Indicator Label
+            scrollIndicatorLabel.centerXAnchor.constraint(equalTo: scrollIndicatorView.centerXAnchor),
+            scrollIndicatorLabel.centerYAnchor.constraint(equalTo: scrollIndicatorView.centerYAnchor),
             
             // Selected Destination Label
             selectedDestinationLabel.centerYAnchor.constraint(equalTo: selectedDestinationView.centerYAnchor),
@@ -306,6 +342,7 @@ class ShareViewController: UIViewController {
         
         backButton.isHidden = navigationStack.isEmpty
         folderTableView.reloadData()
+        updateScrollIndicator()
     }
     
     @objc private func changeDestination() {
@@ -328,6 +365,7 @@ class ShareViewController: UIViewController {
         }
         
         folderTableView.reloadData()
+        updateScrollIndicator()
     }
     
     @objc private func createFolder() {
@@ -931,7 +969,20 @@ class ShareViewController: UIViewController {
         breadcrumbLabel.text = "Select destination..."
         backButton.isHidden = true
         folderTableView.reloadData()
+        updateScrollIndicator()
         print("🔍 DEBUG: Loaded \(sites.count) sites for browsing")
+    }
+    
+    private func updateScrollIndicator() {
+        // Show scroll indicator if there are more folders than can fit in the visible area
+        // Assuming each row is ~44pt and we have space for about 5-6 rows in the new height
+        let visibleRows = Int(folderTableView.frame.height / 44)
+        let shouldShowIndicator = folders.count > max(visibleRows, 4)
+        scrollIndicatorView.isHidden = !shouldShowIndicator
+        
+        if shouldShowIndicator {
+            scrollIndicatorLabel.text = "↓ Scroll for more folders (\(folders.count) total)"
+        }
     }
     
     private func loadFoldersForCurrentLevel() {
@@ -1154,6 +1205,7 @@ class ShareViewController: UIViewController {
                     
                     print("🔍 DEBUG: Loaded \(folders.count) Classic containers")
                     folderTableView.reloadData()
+                    updateScrollIndicator()
                 } else {
                     print("🔍 DEBUG: No 'list.entries' found in containers response")
                 }
@@ -1194,6 +1246,7 @@ class ShareViewController: UIViewController {
                     
                     print("🔍 DEBUG: Loaded \(folders.count) Classic folders")
                     folderTableView.reloadData()
+                    updateScrollIndicator()
                 } else {
                     print("🔍 DEBUG: No 'list.entries' found in children response")
                 }
@@ -1311,6 +1364,7 @@ extension ShareViewController: UITableViewDataSource, UITableViewDelegate {
         
         // Reload table to show selection
         folderTableView.reloadData()
+        updateScrollIndicator()
         
         print("🔍 DEBUG: Selected folder for upload: \(folder.name) (id: \(folder.id))")
     }

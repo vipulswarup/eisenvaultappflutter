@@ -124,4 +124,12 @@ class EVColors {
   static const breadcrumbText = paletteTextDark;
   static const breadcrumbCurrentText = paletteButton;
   static const breadcrumbSeparator = Color(0xFFAAAAAA);
+
+  // Sharing Screen Colors
+  static const sharingContainerBackground = Color(0xFFFFFFFF);
+  static const sharingHeaderBackground = Color(0xFFF8F9FA);
+  static const sharingFolderItemBackground = Color(0xFFFFFFFF);
+  static const sharingFolderItemSelectedBackground = Color(0xFFE8F5E8);
+  static const sharingFolderItemSelectedBorder = Color(0xFF74B7A0);
+  static const sharingScrollIndicatorBackground = Color(0xFFF0F0F0);
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:eisenvaultappflutter/screens/sharing/android_share_screen.dart';
 
 class ShareActivityWrapper extends StatelessWidget {
@@ -6,6 +7,7 @@ class ShareActivityWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Both iOS and Android use the same screen, but we can pass platform info
     return const AndroidShareScreen();
   }
 }

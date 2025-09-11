@@ -85,20 +85,44 @@ class ClassicBrowseService implements BrowseService {
         _baseService.buildUrl('api/-default-/public/alfresco/versions/1/sites?skipCount=$skipCount&maxItems=$maxItems')
       );
 
+      EVLogger.productionLog('=== CLASSIC BROWSE SERVICE - GET SITES ===');
+      EVLogger.productionLog('Request URL: $url');
+      EVLogger.productionLog('Headers: ${_baseService.createHeaders()}');
+      EVLogger.productionLog('Skip Count: $skipCount, Max Items: $maxItems');
+
       final response = await http.get(
         url,
         headers: _baseService.createHeaders(),
+      ).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          EVLogger.error('Request timeout after 30 seconds');
+          throw Exception('Request timeout: Unable to connect to server within 30 seconds');
+        },
       );
 
+      EVLogger.productionLog('Response Status Code: ${response.statusCode}');
+      EVLogger.productionLog('Response Headers: ${response.headers}');
+      EVLogger.productionLog('Response Body Length: ${response.body.length}');
+      
       if (response.statusCode != 200) {
-        EVLogger.error('Failed to fetch sites', {'statusCode': response.statusCode});
+        EVLogger.error('Failed to fetch sites', {
+          'statusCode': response.statusCode,
+          'responseBody': response.body,
+          'url': url.toString()
+        });
         throw Exception('Failed to fetch sites: ${response.statusCode}');
       }
 
       final data = json.decode(response.body);
+      EVLogger.productionLog('Parsed JSON data keys: ${data.keys.toList()}');
       
       if (data['list'] == null || data['list']['entries'] == null) {
-        EVLogger.error('Invalid response format for sites');
+        EVLogger.error('Invalid response format for sites', {
+          'data': data,
+          'hasList': data['list'] != null,
+          'hasEntries': data['list']?['entries'] != null
+        });
         throw Exception('Invalid response format for sites');
       }
 
@@ -117,11 +141,13 @@ class ClassicBrowseService implements BrowseService {
       }).toList();
 
       final elapsed = DateTime.now().difference(start).inMilliseconds;
-      
+      EVLogger.productionLog('Successfully loaded ${sites.length} sites in ${elapsed}ms');
       
       return sites;
     } catch (e) {
       EVLogger.error('Failed to get sites', e);
+      EVLogger.productionLog('Error type: ${e.runtimeType}');
+      EVLogger.productionLog('Error details: ${e.toString()}');
       rethrow;
     }
   }

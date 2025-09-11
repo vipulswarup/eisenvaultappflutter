@@ -116,6 +116,12 @@ class EVLogger {
     _logger.e('$message ${sanitizedError != null ? '| $sanitizedError' : ''}', error: error, stackTrace: stackTrace);
   }
 
+  /// Production-safe logging that always works
+  static void productionLog(String message, [dynamic data]) {
+    final sanitizedData = _sanitizeData(data);
+    _logger.i('PROD: $message ${sanitizedData != null ? '| $sanitizedData' : ''}');
+  }
+
   /// Dispose of the logger when no longer needed
   static void dispose() {
     _logger.close();

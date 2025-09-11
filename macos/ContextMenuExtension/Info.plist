@@ -5,7 +5,7 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>$(DEVELOPMENT_LANGUAGE)</string>
     <key>CFBundleDisplayName</key>
-    <string>EisenVault</string>
+    <string>EisenVault Upload</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
@@ -18,8 +18,8 @@
     <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
     <key>CFBundleShortVersionString</key>
     <string>1.0.9</string>
-	<key>CFBundleVersion</key>
-	<string>109</string>
+    <key>CFBundleVersion</key>
+    <string>109</string>
     <key>NSExtension</key>
     <dict>
         <key>NSExtensionAttributes</key>
@@ -28,20 +28,14 @@
             <dict>
                 <key>NSExtensionActivationSupportsFileWithMaxCount</key>
                 <integer>10</integer>
-                <key>NSExtensionActivationSupportsImageWithMaxCount</key>
-                <integer>10</integer>
-                <key>NSExtensionActivationSupportsMovieWithMaxCount</key>
-                <integer>10</integer>
-                <key>NSExtensionActivationSupportsText</key>
-                <true/>
-                <key>NSExtensionActivationSupportsWebURLWithMaxCount</key>
-                <integer>10</integer>
+                <key>NSExtensionActivationSupportsFolderWithMaxCount</key>
+                <integer>1</integer>
             </dict>
         </dict>
-        <key>NSExtensionMainStoryboard</key>
-        <string>MainInterface</string>
+        <key>NSExtensionMainClass</key>
+        <string>ContextMenuExtension</string>
         <key>NSExtensionPointIdentifier</key>
-        <string>com.apple.share-services</string>
+        <string>com.apple.FinderSync</string>
     </dict>
 </dict>
 </plist>

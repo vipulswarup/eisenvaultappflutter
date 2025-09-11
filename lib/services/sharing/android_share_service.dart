@@ -60,25 +60,34 @@ class AndroidShareService {
   
   static Future<Map<String, dynamic>?> getDMSCredentials() async {
     try {
-      EVLogger.debug('Getting DMS credentials from Android ShareActivity');
+      EVLogger.productionLog('=== GETTING DMS CREDENTIALS FROM SHARE ACTIVITY ===');
       
       final result = await _channel.invokeMethod('getDMSCredentials');
       
       if (result != null) {
-        EVLogger.debug('Received DMS credentials from Android', {
+        EVLogger.productionLog('Received DMS credentials from Android', {
           'hasBaseUrl': result['baseUrl'] != null,
           'hasAuthToken': result['authToken'] != null,
-          'instanceType': result['instanceType']
+          'instanceType': result['instanceType'],
+          'customerHostname': result['customerHostname']
         });
         
+        // Check if all required credentials are present
+        final hasAllCredentials = result['baseUrl'] != null && 
+                                 result['authToken'] != null && 
+                                 result['instanceType'] != null;
+        
+        EVLogger.productionLog('All required credentials present: $hasAllCredentials');
+        
         return Map<String, dynamic>.from(result);
+      } else {
+        EVLogger.productionLog('No credentials received from ShareActivity');
+        return null;
       }
-      
-      return null;
     } catch (e) {
       // This is expected when ShareActivity hasn't been launched yet
       if (e.toString().contains('MissingPluginException')) {
-        EVLogger.debug('ShareActivity not available yet (expected)');
+        EVLogger.productionLog('ShareActivity not available yet (expected)');
         return null;
       }
       

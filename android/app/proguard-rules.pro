@@ -35,3 +35,66 @@
 
 -keep class com.google.errorprone.annotations.** { *; }
 -dontwarn com.google.errorprone.annotations.**
+
+# Keep HTTP and networking classes
+-keep class okhttp3.** { *; }
+-dontwarn okhttp3.**
+
+-keep class retrofit2.** { *; }
+-dontwarn retrofit2.**
+
+-keep class com.google.gson.** { *; }
+-dontwarn com.google.gson.**
+
+# Keep JSON serialization classes
+-keepattributes Signature
+-keepattributes *Annotation*
+-keep class com.google.gson.stream.** { *; }
+
+# Keep model classes that are serialized/deserialized
+-keep class * implements java.io.Serializable { *; }
+-keepclassmembers class * implements java.io.Serializable {
+    static final long serialVersionUID;
+    private static final java.io.ObjectStreamField[] serialPersistentFields;
+    private void writeObject(java.io.ObjectOutputStream);
+    private void readObject(java.io.ObjectInputStream);
+    java.lang.Object writeReplace();
+    java.lang.Object readResolve();
+}
+
+# Keep all classes in your app package
+-keep class com.eisenvault.** { *; }
+
+# Keep Flutter plugin classes
+-keep class io.flutter.plugins.** { *; }
+
+# Keep method channel classes
+-keep class * extends io.flutter.plugin.common.MethodChannel { *; }
+-keep class * extends io.flutter.plugin.common.EventChannel { *; }
+
+# Keep HTTP client classes
+-keep class java.net.** { *; }
+-keep class javax.net.** { *; }
+
+# Keep SSL/TLS classes
+-keep class javax.net.ssl.** { *; }
+-keep class java.security.** { *; }
+
+# Keep reflection-based classes
+-keepclassmembers class * {
+    @com.google.gson.annotations.SerializedName <fields>;
+}
+
+# Keep enum classes
+-keepclassmembers enum * {
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
+}
+
+# Keep native method names
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
+
+# Keep custom exceptions
+-keep class * extends java.lang.Exception { *; }

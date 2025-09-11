@@ -3,14 +3,14 @@ import 'package:eisenvaultappflutter/services/offline/offline_database_service.d
 import 'package:eisenvaultappflutter/services/offline/sync_service.dart';
 import 'package:eisenvaultappflutter/services/auth/auth_state_manager.dart';
 import 'package:eisenvaultappflutter/services/sharing/upload_service.dart';
-import 'package:eisenvaultappflutter/services/sharing/android_share_service.dart';
+import 'package:eisenvaultappflutter/services/context_menu/context_menu_service.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'screens/login_screen.dart';
 import 'screens/browse/browse_screen.dart';
-import 'screens/sharing/android_share_screen.dart';
 import 'screens/sharing/share_activity_wrapper.dart';
+import 'screens/context_menu/context_menu_upload_screen.dart';
 // Add imports for web database support
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -18,6 +18,9 @@ import 'package:provider/provider.dart';
 import 'package:eisenvaultappflutter/services/offline/download_manager.dart';
 import 'dart:io'; // Required for Platform.isWindows check
 import 'package:permission_handler/permission_handler.dart';
+
+// Global navigator key for context menu navigation
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 Future<bool> _checkWindowsElevation() async {
   if (!Platform.isWindows) return true;
@@ -80,6 +83,7 @@ void main() async {
   final syncService = SyncService();
   final authStateManager = AuthStateManager();
   final uploadService = UploadService();
+  final contextMenuService = ContextMenuService();
 
   try {
     // Initialize auth state
@@ -87,6 +91,9 @@ void main() async {
 
     // Initialize upload service
     uploadService.initialize();
+    
+    // Initialize context menu service
+    contextMenuService.initialize();
 
     // If authenticated, initialize sync service and save DMS credentials for Share Extension
     if (authStateManager.isAuthenticated) {
@@ -128,7 +135,7 @@ void main() async {
           create: (_) => authStateManager,
         ),
       ],
-      child: MyApp(syncService: syncService, uploadService: uploadService),
+      child: MyApp(syncService: syncService, uploadService: uploadService, contextMenuService: contextMenuService),
     ),
   );
 }
@@ -160,8 +167,14 @@ Future<void> _saveDMSCredentialsToAppGroups({
 class MyApp extends StatefulWidget {
   final SyncService syncService;
   final UploadService uploadService;
+  final ContextMenuService contextMenuService;
 
-  const MyApp({super.key, required this.syncService, required this.uploadService});
+  const MyApp({
+    super.key, 
+    required this.syncService, 
+    required this.uploadService,
+    required this.contextMenuService,
+  });
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -189,6 +202,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           // This method is called from the main app to save credentials
           // The actual implementation is in the native Android code
           return null;
+        case 'registerContextMenu':
+          // Windows context menu registration
+          return null;
+        case 'unregisterContextMenu':
+          // Windows context menu unregistration
+          return null;
+        case 'isContextMenuRegistered':
+          // Windows context menu status check
+          return false; // Placeholder
         default:
           throw PlatformException(
             code: 'UNIMPLEMENTED',
@@ -216,21 +238,44 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     widget.uploadService.uploadStream.listen((uploadData) {
       _showUploadNotification(uploadData);
     });
+    
+    // Listen for context menu uploads
+    widget.contextMenuService.uploadStream.listen((filePaths) {
+      _openContextMenuUpload(filePaths);
+    });
   }
   
   Future<void> _saveDMSCredentialsToSharedPrefs() async {
     try {
       final authState = Provider.of<AuthStateManager>(context, listen: false);
       
+      EVLogger.productionLog('=== SAVING DMS CREDENTIALS TO SHARED PREFERENCES ===');
+      EVLogger.productionLog('Auth state - isAuthenticated: ${authState.isAuthenticated}');
+      EVLogger.productionLog('Auth state - baseUrl: ${authState.baseUrl}');
+      EVLogger.productionLog('Auth state - hasToken: ${authState.currentToken != null}');
+      EVLogger.productionLog('Auth state - instanceType: ${authState.instanceType}');
+      EVLogger.productionLog('Auth state - customerHostname: ${authState.customerHostname}');
+      
       if (authState.isAuthenticated) {
-        await _channel.invokeMethod('saveDMSCredentials', {
+        final credentials = {
           'baseUrl': authState.baseUrl!,
           'authToken': authState.currentToken!,
           'instanceType': authState.instanceType!,
           'customerHostname': authState.customerHostname ?? '',
+        };
+        
+        EVLogger.productionLog('Saving credentials to SharedPreferences', {
+          'baseUrl': credentials['baseUrl'],
+          'hasAuthToken': credentials['authToken'] != null,
+          'instanceType': credentials['instanceType'],
+          'customerHostname': credentials['customerHostname']
         });
         
-        EVLogger.info('DMS credentials saved to SharedPreferences for ShareActivity');
+        await _channel.invokeMethod('saveDMSCredentials', credentials);
+        
+        EVLogger.productionLog('DMS credentials saved to SharedPreferences for ShareActivity');
+      } else {
+        EVLogger.productionLog('Not authenticated, skipping credential save');
       }
     } catch (e) {
       EVLogger.error('Failed to save DMS credentials to SharedPreferences', {
@@ -251,10 +296,23 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       );
     }
   }
+  
+  void _openContextMenuUpload(List<String> filePaths) {
+    // Navigate to context menu upload screen
+    final context = navigatorKey.currentContext;
+    if (context != null) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => ContextMenuUploadScreen(filePaths: filePaths),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'EisenVault',
       theme: ThemeData(
         primarySwatch: Colors.blue,

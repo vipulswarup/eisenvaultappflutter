@@ -237,6 +237,11 @@ class BrowseScreenController extends ChangeNotifier {
 
   /// Loads top-level departments/folders
   Future<void> loadDepartments() async {
+    EVLogger.productionLog('=== LOAD DEPARTMENTS START ===');
+    EVLogger.productionLog('Instance Type: $instanceType');
+    EVLogger.productionLog('Base URL: $baseUrl');
+    EVLogger.productionLog('Auth Token: ${authToken.isNotEmpty ? "Present (${authToken.length} chars)" : "EMPTY"}');
+    
     isLoading = true;
     errorMessage = null;
     _currentPage = 0;
@@ -252,17 +257,22 @@ class BrowseScreenController extends ChangeNotifier {
     try {
       // Check both actual connectivity and forced offline mode
       _isOffline = await _offlineManager.isOffline();
+      EVLogger.productionLog('Offline mode: $_isOffline');
       
       if (_isOffline) {
+        EVLogger.productionLog('Loading offline items...');
         final offlineItems = await _offlineManager.getOfflineItems(null);
         items = offlineItems;
         _hasMoreItems = false;
+        EVLogger.productionLog('Loaded ${offlineItems.length} offline items');
       } else {
+        EVLogger.productionLog('Creating browse service...');
         final browseService = BrowseServiceFactory.getService(
           instanceType, 
           baseUrl, 
           authToken
         );
+        EVLogger.productionLog('Browse service created successfully');
 
         final rootItem = BrowseItem(
           id: 'root',
@@ -270,21 +280,27 @@ class BrowseScreenController extends ChangeNotifier {
           type: 'folder',
           isDepartment: instanceType == 'Angora',
         );
+        EVLogger.productionLog('Root item created: ${rootItem.id}');
 
+        EVLogger.productionLog('Calling getChildren on browse service...');
         final loadedItems = await browseService.getChildren(
           rootItem,
           skipCount: 0,
           maxItems: _itemsPerPage,
         );
+        EVLogger.productionLog('Successfully loaded ${loadedItems.length} items');
         items = loadedItems;
         _hasMoreItems = loadedItems.length >= _itemsPerPage;
       }
     } catch (e) {
       EVLogger.error('Error loading departments', e);
+      EVLogger.productionLog('Error type: ${e.runtimeType}');
+      EVLogger.productionLog('Error message: ${e.toString()}');
       errorMessage = 'Failed to load departments: ${e.toString()}';
     } finally {
       isLoading = false;
       _notifyListeners();
+      EVLogger.productionLog('=== LOAD DEPARTMENTS END ===');
     }
   }
 

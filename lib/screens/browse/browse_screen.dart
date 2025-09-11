@@ -218,7 +218,15 @@ class _BrowseScreenState extends State<BrowseScreen> {
   }
 
   Future<void> _initializeComponents() async {
+    EVLogger.productionLog('=== BROWSE SCREEN - INITIALIZING COMPONENTS ===');
+    EVLogger.productionLog('Base URL: ${widget.baseUrl}');
+    EVLogger.productionLog('Auth Token: ${widget.authToken.isNotEmpty ? "Present (${widget.authToken.length} chars)" : "EMPTY"}');
+    EVLogger.productionLog('Instance Type: ${widget.instanceType}');
+    EVLogger.productionLog('Customer Hostname: ${widget.customerHostname}');
+    
     _offlineManager = await OfflineManager.createDefault(requireCredentials: false);
+    EVLogger.productionLog('Offline manager created');
+    
     if (!mounted) return;
 
     _controller = BrowseScreenController(
@@ -232,6 +240,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
       scaffoldKey: _scaffoldKey,
       offlineManager: _offlineManager!,
     );
+    EVLogger.productionLog('Browse screen controller created');
 
     _deleteService = DeleteService(
       repositoryType: widget.instanceType,
@@ -331,6 +340,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
       },
     );
 
+    EVLogger.productionLog('Calling loadDepartments() on controller...');
     _controller?.loadDepartments();
   }
 
@@ -436,6 +446,36 @@ class _BrowseScreenState extends State<BrowseScreen> {
                                       textAlign: TextAlign.center,
                                       style: TextStyle(color: EVColors.textFieldHint),
                                     ),
+                                    if (_controller!.errorMessage != null) ...[
+                                      const SizedBox(height: 16),
+                                      Container(
+                                        padding: const EdgeInsets.all(16),
+                                        margin: const EdgeInsets.symmetric(horizontal: 32),
+                                        decoration: BoxDecoration(
+                                          color: EVColors.statusError.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(color: EVColors.statusError.withOpacity(0.3)),
+                                        ),
+                                        child: Column(
+                                          children: [
+                                            const Icon(
+                                              Icons.error_outline,
+                                              color: EVColors.statusError,
+                                              size: 24,
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              'Error: ${_controller!.errorMessage}',
+                                              textAlign: TextAlign.center,
+                                              style: const TextStyle(
+                                                color: EVColors.statusError,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               )

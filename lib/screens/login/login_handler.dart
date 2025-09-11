@@ -6,8 +6,10 @@ import 'package:eisenvaultappflutter/services/auth/classic_auth_service.dart';
 import 'package:eisenvaultappflutter/services/auth/auth_state_manager.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/services/offline/sync_service.dart';
+import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:eisenvaultappflutter/widgets/error_display.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
 
@@ -33,11 +35,21 @@ class LoginHandler {
       }
 
       // Perform login using Classic auth service
+      EVLogger.productionLog('=== LOGIN HANDLER - STARTING LOGIN ===');
+      EVLogger.productionLog('Base URL: $baseUrl');
+      EVLogger.productionLog('Username: $username');
+      EVLogger.productionLog('Instance Type: $instanceType');
+      
       final authService = ClassicAuthService(baseUrl);
+      EVLogger.productionLog('Auth service created');
+      
       final loginResult = await authService.makeRequest(
         'login',
         requestFunction: () => authService.login(username, password)
       );
+      
+      EVLogger.productionLog('Login successful, token length: ${loginResult['token']?.toString().length ?? 0}');
+      EVLogger.productionLog('Login result keys: ${loginResult.keys.toList()}');
 
       if (!context.mounted) return;
       
@@ -64,6 +76,15 @@ class LoginHandler {
         firstName: firstName,
         instanceType: instanceType,
         baseUrl: baseUrl,
+        customerHostname: customerHostname,
+      );
+      
+      // Save credentials to SharedPreferences for ShareActivity
+      EVLogger.productionLog('Saving credentials after successful login');
+      await _saveCredentialsToSharedPrefs(
+        baseUrl: baseUrl,
+        authToken: loginResult['token'],
+        instanceType: instanceType,
         customerHostname: customerHostname,
       );
       
@@ -272,5 +293,36 @@ class LoginHandler {
     // Remove any trailing slashes again
     url = url.replaceAll(RegExp(r'/+\u0000'), '');
     return url;
+  }
+  
+  /// Save credentials to SharedPreferences for ShareActivity access
+  Future<void> _saveCredentialsToSharedPrefs({
+    required String baseUrl,
+    required String authToken,
+    required String instanceType,
+    required String customerHostname,
+  }) async {
+    try {
+      EVLogger.productionLog('=== SAVING CREDENTIALS TO SHARED PREFERENCES ===');
+      EVLogger.productionLog('baseUrl: $baseUrl');
+      EVLogger.productionLog('hasAuthToken: ${authToken.isNotEmpty}');
+      EVLogger.productionLog('instanceType: $instanceType');
+      EVLogger.productionLog('customerHostname: $customerHostname');
+      
+      const MethodChannel channel = MethodChannel('com.eisenvault.eisenvaultappflutter/main');
+      
+      await channel.invokeMethod('saveDMSCredentials', {
+        'baseUrl': baseUrl,
+        'authToken': authToken,
+        'instanceType': instanceType,
+        'customerHostname': customerHostname,
+      });
+      
+      EVLogger.productionLog('Credentials saved to SharedPreferences successfully');
+    } catch (e) {
+      EVLogger.error('Failed to save credentials to SharedPreferences', {
+        'error': e.toString()
+      });
+    }
   }
 }

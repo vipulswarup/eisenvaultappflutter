@@ -1,9 +1,11 @@
 #include <flutter/dart_project.h>
 #include <flutter/flutter_view_controller.h>
 #include <windows.h>
+#include <string>
 
 #include "flutter_window.h"
 #include "utils.h"
+#include "context_menu_handler.cpp"
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
@@ -21,6 +23,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
 
   std::vector<std::string> command_line_arguments =
       GetCommandLineArguments();
+
+  // Check if this is a context menu launch with URL scheme
+  std::wstring commandLine(command_line);
+  if (commandLine.find(L"eisenvault://") != std::wstring::npos) {
+    // This is a context menu launch, add the URL as an argument
+    command_line_arguments.push_back(Utf8FromUtf16(commandLine));
+  }
 
   project.set_dart_entrypoint_arguments(std::move(command_line_arguments));
 
