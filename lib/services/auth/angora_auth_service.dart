@@ -33,14 +33,82 @@ class AngoraAuthService extends AngoraBaseService {
       );
 
       
+      EVLogger.debug('Angora login response', {
+        'statusCode': response.statusCode,
+        'headers': response.headers.toString(),
+      });
+      
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final token = data['data']['token'];
+        EVLogger.debug('Parsed login response data', {
+          'dataKeys': data.keys.toList(),
+          'hasData': data.containsKey('data'),
+        });
+        
+        // Validate response structure
+        if (data['data'] == null) {
+          EVLogger.error('Invalid response structure: missing data field', {
+            'response': response.body,
+            'parsedData': data,
+          });
+          throw Exception('Invalid response: missing data field');
+        }
+        
+        // Extract token from cookie header (Angora sends token in set-cookie header)
+        String? token;
+        final setCookieHeaders = response.headers['set-cookie'];
+        if (setCookieHeaders != null) {
+          // Parse the accessToken from the set-cookie header
+          // Format: accessToken=TOKEN_VALUE; Max-Age=...; Path=...; ...
+          final cookieString = setCookieHeaders;
+          final accessTokenMatch = RegExp(r'accessToken=([^;]+)').firstMatch(cookieString);
+          if (accessTokenMatch != null) {
+            token = accessTokenMatch.group(1);
+            EVLogger.debug('Token extracted from cookie', {
+              'tokenLength': token?.length ?? 0,
+            });
+          }
+        }
+        
+        // Fallback: try to get token from response body (if API changes)
+        if (token == null || token.isEmpty) {
+          final tokenFromBody = data['data']['token'];
+          if (tokenFromBody != null && tokenFromBody.toString().isNotEmpty) {
+            token = tokenFromBody.toString();
+            EVLogger.debug('Token extracted from response body', {
+              'tokenLength': token.length,
+            });
+          }
+        }
+        
+        if (token == null || token.isEmpty) {
+          EVLogger.error('Token is null or empty', {
+            'response': response.body,
+            'data': data,
+            'setCookieHeader': setCookieHeaders,
+            'hasSetCookie': setCookieHeaders != null,
+          });
+          throw Exception('Authentication failed: token is missing in response');
+        }
+        
+        final user = data['data']['user'];
+        if (user == null) {
+          EVLogger.error('User profile is null in response', {
+            'response': response.body,
+            'data': data,
+          });
+          throw Exception('Authentication failed: user profile is missing in response');
+        }
+        
         setToken(token);
+        EVLogger.debug('Angora login successful', {
+          'tokenLength': token.length,
+          'hasUser': user != null,
+        });
         
         return {
           'token': token,
-          'profile': data['data']['user'],
+          'profile': user,
         };
       }
     

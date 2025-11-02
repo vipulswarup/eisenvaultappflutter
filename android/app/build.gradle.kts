@@ -16,7 +16,7 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.eisenvault.eisenvaultappflutter"
-    compileSdk = 36
+    compileSdk = 35
     ndkVersion = "27.0.12077973"
 
     compileOptions {
@@ -32,8 +32,8 @@ android {
         applicationId = "com.eisenvault"
         minSdk = 24 // Android 7.0 (Nougat)
         targetSdk = 35 // Android 15
-        versionCode = 109
-        versionName = "1.0.9"
+        versionCode = 110
+        versionName = "1.0.10"
     }
 
     signingConfigs {

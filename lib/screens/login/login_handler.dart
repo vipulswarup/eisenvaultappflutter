@@ -3,6 +3,7 @@ import 'package:eisenvaultappflutter/screens/browse/browse_screen.dart';
 import 'package:eisenvaultappflutter/screens/offline/offline_browse_screen.dart';
 import 'package:eisenvaultappflutter/services/api/base_service.dart';
 import 'package:eisenvaultappflutter/services/auth/classic_auth_service.dart';
+import 'package:eisenvaultappflutter/services/auth/angora_auth_service.dart';
 import 'package:eisenvaultappflutter/services/auth/auth_state_manager.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/services/offline/sync_service.dart';
@@ -11,6 +12,7 @@ import 'package:eisenvaultappflutter/widgets/error_display.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:http/http.dart' as http;
 import 'dart:io';
 
 /// Handles login logic and authentication, including offline mode
@@ -23,38 +25,133 @@ class LoginHandler {
     required String password,
     required String instanceType,
   }) async {
+    // Preserve original baseUrl for error retry
+    final originalBaseUrl = baseUrl;
+    
     try {
-      // Force Classic instance type
-      const instanceType = 'Classic';
+      // Detect instance type from URL if not explicitly provided or if it's 'Classic' (legacy default)
+      String detectedInstanceType = instanceType;
+      if (instanceType == 'Classic' || instanceType.isEmpty) {
+        detectedInstanceType = _detectInstanceType(baseUrl);
+      }
       
       // Strip known suffixes (e.g., /share/page, /share, /page, /alfresco, /s, trailing slashes)
       baseUrl = _stripUrlSuffixes(baseUrl);
-      // For Classic instances, append /alfresco if not present
-      if (!baseUrl.endsWith('/alfresco')) {
-        baseUrl = '$baseUrl/alfresco';
+      
+      // Handle URL formatting based on instance type
+      String customerHostname;
+      bool shouldTryBoth = false;
+      final uri = Uri.parse(baseUrl);
+      final hostname = uri.host.toLowerCase();
+      
+      if (detectedInstanceType.toLowerCase() == 'angora') {
+        // Angora: Use base URL as-is, extract customer hostname from domain
+        customerHostname = uri.host;
+      } else {
+        // detectedInstanceType is 'Classic' - check if domain contains "angora"
+        if (hostname.contains('angora')) {
+          // Domain has "angora" but was detected as Classic (shouldn't happen, but handle it)
+          // Treat as Classic with /alfresco suffix
+          if (!baseUrl.endsWith('/alfresco')) {
+            baseUrl = '$baseUrl/alfresco';
+          }
+          customerHostname = 'classic-repository';
+        } else {
+          // Domain doesn't contain "angora" - might be custom Angora domain
+          // Try Angora first, fall back to Classic if endpoint not found
+          shouldTryBoth = true;
+          customerHostname = uri.host; // Set for Angora attempt
+        }
       }
 
-      // Perform login using Classic auth service
+      // Perform login using appropriate auth service
       EVLogger.productionLog('=== LOGIN HANDLER - STARTING LOGIN ===');
       EVLogger.productionLog('Base URL: $baseUrl');
       EVLogger.productionLog('Username: $username');
-      EVLogger.productionLog('Instance Type: $instanceType');
+      EVLogger.productionLog('Instance Type: $detectedInstanceType');
+      EVLogger.productionLog('Customer Hostname: $customerHostname');
+      EVLogger.productionLog('Should try both: $shouldTryBoth');
       
-      final authService = ClassicAuthService(baseUrl);
-      EVLogger.productionLog('Auth service created');
+      Map<String, dynamic> loginResult;
       
-      final loginResult = await authService.makeRequest(
-        'login',
-        requestFunction: () => authService.login(username, password)
-      );
+      if (detectedInstanceType.toLowerCase() == 'angora' && !shouldTryBoth) {
+        // Confident it's Angora (domain contains "angora")
+        final authService = AngoraAuthService(baseUrl);
+        EVLogger.productionLog('Angora auth service created');
+        
+        loginResult = await authService.login(username, password);
+        detectedInstanceType = 'Angora';
+      } else if (shouldTryBoth) {
+        // Unknown domain - try Angora first, fall back to Classic if endpoint not found
+        EVLogger.productionLog('Trying Angora login first (unknown domain)');
+        try {
+          final angoraAuthService = AngoraAuthService(baseUrl);
+          loginResult = await angoraAuthService.login(username, password);
+          detectedInstanceType = 'Angora';
+          EVLogger.productionLog('Angora login successful');
+        } catch (e) {
+          // Check if error indicates endpoint doesn't exist (404)
+          final errorStr = e.toString().toLowerCase();
+          final isEndpointNotFound = 
+              errorStr.contains('status code: 404') ||
+              errorStr.contains('status code 404') ||
+              (errorStr.contains('404') && (errorStr.contains('status') || errorStr.contains('authentication failed'))) ||
+              errorStr.contains('not found') ||
+              (e is http.ClientException && (errorStr.contains('failed host lookup') || errorStr.contains('connection refused')));
+          
+          if (isEndpointNotFound) {
+            // Endpoint doesn't exist, try Classic
+            EVLogger.productionLog('Angora endpoint not found (404), trying Classic');
+            if (!baseUrl.endsWith('/alfresco')) {
+              baseUrl = '$baseUrl/alfresco';
+            }
+            customerHostname = 'classic-repository';
+            final classicAuthService = ClassicAuthService(baseUrl);
+            EVLogger.productionLog('Classic auth service created');
+            
+            loginResult = await classicAuthService.makeRequest(
+              'login',
+              requestFunction: () => classicAuthService.login(username, password)
+            );
+            detectedInstanceType = 'Classic';
+          } else {
+            // Other error (auth failure, network, etc.) - rethrow as it might be Angora with wrong credentials
+            EVLogger.productionLog('Angora login failed with non-404 error, assuming Angora instance with auth failure');
+            rethrow;
+          }
+        }
+      } else {
+        // Confident it's Classic
+        if (!baseUrl.endsWith('/alfresco')) {
+          baseUrl = '$baseUrl/alfresco';
+        }
+        customerHostname = 'classic-repository';
+        final authService = ClassicAuthService(baseUrl);
+        EVLogger.productionLog('Classic auth service created');
+        
+        loginResult = await authService.makeRequest(
+          'login',
+          requestFunction: () => authService.login(username, password)
+        );
+        detectedInstanceType = 'Classic';
+      }
       
-      EVLogger.productionLog('Login successful, token length: ${loginResult['token']?.toString().length ?? 0}');
+      // Validate token is present and not null
+      final token = loginResult['token'];
+      if (token == null || token.toString().isEmpty) {
+        throw Exception('Login failed: authentication token is missing from response');
+      }
+      
+      final tokenString = token.toString();
+      EVLogger.productionLog('Login successful, token length: ${tokenString.length}');
       EVLogger.productionLog('Login result keys: ${loginResult.keys.toList()}');
 
       if (!context.mounted) return;
       
       // Extract firstName from the profile
-      final firstName = loginResult['profile']?['firstName'] ?? username;
+      final firstName = loginResult['profile']?['firstName'] ?? 
+                       loginResult['profile']?['name']?.split(' ').first ?? 
+                       username;
       
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
@@ -65,16 +162,13 @@ class LoginHandler {
         ),
       );
       
-      // Set customer hostname for Classic
-      const customerHostname = 'classic-repository';
-      
       // Update auth state
       final authStateManager = Provider.of<AuthStateManager>(context, listen: false);
       await authStateManager.handleSuccessfulLogin(
-        token: loginResult['token'],
+        token: tokenString,
         username: username,
         firstName: firstName,
-        instanceType: instanceType,
+        instanceType: detectedInstanceType,
         baseUrl: baseUrl,
         customerHostname: customerHostname,
       );
@@ -83,16 +177,16 @@ class LoginHandler {
       EVLogger.productionLog('Saving credentials after successful login');
       await _saveCredentialsToSharedPrefs(
         baseUrl: baseUrl,
-        authToken: loginResult['token'],
-        instanceType: instanceType,
+        authToken: tokenString,
+        instanceType: detectedInstanceType,
         customerHostname: customerHostname,
       );
       
       // Initialize offline components and wait for completion
       await _initializeOfflineComponents(
-        instanceType: instanceType,
+        instanceType: detectedInstanceType,
         baseUrl: baseUrl,
-        authToken: loginResult['token'],
+        authToken: tokenString,
         username: username,
       );
 
@@ -100,11 +194,11 @@ class LoginHandler {
       if (context.mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (context) => BrowseScreen(
+              builder: (context) => BrowseScreen(
               baseUrl: baseUrl,
-              authToken: loginResult['token'],
+              authToken: tokenString,
               firstName: firstName,
-              instanceType: instanceType,
+              instanceType: detectedInstanceType,
               customerHostname: customerHostname,
             ),
           ),
@@ -125,6 +219,9 @@ class LoginHandler {
       } else {
         errorMessage = 'An unexpected error occurred: ${e.toString()}';
       }
+      
+      // Detect instance type for error retry
+      final detectedInstanceType = _detectInstanceType(originalBaseUrl);
       
       // Show error dialog
       showDialog(
@@ -154,10 +251,10 @@ class LoginHandler {
                       Navigator.of(context).pop();
                       performLogin(
                         context: context,
-                        baseUrl: baseUrl,
+                        baseUrl: originalBaseUrl,
                         username: username,
                         password: password,
-                        instanceType: instanceType,
+                        instanceType: detectedInstanceType,
                       );
                     },
                   ),
@@ -178,6 +275,25 @@ class LoginHandler {
       
       // Re-throw to be handled by caller
       rethrow;
+    }
+  }
+  
+  /// Detects instance type from URL based on domain patterns
+  String _detectInstanceType(String baseUrl) {
+    try {
+      final uri = Uri.parse(baseUrl);
+      final hostname = uri.host.toLowerCase();
+      
+      // Check if domain contains "angora"
+      if (hostname.contains('angora')) {
+        return 'Angora';
+      }
+      
+      // Default to Classic
+      return 'Classic';
+    } catch (e) {
+      // If URL parsing fails, default to Classic
+      return 'Classic';
     }
   }
   

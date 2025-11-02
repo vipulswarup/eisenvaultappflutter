@@ -200,7 +200,7 @@ class _LoginFormState extends State<LoginForm> {
           baseUrl: baseUrl,
           username: username, 
           password: password,
-          instanceType: 'Classic',
+          instanceType: '', // Auto-detect from URL
         );
       } catch (e) {
         widget.onLoginFailed(e);
