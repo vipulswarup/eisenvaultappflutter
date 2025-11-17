@@ -367,7 +367,7 @@ curl -X GET "https://your-angora-instance.com/api/uploads/file_123/status" \
 ## Search Operations
 
 ### Search Files and Folders
-**Endpoint:** `GET /api/search?query={query}&limit={limit}&skip={skip}&sort={sort}&direction={direction}`
+**Endpoint:** `GET /api/search?name={name}&limit={limit}&page={page}&sort={sort}&direction={direction}`
 
 **Headers:**
 ```http
@@ -376,38 +376,69 @@ x-service-name: service-search
 x-portal: mobile
 ```
 
+**Query Parameters:**
+- `name` (required): Search query string
+- `limit` (optional): Number of results per page (default: 50)
+- `page` (optional): Page number (1-based, default: 1)
+- `sort` (optional): Sort field (e.g., "name", "updatedAt", "createdBy")
+- `direction` (optional): Sort direction ("asc" or "desc", default: "asc")
+
 **Response:**
 ```json
 {
   "status": 200,
-  "data": {
-    "results": [
-      {
-        "id": "item_id",
-        "name": "Search Result",
-        "type": "folder",
-        "description": "Item description",
-        "updated_at": "2024-01-01T00:00:00Z",
-        "created_at": "2024-01-01T00:00:00Z",
-        "updated_by": "User Name",
-        "created_by": "User Name",
-        "permissions": {
-          "can_edit": true,
-          "can_delete": true
+  "meta": {
+    "current_page": 1,
+    "items_per_page": 8,
+    "total_pages": 132,
+    "total_records": 1049,
+    "has_more": true
+  },
+  "data": [
+    {
+      "id": "item_id",
+      "raw_file_name": "Search Result",
+      "description": "Item description",
+      "is_department": false,
+      "is_folder": true,
+      "is_file": false,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "parent_path": "//path//to//parent//",
+      "materialize_path": "//full//path//to//item",
+      "data_entry": [
+        {
+          "metadata": "metadata_id",
+          "name": "Title",
+          "value": "Search Result",
+          "id": "entry_id"
         }
+      ],
+      "highlight": {
+        "_title": ["<highlight>Search</highlight> Result"],
+        "content": ["Content with <highlight>search</highlight> term"]
       }
-    ]
-  }
+    }
+  ],
+  "notifications": [],
+  "errors": []
 }
 ```
 
 **Curl Example:**
 ```bash
-curl -X GET "https://your-angora-instance.com/api/search?query=document&limit=50&skip=0&sort=name&direction=asc" \
+curl -X GET "https://your-angora-instance.com/api/search?name=document&limit=50&page=1&sort=name&direction=asc" \
   -H "Authorization: {token}" \
   -H "x-service-name: service-search" \
   -H "x-portal: mobile"
 ```
+
+**Notes:**
+- The `data` field is directly an array of results (not wrapped in a `results` object)
+- Each result item uses `raw_file_name` for the display name
+- Item type is determined by boolean flags: `is_folder`, `is_file`, `is_department`
+- The `highlight` field contains search term highlighting when available
+- Pagination uses `page` (1-based) instead of `skip`
 
 ## Delete Operations
 

@@ -24,44 +24,109 @@ class AngoraSearchService implements SearchService {
       final String angoraSortProperty = _mapSortByToAngoraProperty(sortBy);
       final String sortDirection = sortAscending ? 'asc' : 'desc';
       
-      // Build the search API URL with query parameters
-      final searchUrl = _angoraService.buildUrl(
-        'search?query=$query'
-        '&limit=$maxItems'
-        '&skip=$skipCount'
-        '&sort=$angoraSortProperty'
-        '&direction=$sortDirection'
-      );
+      // Calculate page number from skipCount (Angora uses page-based pagination, 1-based)
+      final int page = (skipCount / maxItems).floor() + 1;
       
-      
+      // Build the search API URL with properly encoded query parameters
+      // Note: Angora uses 'name' parameter (not 'query') and 'page' (not 'skip')
+      final baseUrl = _angoraService.buildUrl('search');
+      final uri = Uri.parse(baseUrl).replace(queryParameters: {
+        'name': query,
+        'limit': maxItems.toString(),
+        'page': page.toString(),
+        'sort': angoraSortProperty,
+        'direction': sortDirection,
+      });
       
       // Create headers for the search request
       final headers = _angoraService.createHeaders(serviceName: 'service-search');
       headers['x-portal'] = 'mobile';  // Set mobile portal header
       
+      // Log the API call details
+      EVLogger.debug('Angora Search API Call', {
+        'url': uri.toString(),
+        'method': 'GET',
+        'name': query,
+        'limit': maxItems,
+        'page': page,
+        'skipCount': skipCount,
+        'sort': angoraSortProperty,
+        'direction': sortDirection,
+        'headers': headers,
+      });
+      
       final response = await http.get(
-        Uri.parse(searchUrl),
+        uri,
         headers: headers,
       );
+      
+      // Log the response details
+      EVLogger.debug('Angora Search API Response', {
+        'statusCode': response.statusCode,
+        'responseBody': response.body,
+        'responseHeaders': response.headers,
+      });
       
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
         
+        // Log parsed response data structure
+        EVLogger.debug('Angora Search Parsed Response', {
+          'responseData': responseData,
+          'responseDataType': responseData.runtimeType.toString(),
+          'hasData': responseData.containsKey('data'),
+          'dataType': responseData['data']?.runtimeType.toString(),
+        });
+        
         // Check if the response has data and results array
-        if (responseData['data'] == null || 
-            responseData['data']['results'] == null) {
+        if (responseData['data'] == null) {
+          EVLogger.warning('Angora Search: Response data is null', {
+            'responseData': responseData,
+          });
           return [];
         }
         
-        final results = responseData['data']['results'] as List<dynamic>;
+        final data = responseData['data'];
+        List<dynamic> results;
         
+        // Handle different response structures:
+        // 1. When data is a List (empty results or direct array)
+        if (data is List) {
+          EVLogger.debug('Angora Search: Data is a List (direct results array)', {
+            'dataLength': data.length,
+          });
+          results = data;
+        }
+        // 2. When data is a Map with a 'results' key (standard structure)
+        else if (data is Map) {
+          if (data['results'] == null) {
+            EVLogger.warning('Angora Search: Results field is null in Map', {
+              'data': data,
+              'dataKeys': data.keys.toList(),
+            });
+            return [];
+          }
+          results = data['results'] as List<dynamic>;
+        }
+        // 3. Unexpected structure
+        else {
+          EVLogger.warning('Angora Search: Data has unexpected type', {
+            'data': data,
+            'dataType': data.runtimeType.toString(),
+          });
+          return [];
+        }
         
+        EVLogger.debug('Angora Search Results', {
+          'resultsCount': results.length,
+          'results': results,
+        });
         
         // Convert the search results to BrowseItem objects
         return results.map<BrowseItem>((item) {
-          // Determine item type
-          final bool isFolder = item['type'] == 'folder';
-          final bool isDepartment = item['type'] == 'department';
+          // Determine item type using is_folder, is_file, is_department flags
+          final bool isFolder = item['is_folder'] == true;
+          final bool isDepartment = item['is_department'] == true;
           
           // Extract permissions (if available)
           List<String> allowableOperations = [];
@@ -75,19 +140,20 @@ class AngoraSearchService implements SearchService {
           
           return BrowseItem(
             id: item['id'] ?? '',
-            name: item['name'] ?? '',
+            name: item['raw_file_name'] ?? item['name'] ?? '',
             type: isFolder ? 'folder' : 'document',
-            description: item['description'],
-            modifiedDate: item['updatedAt'] ?? item['createdAt'],
-            modifiedBy: item['updatedBy'] ?? item['createdBy'],
+            description: item['description'] ?? '',
+            modifiedDate: item['updated_at'] ?? item['created_at'],
+            modifiedBy: item['updated_by'] ?? item['created_by'],
             isDepartment: isDepartment,
             allowableOperations: allowableOperations,
           );
         }).toList();
       } else {
-        EVLogger.error('Search request failed', {
+        EVLogger.error('Angora Search request failed', {
           'statusCode': response.statusCode,
-          'response': response.body,
+          'responseBody': response.body,
+          'responseHeaders': response.headers,
         });
         throw Exception('Search failed with status ${response.statusCode}');
       }
@@ -101,13 +167,18 @@ class AngoraSearchService implements SearchService {
   Future<bool> isSearchAvailable() async {
     try {
       // Check if the search API is available by making a simple request
-      final searchUrl = _angoraService.buildUrl('search?query=test&limit=1');
+      final baseUrl = _angoraService.buildUrl('search');
+      final uri = Uri.parse(baseUrl).replace(queryParameters: {
+        'name': 'test',
+        'limit': '1',
+        'page': '1',
+      });
       
       final headers = _angoraService.createHeaders(serviceName: 'service-search');
       headers['x-portal'] = 'mobile';
       
       final response = await http.get(
-        Uri.parse(searchUrl),
+        uri,
         headers: headers,
       );
       

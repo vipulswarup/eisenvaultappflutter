@@ -18,11 +18,18 @@ class AngoraDocumentService {
   Future<String> getDocumentDownloadLink(String documentId) async {
     try {
       final url = _baseService.buildUrl('files/$documentId/download');
+      // Build referer and customer hostname from base URL
+      final baseUri = Uri.parse(_baseService.baseUrl);
+      final referer = '${baseUri.scheme}://${baseUri.host}${baseUri.port != 80 && baseUri.port != 443 ? ':${baseUri.port}' : ''}/nodes';
+      final customerHostname = baseUri.host;
+      
       final headers = {
         ..._baseService.createHeaders(serviceName: _serviceName),
         'Accept': 'application/json, text/plain, */*',
         'Accept-Language': 'en',
-        'referer': 'https://binod.angorastage.in/nodes'
+        'x-portal': 'mobile',
+        'x-customer-hostname': customerHostname,
+        'referer': referer,
       };
       
       EVLogger.debug('Requesting download link', {
@@ -143,14 +150,21 @@ class AngoraDocumentService {
   Future<Uint8List> _downloadFromStream(String documentId) async {
     try {
       final url = _baseService.buildUrl('files/$documentId/download-stream');
+      // Extract customer hostname from base URL
+      final baseUri = Uri.parse(_baseService.baseUrl);
+      final customerHostname = baseUri.host;
+      
       final headers = {
         ..._baseService.createHeaders(serviceName: _serviceName),
         'Accept': 'application/octet-stream, */*',
+        'x-portal': 'mobile',
+        'x-customer-hostname': customerHostname,
       };
       
       EVLogger.debug('Downloading document from stream endpoint', {
         'url': url,
         'documentId': documentId,
+        'headers': headers,
       });
       
       final response = await http.get(Uri.parse(url), headers: headers);
@@ -158,6 +172,8 @@ class AngoraDocumentService {
       if (response.statusCode != 200) {
         EVLogger.error('Download-stream failed', {
           'statusCode': response.statusCode,
+          'responseBody': response.body,
+          'responseHeaders': response.headers,
         });
         throw Exception('Download-stream failed with status: ${response.statusCode}');
       }
