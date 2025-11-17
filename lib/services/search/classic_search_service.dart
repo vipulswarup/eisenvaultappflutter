@@ -22,7 +22,6 @@ class ClassicSearchService implements SearchService {
     try {
       // Map the sortBy parameter to Alfresco property names
       final String alfrescoSortProperty = _mapSortByToAlfrescoProperty(sortBy);
-      final String sortDirection = sortAscending ? 'ASC' : 'DESC';
       
       // Build the search API URL
       final searchUrl = _classicService.buildUrl(

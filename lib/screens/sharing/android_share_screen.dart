@@ -1,14 +1,12 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/services/sharing/android_share_service.dart';
 import 'package:eisenvaultappflutter/services/browse/browse_service_factory.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
-import 'dart:convert';
-import 'dart:io';
 import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
 
 class AndroidShareScreen extends StatefulWidget {
   const AndroidShareScreen({super.key});

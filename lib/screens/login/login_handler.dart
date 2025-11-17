@@ -90,18 +90,43 @@ class LoginHandler {
           detectedInstanceType = 'Angora';
           EVLogger.productionLog('Angora login successful');
         } catch (e) {
-          // Check if error indicates endpoint doesn't exist (404)
+          // Check if error indicates endpoint doesn't exist or wrong API format
+          // 404 means endpoint doesn't exist (should try Classic)
+          // 400 can mean:
+          //   - Wrong endpoint/API format (should try Classic)
+          //   - Invalid credentials (should NOT try Classic, show auth error)
+          // We need to check the error message to distinguish
           final errorStr = e.toString().toLowerCase();
+          
+          // Check for clear endpoint errors (404, route not found, etc.)
           final isEndpointNotFound = 
               errorStr.contains('status code: 404') ||
               errorStr.contains('status code 404') ||
               (errorStr.contains('404') && (errorStr.contains('status') || errorStr.contains('authentication failed'))) ||
               errorStr.contains('not found') ||
+              errorStr.contains('route not found') ||
+              errorStr.contains('endpoint not found') ||
               (e is http.ClientException && (errorStr.contains('failed host lookup') || errorStr.contains('connection refused')));
           
-          if (isEndpointNotFound) {
-            // Endpoint doesn't exist, try Classic
-            EVLogger.productionLog('Angora endpoint not found (404), trying Classic');
+          // Check for 400 errors that indicate wrong endpoint (not auth errors)
+          final is400EndpointError = 
+              (errorStr.contains('status code: 400') || errorStr.contains('status code 400') || errorStr.contains('status: 400')) &&
+              (errorStr.contains('route') || errorStr.contains('endpoint') || errorStr.contains('not found') || errorStr.contains('invalid path'));
+          
+          // Check for auth-related errors (should NOT fall back to Classic)
+          final isAuthError = 
+              errorStr.contains('invalid credentials') ||
+              errorStr.contains('authentication failed') ||
+              errorStr.contains('unauthorized') ||
+              errorStr.contains('invalid email') ||
+              errorStr.contains('invalid password') ||
+              errorStr.contains('user not found') ||
+              errorStr.contains('incorrect password');
+          
+          if (isEndpointNotFound || is400EndpointError) {
+            // Endpoint doesn't exist or wrong API format, try Classic
+            final statusCode = errorStr.contains('400') ? '400' : '404';
+            EVLogger.productionLog('Angora endpoint returned $statusCode (endpoint error), trying Classic');
             if (!baseUrl.endsWith('/alfresco')) {
               baseUrl = '$baseUrl/alfresco';
             }
@@ -114,10 +139,20 @@ class LoginHandler {
               requestFunction: () => classicAuthService.login(username, password)
             );
             detectedInstanceType = 'Classic';
-          } else {
-            // Other error (auth failure, network, etc.) - rethrow as it might be Angora with wrong credentials
-            EVLogger.productionLog('Angora login failed with non-404 error, assuming Angora instance with auth failure');
+          } else if (isAuthError) {
+            // Authentication error - don't fall back, show the error
+            EVLogger.productionLog('Angora login failed with authentication error, not falling back to Classic');
             rethrow;
+          } else {
+            // Unknown error - for 400, be conservative and don't fall back (might be auth issue)
+            // Only fall back for 404 or connection errors
+            if (errorStr.contains('status code: 400') || errorStr.contains('status code 400') || errorStr.contains('status: 400')) {
+              EVLogger.productionLog('Angora login returned 400 (unknown reason), not falling back - might be auth issue');
+              rethrow;
+            } else {
+              EVLogger.productionLog('Angora login failed with unknown error, not falling back');
+              rethrow;
+            }
           }
         }
       } else {

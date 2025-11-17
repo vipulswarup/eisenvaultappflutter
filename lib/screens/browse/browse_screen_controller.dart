@@ -5,8 +5,6 @@ import 'package:eisenvaultappflutter/services/browse/browse_service_factory.dart
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:debounce_throttle/debounce_throttle.dart';
 import 'package:dio/dio.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -343,29 +341,6 @@ class BrowseScreenController extends ChangeNotifier {
     }
   }
 
-  Future<String> _fetchDocumentLibraryId(String siteId) async {
-    // Only call this method for Alfresco/Classic repositories
-    if (instanceType.toLowerCase() == 'angora') {
-      return siteId; // For Angora, just return the site ID itself
-    }
-    
-    final response = await http.get(
-      Uri.parse('$baseUrl/api/-default-/public/alfresco/versions/1/sites/$siteId/containers'),
-      headers: {'Authorization': authToken},
-    );
-
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      
-      for (var entry in data['list']['entries']) {
-        if (entry['entry']['folderId'] == 'documentLibrary') {
-          return entry['entry']['id'];
-        }
-      }
-    }
-
-    throw Exception('Document library not found for site $siteId');
-  }
   
   /// Navigates to a specific folder and loads its contents
   Future<void> navigateToFolder(BrowseItem folder) async {
@@ -455,12 +430,6 @@ class BrowseScreenController extends ChangeNotifier {
     super.dispose();
   }
 
-  // Add this method to ensure permissions are loaded
-  Future<void> _loadItemPermissions(List<BrowseItem> items) async {
-    // This would be implemented if needed, but for now we're relying on
-    // the allowableOperations that should be returned with each item
-    // from the API
-  }
 
   // Add this method to check if an item is available offline
   Future<bool> isItemAvailableOffline(String itemId) async {
@@ -497,10 +466,6 @@ class BrowseScreenController extends ChangeNotifier {
     }
   }
 
-  // Add this helper method to get context
-  BuildContext _getContext() {
-    return scaffoldKey.currentContext ?? context;
-  }
 
   void _initConnectivityListener() {
     _offlineManager.onConnectivityChanged.listen((result) {

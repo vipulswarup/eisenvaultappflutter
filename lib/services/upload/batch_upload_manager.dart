@@ -77,7 +77,7 @@ class BatchUploadManager {
           _updateFileProgress(file.id!, FileUploadStatus.inProgress);
           
           // Call the upload service with progress tracking
-          final result = await uploadService.uploadDocument(
+          await uploadService.uploadDocument(
             parentFolderId: parentFolderId,
             fileName: file.name,
             filePath: file.path,

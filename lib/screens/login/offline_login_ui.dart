@@ -18,7 +18,6 @@ class OfflineLoginUI extends StatefulWidget {
 
 class _OfflineLoginUIState extends State<OfflineLoginUI> {
   OfflineManager? _offlineManager;
-  bool _isLoading = false;
   bool _isInitializing = true;
 
   @override
@@ -135,9 +134,6 @@ class _OfflineLoginUIState extends State<OfflineLoginUI> {
   }
 
   Future<void> _browseOfflineContent(BuildContext context) async {
-    setState(() {
-      _isLoading = true;
-    });
 
     try {
       // Debug: Dump database contents
@@ -188,11 +184,7 @@ class _OfflineLoginUIState extends State<OfflineLoginUI> {
         );
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      // Cleanup if needed
     }
   }
   
@@ -221,10 +213,6 @@ class _OfflineLoginUIState extends State<OfflineLoginUI> {
   }
 
   Future<void> _handleOfflineLogin() async {
-    setState(() {
-      _isLoading = true;
-    });
-
     try {
       final credentials = await _offlineManager!.getSavedCredentials();
       
@@ -259,11 +247,7 @@ class _OfflineLoginUIState extends State<OfflineLoginUI> {
         );
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      // Cleanup if needed
     }
   }
 }

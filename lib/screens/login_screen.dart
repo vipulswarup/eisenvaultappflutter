@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/screens/login/login_form.dart';
 import 'package:eisenvaultappflutter/screens/login/offline_login_ui.dart';
-import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
@@ -18,25 +17,14 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isOfflineMode = false;
   final Connectivity _connectivity = Connectivity();
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
-  late OfflineManager _offlineManager;
   bool _isCheckingConnectivity = false;
   Timer? _debounceTimer;
 
   @override
   void initState() {
     super.initState();
-    _initOfflineManager();
     _checkConnectivity();
     _setupConnectivityListener();
-  }
-
-  Future<void> _initOfflineManager() async {
-    try {
-      _offlineManager = await OfflineManager.createDefault(requireCredentials: false);
-    } catch (e) {
-      EVLogger.error('Failed to initialize offline manager', e);
-      // Don't rethrow - we want to continue even if offline manager fails
-    }
   }
 
   Future<void> _checkConnectivity() async {

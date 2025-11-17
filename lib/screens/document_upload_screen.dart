@@ -10,8 +10,6 @@ import '../services/upload/upload_service_factory.dart';
 
 import '../utils/logger.dart';
 import '../widgets/failed_upload_list.dart';
-import '../services/permission_service.dart';
-import 'dart:io' show Platform;
 
 class DocumentUploadScreen extends StatefulWidget {
   final String repositoryType;
@@ -50,24 +48,9 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
   // File picker method using file_selector package
   Future<void> _pickFiles() async {
     try {
-      // Only check/request permissions on iOS/Android
-      if (!kIsWeb && (Platform.isIOS || Platform.isAndroid)) {
-        final hasPermissions = await PermissionService.checkMediaPermissions();
-        if (!hasPermissions) {
-          // Request permissions
-          final granted = await PermissionService.requestMediaPermissions(context);
-          if (!granted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Media permissions are required to select files'),
-                behavior: SnackBarBehavior.floating,
-                backgroundColor: Colors.red,
-              )
-            );
-            return;
-          }
-        }
-      }
+      // Note: file_selector uses SAF (Storage Access Framework) on Android
+      // and doesn't require storage permissions. The file picker handles
+      // access through the system file picker UI.
 
       // Define accepted file types for documents with proper UTIs for Apple platforms
       final XTypeGroup documentsTypeGroup = XTypeGroup(

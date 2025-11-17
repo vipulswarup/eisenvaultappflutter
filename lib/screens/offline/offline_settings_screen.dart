@@ -3,8 +3,6 @@ import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/services/offline/sync_service.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
-import 'package:path_provider/path_provider.dart';
-import 'dart:io';
 
 /// Screen for managing offline content settings and operations
 class OfflineSettingsScreen extends StatefulWidget {

@@ -156,33 +156,6 @@ class GenericFilePreviewScreen extends StatelessWidget {
     }
   }
 
-  Color _getFileTypeColor() {
-    switch (FileTypeUtils.getFileTypeFromMimeType(mimeType)) {
-      case FileType.spreadsheet:
-        return Colors.green;
-      case FileType.officeDocument:
-      case FileType.openDocument:
-        return Colors.blue;
-      case FileType.text:
-        return Colors.orange;
-      case FileType.pdf:
-        return Colors.red;
-      case FileType.image:
-        return Colors.purple;
-      case FileType.video:
-        return Colors.indigo;
-      case FileType.audio:
-        return Colors.teal;
-      case FileType.cad:
-        return Colors.brown;
-      case FileType.vector:
-        return Colors.pink;
-      case FileType.other:
-      case FileType.unknown:
-        return Colors.grey;
-    }
-  }
-
   Future<void> _openWithExternalApp(BuildContext context) async {
     try {
       if (kIsWeb) {
@@ -252,42 +225,4 @@ class GenericFilePreviewScreen extends StatelessWidget {
     }
   }
 
-  void _handleFileType(FileType fileType) {
-    switch (fileType) {
-      case FileType.pdf:
-        // Handle PDF
-        break;
-      case FileType.image:
-        // Handle image
-        break;
-      case FileType.officeDocument:
-        // Handle office documents
-        break;
-      case FileType.openDocument:
-        // Handle open documents
-        break;
-      case FileType.text:
-        // Handle text files
-        break;
-      case FileType.spreadsheet:
-        // Handle spreadsheets
-        break;
-      case FileType.cad:
-        // Handle CAD files
-        break;
-      case FileType.vector:
-        // Handle vector files
-        break;
-      case FileType.video:
-        // Handle video files
-        break;
-      case FileType.audio:
-        // Handle audio files
-        break;
-      case FileType.other:
-      case FileType.unknown:
-        // Handle unknown files
-        break;
-    }
-  }
 }

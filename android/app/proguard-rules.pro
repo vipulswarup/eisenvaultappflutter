@@ -98,3 +98,111 @@
 
 # Keep custom exceptions
 -keep class * extends java.lang.Exception { *; }
+
+# Flutter Secure Storage
+-keep class com.it_nomads.fluttersecurestorage.** { *; }
+-dontwarn com.it_nomads.fluttersecurestorage.**
+
+# SQLite
+-keep class io.flutter.plugins.flutter.db.** { *; }
+-keep class com.tekartik.sqflite.** { *; }
+-dontwarn com.tekartik.sqflite.**
+
+# Connectivity Plus
+-keep class dev.fluttercommunity.plus.connectivity.** { *; }
+-dontwarn dev.fluttercommunity.plus.connectivity.**
+
+# Permission Handler
+-keep class com.baseflow.permissionhandler.** { *; }
+-dontwarn com.baseflow.permissionhandler.**
+
+# Path Provider
+-keep class io.flutter.plugins.pathprovider.** { *; }
+-dontwarn io.flutter.plugins.pathprovider.**
+
+# Device Info Plus
+-keep class dev.fluttercommunity.plus.device_info.** { *; }
+-dontwarn dev.fluttercommunity.plus.device_info.**
+
+# Package Info Plus
+-keep class io.flutter.plugins.packageinfo.** { *; }
+-dontwarn io.flutter.plugins.packageinfo.**
+
+# Share Plus
+-keep class dev.fluttercommunity.plus.share.** { *; }
+-dontwarn dev.fluttercommunity.plus.share.**
+
+# File Selector
+-keep class io.flutter.plugins.file_selector.** { *; }
+-dontwarn io.flutter.plugins.file_selector.**
+
+# Image Picker
+-keep class io.flutter.plugins.imagepicker.** { *; }
+-dontwarn io.flutter.plugins.imagepicker.**
+
+# AIO Scanner
+-keep class com.aio_scanner.** { *; }
+-dontwarn com.aio_scanner.**
+
+# URL Launcher
+-keep class io.flutter.plugins.urllauncher.** { *; }
+-dontwarn io.flutter.plugins.urllauncher.**
+
+# Open File
+-keep class com.crazecoder.openfile.** { *; }
+-dontwarn com.crazecoder.openfile.**
+
+# Printing
+-keep class net.nfet.printing.** { *; }
+-dontwarn net.nfet.printing.**
+
+# Syncfusion Flutter plugins
+-keep class com.syncfusion.flutter.** { *; }
+-dontwarn com.syncfusion.flutter.**
+
+# Dio HTTP client
+-keep class dio.** { *; }
+-dontwarn dio.**
+-keep class okhttp3.** { *; }
+-dontwarn okhttp3.**
+
+# HTTP package
+-keep class io.flutter.plugins.connectivity.** { *; }
+-dontwarn io.flutter.plugins.connectivity.**
+
+# Kotlin coroutines (used by many plugins)
+-keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
+-keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
+-keepclassmembers class kotlinx.coroutines.** {
+    volatile <fields>;
+}
+-keepclassmembers class kotlin.coroutines.SafeContinuation {
+    volatile <fields>;
+}
+-dontwarn kotlinx.coroutines.**
+
+# Keep Kotlin metadata
+-keepattributes *Annotation*, InnerClasses
+-dontnote kotlinx.serialization.AnnotationsKt
+
+# Keep native method implementations
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
+
+# Keep classes with @Keep annotation
+-keep @androidx.annotation.Keep class *
+-keepclassmembers class * {
+    @androidx.annotation.Keep *;
+}
+
+# Keep all classes in plugin packages that might use reflection
+-keep class io.flutter.plugins.** { *; }
+-keep class dev.fluttercommunity.** { *; }
+-keep class com.baseflow.** { *; }
+-keep class com.tekartik.** { *; }
+-keep class com.it_nomads.** { *; }
+-keep class com.crazecoder.** { *; }
+-keep class net.nfet.** { *; }
+-keep class com.syncfusion.** { *; }
+-keep class com.aio_scanner.** { *; }

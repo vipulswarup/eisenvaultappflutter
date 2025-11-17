@@ -133,13 +133,13 @@ class RenameHandler {
       
       final TextEditingController nameController = TextEditingController(text: item.name);
       
+      bool isRenaming = false;
+      
       await showDialog(
         context: context,
         builder: (dialogContext) {
           return StatefulBuilder(
             builder: (context, setState) {
-              bool isRenaming = false;
-              
               return AlertDialog(
                 backgroundColor: EVColors.cardBackground,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -227,7 +227,7 @@ class RenameHandler {
                   ),
                 ],
               );
-            }
+            },
           );
         },
       );

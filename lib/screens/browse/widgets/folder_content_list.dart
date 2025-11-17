@@ -141,31 +141,24 @@ class _FolderContentListState extends State<FolderContentList> {
   }
   
   Widget _buildSelectableItem(BuildContext context, BrowseItem item, bool isSelected) {
-    return FutureBuilder<bool>(
-      future: widget.isItemAvailableOffline?.call(item.id) ?? Future.value(false),
-      builder: (context, snapshot) {
-        final isAvailableOffline = snapshot.data ?? false;
-        
-        return ListTile(
-          leading: _buildItemIcon(item),
-          title: Text(item.name),
-          subtitle: Text(
-            item.modifiedDate != null 
-                ? 'Modified: ${_formatDate(item.modifiedDate!)}'
-                : item.description ?? '',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          trailing: Checkbox(
-            value: isSelected,
-            onChanged: (value) {
-              widget.onItemSelected?.call(item.id, value ?? false);
-            },
-          ),
-          onTap: () {
-            widget.onItemSelected?.call(item.id, !isSelected);
-          },
-        );
+    return ListTile(
+      leading: _buildItemIcon(item),
+      title: Text(item.name),
+      subtitle: Text(
+        item.modifiedDate != null 
+            ? 'Modified: ${_formatDate(item.modifiedDate!)}'
+            : item.description ?? '',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: Checkbox(
+        value: isSelected,
+        onChanged: (value) {
+          widget.onItemSelected?.call(item.id, value ?? false);
+        },
+      ),
+      onTap: () {
+        widget.onItemSelected?.call(item.id, !isSelected);
       },
     );
   }

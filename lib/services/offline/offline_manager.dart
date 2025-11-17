@@ -719,8 +719,7 @@ class OfflineManager {
   /// Debug function to dump all offline database contents
   Future<void> dumpOfflineDatabase() async {
     try {
-      final allItems = await _database.getAllOfflineItems();
-      
+      await _database.getAllOfflineItems();
     } catch (e) {
       EVLogger.error('Failed to dump offline database', e);
     }

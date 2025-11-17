@@ -36,6 +36,7 @@ class AngoraAuthService extends AngoraBaseService {
       EVLogger.debug('Angora login response', {
         'statusCode': response.statusCode,
         'headers': response.headers.toString(),
+        'body': response.body,
       });
       
       if (response.statusCode == 200) {
@@ -55,18 +56,29 @@ class AngoraAuthService extends AngoraBaseService {
         }
         
         // Extract token from cookie header (Angora sends token in set-cookie header)
+        // Note: HTTP headers are case-insensitive, so check both 'set-cookie' and 'Set-Cookie'
         String? token;
-        final setCookieHeaders = response.headers['set-cookie'];
+        final setCookieHeaders = response.headers['set-cookie'] ?? response.headers['Set-Cookie'];
         if (setCookieHeaders != null) {
+          // Handle multiple set-cookie headers (can be a list or single string)
+          // The http package returns headers as Map<String, String>, so setCookieHeaders is always a String
+          final cookieString = setCookieHeaders.toString();
+          
           // Parse the accessToken from the set-cookie header
           // Format: accessToken=TOKEN_VALUE; Max-Age=...; Path=...; ...
-          final cookieString = setCookieHeaders;
-          final accessTokenMatch = RegExp(r'accessToken=([^;]+)').firstMatch(cookieString);
-          if (accessTokenMatch != null) {
-            token = accessTokenMatch.group(1);
-            EVLogger.debug('Token extracted from cookie', {
-              'tokenLength': token?.length ?? 0,
-            });
+          // Note: If there are multiple cookies, they're comma-separated
+          final cookies = cookieString.split(',');
+          for (final cookie in cookies) {
+            final trimmedCookie = cookie.trim();
+            final accessTokenMatch = RegExp(r'accessToken=([^;]+)').firstMatch(trimmedCookie);
+            if (accessTokenMatch != null) {
+              token = accessTokenMatch.group(1);
+              EVLogger.debug('Token extracted from cookie', {
+                'tokenLength': token?.length ?? 0,
+                'cookiePreview': trimmedCookie.length > 50 ? trimmedCookie.substring(0, 50) : trimmedCookie,
+              });
+              break;
+            }
           }
         }
         
@@ -112,7 +124,28 @@ class AngoraAuthService extends AngoraBaseService {
         };
       }
     
-      throw Exception('Authentication failed with status code: ${response.statusCode}');
+      // For non-200 responses, include response body in error for better debugging
+      String errorMessage = 'Authentication failed with status code: ${response.statusCode}';
+      try {
+        final errorData = jsonDecode(response.body);
+        if (errorData is Map && errorData.containsKey('message')) {
+          errorMessage = '${errorData['message']} (status: ${response.statusCode})';
+        } else if (errorData is Map && errorData.containsKey('error')) {
+          errorMessage = '${errorData['error']} (status: ${response.statusCode})';
+        }
+        EVLogger.error('Angora login error response', {
+          'statusCode': response.statusCode,
+          'body': response.body,
+          'parsedError': errorData,
+        });
+      } catch (e) {
+        EVLogger.error('Angora login error (could not parse response)', {
+          'statusCode': response.statusCode,
+          'body': response.body,
+        });
+      }
+      
+      throw Exception(errorMessage);
     } catch (e, stackTrace) {
       EVLogger.error('Login failed', e, stackTrace);
       throw Exception('Login failed: $e');

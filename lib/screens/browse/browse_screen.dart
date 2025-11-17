@@ -6,7 +6,6 @@ import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/screens/browse/browse_screen_controller.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/auth_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/batch_delete_handler.dart';
-import 'package:eisenvaultappflutter/screens/browse/handlers/batch_offline_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/delete_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/rename_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/file_tap_handler.dart';
@@ -26,12 +25,10 @@ import 'package:provider/provider.dart';
 import 'package:eisenvaultappflutter/screens/document_upload_screen.dart';
 import 'package:eisenvaultappflutter/screens/browse/components/action_button_builder.dart';
 import 'package:http/http.dart' as http;
-import 'package:eisenvaultappflutter/services/browse/browse_service_factory.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:eisenvaultappflutter/services/upload/upload_service_factory.dart';
 import 'package:eisenvaultappflutter/services/permission_service.dart';
 import 'dart:io' show Platform;
-import 'package:eisenvaultappflutter/models/upload/batch_upload_models.dart';
 import 'package:aio_scanner/aio_scanner.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -135,8 +132,6 @@ class _BrowseScreenState extends State<BrowseScreen> {
   //a stream subscription to listen to connectivity changes
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
-  // Show/hide download indicator
-  final bool _showDownloadIndicator = true;
 
   BrowseScreenController? _controller;
   late FileTapHandler _fileTapHandler;
@@ -146,7 +141,6 @@ class _BrowseScreenState extends State<BrowseScreen> {
   late RenameHandler _renameHandler;
   late RenameService _renameService;
   late BatchDeleteHandler _batchDeleteHandler;
-  late BatchOfflineHandler _batchOfflineHandler;
   late UploadNavigationHandler _uploadHandler;
   late SearchNavigationHandler _searchHandler;
 
@@ -173,8 +167,6 @@ class _BrowseScreenState extends State<BrowseScreen> {
     }
   }
 
-  // Add a debounce flag
-  final bool _navigatingToOffline = false;
 
   void _setupConnectivityListener() {
     _connectivitySubscription = _connectivity.onConnectivityChanged.listen(_updateConnectionStatus);
@@ -295,23 +287,12 @@ class _BrowseScreenState extends State<BrowseScreen> {
       },
     );
 
-    _batchOfflineHandler = BatchOfflineHandler(
-      context: context,
-      instanceType: widget.instanceType,
-      baseUrl: widget.baseUrl,
-      authToken: widget.authToken,
-      offlineManager: _offlineManager!,
-      getSelectedItems: () => _controller?.items.where((item) => _selectedItems.contains(item.id)).toList() ?? [],
-      onOfflineSuccess: () {
-        _refreshCurrentFolder();
-      },
-    );
-
     _fileTapHandler = FileTapHandler(
       context: context,
       instanceType: widget.instanceType,
       baseUrl: widget.baseUrl,
       authToken: widget.authToken,
+      angoraBaseService: _controller!.angoraBaseService,
     );
 
     _authHandler = AuthHandler(
@@ -712,11 +693,6 @@ class _BrowseScreenState extends State<BrowseScreen> {
     final currentFolder = _controller?.currentFolder;
     if (currentFolder == null) return;
     try {
-      final browseService = BrowseServiceFactory.getService(
-        widget.instanceType,
-        widget.baseUrl,
-        widget.authToken,
-      );
       // Angora and Classic APIs differ, so handle both
       if (widget.instanceType.toLowerCase() == 'angora') {
         // POST /folders for Angora
@@ -828,10 +804,6 @@ class _BrowseScreenState extends State<BrowseScreen> {
       if (Platform.isIOS && uploadName.startsWith('image_picker_')) {
         uploadName = uploadName.replaceFirst('image_picker_', 'ios_camera_');
       }
-      final fileItem = UploadFileItem(
-        name: uploadName,
-        path: image.path,
-      );
       final uploadService = UploadServiceFactory.getService(
         instanceType: widget.instanceType,
         baseUrl: widget.baseUrl,
@@ -1171,7 +1143,6 @@ class _BrowseScreenState extends State<BrowseScreen> {
       final sdkVersion = androidInfo.version.sdkInt;
 
       final bool isAndroid13OrHigher = sdkVersion >= 33; // SDK 33 = Android 13
-      final bool isAndroid10OrHigher = sdkVersion >= 29; // SDK 29 = Android 10
 
       // Request camera permission
       final cameraStatus = await Permission.camera.request();
