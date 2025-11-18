@@ -28,7 +28,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   std::wstring commandLine(command_line);
   if (commandLine.find(L"eisenvault://") != std::wstring::npos) {
     // This is a context menu launch, add the URL as an argument
-    command_line_arguments.push_back(Utf8FromUtf16(commandLine));
+    command_line_arguments.push_back(Utf8FromUtf16(commandLine.c_str()));
   }
 
   project.set_dart_entrypoint_arguments(std::move(command_line_arguments));

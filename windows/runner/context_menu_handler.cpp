@@ -53,7 +53,7 @@ bool RegisterContextMenu() {
     if (result == ERROR_SUCCESS) {
         RegSetValueExW(hKey, NULL, 0, REG_SZ, 
                       (const BYTE*)L"Upload to EisenVault", 
-                      (wcslen(L"Upload to EisenVault") + 1) * sizeof(wchar_t));
+                      static_cast<DWORD>((wcslen(L"Upload to EisenVault") + 1) * sizeof(wchar_t)));
         RegCloseKey(hKey);
         
         // Set command
@@ -62,7 +62,7 @@ bool RegisterContextMenu() {
         if (result == ERROR_SUCCESS) {
             RegSetValueExW(hKey, NULL, 0, REG_SZ, 
                           (const BYTE*)command.c_str(), 
-                          (command.length() + 1) * sizeof(wchar_t));
+                          static_cast<DWORD>((command.length() + 1) * sizeof(wchar_t)));
             RegCloseKey(hKey);
         }
     }
@@ -73,7 +73,7 @@ bool RegisterContextMenu() {
     if (result == ERROR_SUCCESS) {
         RegSetValueExW(hKey, NULL, 0, REG_SZ, 
                       (const BYTE*)L"Upload to EisenVault", 
-                      (wcslen(L"Upload to EisenVault") + 1) * sizeof(wchar_t));
+                      static_cast<DWORD>((wcslen(L"Upload to EisenVault") + 1) * sizeof(wchar_t)));
         RegCloseKey(hKey);
         
         // Set command
@@ -82,7 +82,7 @@ bool RegisterContextMenu() {
         if (result == ERROR_SUCCESS) {
             RegSetValueExW(hKey, NULL, 0, REG_SZ, 
                           (const BYTE*)command.c_str(), 
-                          (command.length() + 1) * sizeof(wchar_t));
+                          static_cast<DWORD>((command.length() + 1) * sizeof(wchar_t)));
             RegCloseKey(hKey);
         }
     }
