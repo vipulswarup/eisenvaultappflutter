@@ -17,7 +17,7 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace = "com.eisenvault.eisenvaultappflutter"
     compileSdk = 36
-    ndkVersion = "27.0.12077973"
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -32,8 +32,13 @@ android {
         applicationId = "com.eisenvault"
         minSdk = 24 // Android 7.0 (Nougat)
         targetSdk = 35 // Android 15
-        versionCode = 110
-        versionName = "1.0.10"
+        versionCode = 113
+        versionName = "1.1.3"
+        externalNativeBuild {
+            cmake {
+                arguments("-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON")
+            }
+        }
     }
 
     signingConfigs {
@@ -50,6 +55,18 @@ android {
             signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro")
+        }
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = false
+            // Exclude Google ML Kit libraries that don't support 16KB page sizes
+            excludes += listOf(
+                "**/libimage_processing_util_jni.so",
+                "**/libbarhopper_v3.so",
+                "**/libmlkit_google_ocr_pipeline.so"
+            )
         }
     }
 }

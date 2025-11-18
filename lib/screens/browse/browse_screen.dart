@@ -29,7 +29,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:eisenvaultappflutter/services/upload/upload_service_factory.dart';
 import 'package:eisenvaultappflutter/services/permission_service.dart';
 import 'dart:io' show Platform;
-import 'package:aio_scanner/aio_scanner.dart';
+// Temporarily disabled on Android due to 16KB page size compliance issue with Google ML Kit
+// import 'package:aio_scanner/aio_scanner.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -844,6 +845,17 @@ class _BrowseScreenState extends State<BrowseScreen> {
     // Only run on mobile
     if (!(Platform.isAndroid || Platform.isIOS)) return;
     
+    // Temporarily disabled on Android due to 16KB page size compliance issue with Google ML Kit
+    if (Platform.isAndroid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Document scanning is temporarily disabled on Android. Please use the camera or gallery options instead.'),
+          backgroundColor: EVColors.statusWarning,
+        ),
+      );
+      return;
+    }
+    
     // Detect iOS simulator
     bool isIOSSimulator = false;
     try {
@@ -860,6 +872,8 @@ class _BrowseScreenState extends State<BrowseScreen> {
       return;
     }
 
+    // Temporarily disabled - uncomment when Google ML Kit supports 16KB page sizes
+    /*
     try {
       // Check if document scanning is supported
       if (!await AioScanner.isDocumentScanningSupported()) {
@@ -969,8 +983,12 @@ class _BrowseScreenState extends State<BrowseScreen> {
         ),
       );
     }
+    */
   }
 
+  // Temporarily disabled - uncomment when Google ML Kit supports 16KB page sizes
+  // These helper functions are commented out because they depend on aio_scanner types
+  /*
   Future<ScanOptions?> _showScanOptionsDialog() async {
     ScanOutputFormat selectedFormat = ScanOutputFormat.image;
     bool mergePDF = false;
@@ -1171,6 +1189,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
     // iOS permissions are requested automatically when using the scanner
     return true;
   }
+  */
 
   void _handleUploadFromGallery() async {
     // Only run on mobile
@@ -1229,6 +1248,8 @@ class _BrowseScreenState extends State<BrowseScreen> {
   }
 }
 
+// Temporarily disabled - uncomment when Google ML Kit supports 16KB page sizes
+/*
 class ScanOptions {
   final ScanOutputFormat outputFormat;
   final int maxPages;
@@ -1240,3 +1261,4 @@ class ScanOptions {
     required this.mergePDF,
   });
 }
+*/
