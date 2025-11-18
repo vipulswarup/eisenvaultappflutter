@@ -7,10 +7,8 @@
   </application>
   <file xmlns="urn:schemas-microsoft-com:asm.v1">
     <fileAssociation>
-      <fileAssociation>
-        <extension name="eisenvault" />
-        <progid>EisenVault.Upload</progid>
-      </fileAssociation>
+      <extension name="eisenvault" />
+      <progid>EisenVault.Upload</progid>
     </fileAssociation>
   </file>
   <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
