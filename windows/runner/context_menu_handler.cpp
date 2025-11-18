@@ -1,6 +1,5 @@
-#include <windows.h>
+#include "context_menu_handler.h"
 #include <shlobj.h>
-#include <string>
 #include <vector>
 #include <sstream>
 
