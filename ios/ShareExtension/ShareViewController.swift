@@ -37,6 +37,7 @@ class ShareViewController: UIViewController {
     private var availableFolders: [(id: String, name: String)] = []
     private var navigationStack: [(id: String, name: String)] = []
     private var currentFolderId: String? = nil
+    private var currentIsDepartment: Bool = false
     private var sites: [(id: String, name: String)] = []
     private var folders: [(id: String, name: String)] = []
     private var selectedIndexPath: IndexPath? = nil
@@ -330,12 +331,24 @@ class ShareViewController: UIViewController {
             navigationStack.removeLast()
             let previousLevel = navigationStack.last!
             currentFolderId = previousLevel.id
+            
+            // Reset department flag when going back
+            if let userDefaults = UserDefaults(suiteName: "group.com.eisenvault.eisenvaultappflutter"),
+               let instanceType = userDefaults.string(forKey: "DMSInstanceType"),
+               instanceType.lowercased() == "angora" {
+                // Check if we're going back to root (departments)
+                currentIsDepartment = (navigationStack.count == 1)
+            } else {
+                currentIsDepartment = false
+            }
+            
             breadcrumbLabel.text = previousLevel.name
             loadFoldersForCurrentLevel()
         } else {
             // Go back to sites/departments
             navigationStack.removeAll()
             currentFolderId = nil
+            currentIsDepartment = false
             breadcrumbLabel.text = "Select destination..."
             loadSites()
         }
@@ -411,16 +424,9 @@ class ShareViewController: UIViewController {
             return
         }
         
-        // Check permissions first
-        checkCreatePermission(for: parentId, baseUrl: baseUrl, authToken: authToken, instanceType: instanceType) { [weak self] hasPermission in
-            DispatchQueue.main.async {
-                if hasPermission {
-                    self?.createFolderInDMS(name: name, parentId: parentId, baseUrl: baseUrl, authToken: authToken, instanceType: instanceType)
-                } else {
-                    self?.showAlert(title: "Permission Denied", message: "You don't have permission to create folders in this location.")
-                }
-            }
-        }
+        // Try to create folder directly - API will return error if permissions are insufficient
+        // This matches the main app's behavior
+        createFolderInDMS(name: name, parentId: parentId, baseUrl: baseUrl, authToken: authToken, instanceType: instanceType)
     }
     
     private func checkCreatePermission(for nodeId: String, baseUrl: String, authToken: String, instanceType: String, completion: @escaping (Bool) -> Void) {
@@ -437,6 +443,8 @@ class ShareViewController: UIViewController {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue(authToken, forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("en", forHTTPHeaderField: "Accept-Language")
         
         if instanceType.lowercased() == "angora" {
             request.setValue("web", forHTTPHeaderField: "x-portal")
@@ -499,10 +507,13 @@ class ShareViewController: UIViewController {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("en", forHTTPHeaderField: "Accept-Language")
         request.setValue(authToken, forHTTPHeaderField: "Authorization")
         
         if instanceType.lowercased() == "angora" {
             request.setValue("web", forHTTPHeaderField: "x-portal")
+            request.setValue("service-file", forHTTPHeaderField: "x-service-name")
             if let customerHostname = UserDefaults(suiteName: "group.com.eisenvault.eisenvaultappflutter")?.string(forKey: "DMSCustomerHostname") {
                 request.setValue(customerHostname, forHTTPHeaderField: "x-customer-hostname")
             }
@@ -515,19 +526,38 @@ class ShareViewController: UIViewController {
             return
         }
         
+        print("🔍 DEBUG: Creating folder '\(name)' in \(instanceType) instance")
+        print("🔍 DEBUG: URL: \(url.absoluteString)")
+        print("🔍 DEBUG: Request body: \(requestBody)")
+        
         URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             DispatchQueue.main.async {
+                if let error = error {
+                    print("🔍 DEBUG: Folder creation error: \(error)")
+                    self?.showAlert(title: "Error", message: "Failed to create folder: \(error.localizedDescription)")
+                    return
+                }
+                
                 if let httpResponse = response as? HTTPURLResponse {
-                    if httpResponse.statusCode == 201 {
+                    print("🔍 DEBUG: Folder creation HTTP Response status: \(httpResponse.statusCode)")
+                    
+                    if let data = data, let responseString = String(data: data, encoding: .utf8) {
+                        print("🔍 DEBUG: Folder creation response: \(responseString)")
+                    }
+                    
+                    if httpResponse.statusCode == 200 || httpResponse.statusCode == 201 {
+                        print("🔍 DEBUG: Folder '\(name)' created successfully!")
                         self?.showAlert(title: "Success", message: "Folder '\(name)' created successfully!")
                         // Refresh the current folder to show the new folder
                         self?.loadFoldersForCurrentLevel()
                     } else {
                         let errorMessage = String(data: data ?? Data(), encoding: .utf8) ?? "Unknown error"
-                        self?.showAlert(title: "Error", message: "Failed to create folder: \(errorMessage)")
+                        print("🔍 DEBUG: Folder creation failed: \(errorMessage)")
+                        self?.showAlert(title: "Error", message: "Failed to create folder (Status: \(httpResponse.statusCode)): \(errorMessage)")
                     }
                 } else {
-                    self?.showAlert(title: "Error", message: "Failed to create folder: \(error?.localizedDescription ?? "Unknown error")")
+                    print("🔍 DEBUG: No HTTP response received for folder creation")
+                    self?.showAlert(title: "Error", message: "Failed to create folder: No response from server")
                 }
             }
         }.resume()
@@ -573,13 +603,7 @@ class ShareViewController: UIViewController {
             return
         }
         
-        // Only handle Classic DMS for now
-        guard instanceType.lowercased() == "classic" else {
-            print("🔍 DEBUG: Only Classic DMS supported for upload")
-            statusLabel.text = "Error: Only Classic DMS supported"
-            statusLabel.textColor = UIColor.red
-                        return
-                    }
+        print("🔍 DEBUG: Starting upload to \(instanceType) instance")
                     
         statusLabel.text = "Preparing files..."
         progressView.progress = 0.0
@@ -676,11 +700,111 @@ class ShareViewController: UIViewController {
         
         print("🔍 DEBUG: Uploading file: \(fileName) (\(uploadData.count) bytes)")
         
-        // Create upload URL for Classic DMS
-        let uploadUrlString = "\(baseUrl)/api/-default-/public/alfresco/versions/1/nodes/\(selectedFolderId)/children"
+        // Determine instance type
+        guard let userDefaults = UserDefaults(suiteName: "group.com.eisenvault.eisenvaultappflutter"),
+              let instanceType = userDefaults.string(forKey: "DMSInstanceType") else {
+            print("🔍 DEBUG: Cannot determine instance type")
+            completion(false)
+            return
+        }
+        
+        let isAngora = instanceType.lowercased() == "angora"
+        
+        if isAngora {
+            // Upload to Angora
+            uploadToAngora(fileName: fileName, fileData: uploadData, baseUrl: baseUrl, authToken: authToken, parentFolderId: selectedFolderId, completion: completion)
+        } else {
+            // Upload to Classic DMS
+            uploadToClassic(fileName: fileName, fileData: uploadData, baseUrl: baseUrl, authToken: authToken, parentFolderId: selectedFolderId, completion: completion)
+        }
+    }
+    
+    private func uploadToAngora(fileName: String, fileData: Data, baseUrl: String, authToken: String, parentFolderId: String, completion: @escaping (Bool) -> Void) {
+        let uploadUrlString = "\(baseUrl)/api/uploads"
         
         guard let uploadUrl = URL(string: uploadUrlString) else {
-            print("🔍 DEBUG: Invalid upload URL: \(uploadUrlString)")
+            print("🔍 DEBUG: Invalid Angora upload URL: \(uploadUrlString)")
+            completion(false)
+            return
+        }
+        
+        // Generate a unique file ID (simplified version - in production, use proper UUID)
+        let fileId = UUID().uuidString
+        
+        // Create multipart form data
+        let boundary = "Boundary-\(UUID().uuidString)"
+        var body = Data()
+        
+        // Add file data
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(fileName)\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: application/octet-stream\r\n\r\n".data(using: .utf8)!)
+        body.append(fileData)
+        body.append("\r\n".data(using: .utf8)!)
+        
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        
+        // Create request
+        var request = URLRequest(url: uploadUrl)
+        request.httpMethod = "POST"
+        request.setValue(authToken, forHTTPHeaderField: "Authorization")
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("en", forHTTPHeaderField: "Accept-Language")
+        request.setValue("web", forHTTPHeaderField: "x-portal")
+        request.setValue("service-file", forHTTPHeaderField: "x-service-name")
+        request.setValue(fileId, forHTTPHeaderField: "x-file-id")
+        request.setValue(fileName, forHTTPHeaderField: "x-file-name")
+        request.setValue("0", forHTTPHeaderField: "x-start-byte")
+        request.setValue("\(fileData.count)", forHTTPHeaderField: "x-file-size")
+        request.setValue("true", forHTTPHeaderField: "x-resumable")
+        request.setValue("", forHTTPHeaderField: "x-relative-path")
+        request.setValue(parentFolderId, forHTTPHeaderField: "x-parent-id")
+        
+        if let customerHostname = UserDefaults(suiteName: "group.com.eisenvault.eisenvaultappflutter")?.string(forKey: "DMSCustomerHostname") {
+            request.setValue(customerHostname, forHTTPHeaderField: "x-customer-hostname")
+        }
+        
+        request.setValue("\(body.count)", forHTTPHeaderField: "Content-Length")
+        request.httpBody = body
+        
+        print("🔍 DEBUG: Uploading to Angora: \(uploadUrlString)")
+        print("🔍 DEBUG: Headers: x-file-id=\(fileId), x-parent-id=\(parentFolderId), x-file-size=\(fileData.count)")
+        
+        // Perform upload
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                print("🔍 DEBUG: Angora upload error: \(error)")
+                completion(false)
+                return
+            }
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("🔍 DEBUG: Angora upload response status: \(httpResponse.statusCode)")
+                
+                if httpResponse.statusCode == 201 || httpResponse.statusCode == 200 {
+                    print("🔍 DEBUG: File uploaded successfully to Angora: \(fileName)")
+                    completion(true)
+                } else {
+                    print("🔍 DEBUG: Angora upload failed with status: \(httpResponse.statusCode)")
+                    if let data = data, let responseString = String(data: data, encoding: .utf8) {
+                        print("🔍 DEBUG: Angora upload response: \(responseString)")
+                    }
+                    completion(false)
+                }
+            } else {
+                print("🔍 DEBUG: No HTTP response received for Angora upload")
+                completion(false)
+            }
+        }.resume()
+    }
+    
+    private func uploadToClassic(fileName: String, fileData: Data, baseUrl: String, authToken: String, parentFolderId: String, completion: @escaping (Bool) -> Void) {
+        // Create upload URL for Classic DMS
+        let uploadUrlString = "\(baseUrl)/api/-default-/public/alfresco/versions/1/nodes/\(parentFolderId)/children"
+        
+        guard let uploadUrl = URL(string: uploadUrlString) else {
+            print("🔍 DEBUG: Invalid Classic upload URL: \(uploadUrlString)")
             completion(false)
             return
         }
@@ -693,13 +817,13 @@ class ShareViewController: UIViewController {
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
         body.append("Content-Disposition: form-data; name=\"filedata\"; filename=\"\(fileName)\"\r\n".data(using: .utf8)!)
         body.append("Content-Type: application/octet-stream\r\n\r\n".data(using: .utf8)!)
-        body.append(uploadData)
+        body.append(fileData)
         body.append("\r\n".data(using: .utf8)!)
         
         // Add other required fields
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
         body.append("Content-Disposition: form-data; name=\"destination\"\r\n\r\n".data(using: .utf8)!)
-        body.append("workspace://SpacesStore/\(selectedFolderId)\r\n".data(using: .utf8)!)
+        body.append("workspace://SpacesStore/\(parentFolderId)\r\n".data(using: .utf8)!)
         
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
         body.append("Content-Disposition: form-data; name=\"upload-directory\"\r\n\r\n".data(using: .utf8)!)
@@ -712,32 +836,35 @@ class ShareViewController: UIViewController {
         request.httpMethod = "POST"
         request.setValue(authToken, forHTTPHeaderField: "Authorization")
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.setValue("en", forHTTPHeaderField: "Accept-Language")
         request.setValue("\(body.count)", forHTTPHeaderField: "Content-Length")
         request.httpBody = body
+        
+        print("🔍 DEBUG: Uploading to Classic: \(uploadUrlString)")
         
         // Perform upload
         URLSession.shared.dataTask(with: request) { data, response, error in
             if let error = error {
-                print("🔍 DEBUG: Upload error: \(error)")
+                print("🔍 DEBUG: Classic upload error: \(error)")
                 completion(false)
                 return
             }
             
             if let httpResponse = response as? HTTPURLResponse {
-                print("🔍 DEBUG: Upload response status: \(httpResponse.statusCode)")
+                print("🔍 DEBUG: Classic upload response status: \(httpResponse.statusCode)")
                 
                 if httpResponse.statusCode == 201 || httpResponse.statusCode == 200 {
-                    print("🔍 DEBUG: File uploaded successfully: \(fileName)")
+                    print("🔍 DEBUG: File uploaded successfully to Classic: \(fileName)")
                     completion(true)
                 } else {
-                    print("🔍 DEBUG: Upload failed with status: \(httpResponse.statusCode)")
+                    print("🔍 DEBUG: Classic upload failed with status: \(httpResponse.statusCode)")
                     if let data = data, let responseString = String(data: data, encoding: .utf8) {
-                        print("🔍 DEBUG: Upload response: \(responseString)")
+                        print("🔍 DEBUG: Classic upload response: \(responseString)")
                     }
                     completion(false)
                 }
             } else {
-                print("🔍 DEBUG: No HTTP response received")
+                print("🔍 DEBUG: No HTTP response received for Classic upload")
                 completion(false)
             }
         }.resume()
@@ -777,124 +904,260 @@ class ShareViewController: UIViewController {
     
     // MARK: - DMS Integration
     private func loadDMSSettings() {
+        print("🔍 DEBUG: ========== LOAD DMS SETTINGS START ==========")
         guard let userDefaults = UserDefaults(suiteName: "group.com.eisenvault.eisenvaultappflutter") else {
-            print("🔍 DEBUG: Failed to access App Groups UserDefaults")
-            loadDefaultFolders()
+            print("🔍 DEBUG: ❌ Failed to access App Groups UserDefaults")
+            showCredentialsNotFoundError()
             return
         }
         
+        print("🔍 DEBUG: ✅ Successfully accessed App Groups UserDefaults")
         print("🔍 DEBUG: Checking App Groups for DMS credentials...")
         
         // Load DMS credentials and settings from App Groups
-        if let baseUrl = userDefaults.string(forKey: "DMSBaseUrl"),
-           let authToken = userDefaults.string(forKey: "DMSAuthToken"),
-           let instanceType = userDefaults.string(forKey: "DMSInstanceType") {
+        let baseUrl = userDefaults.string(forKey: "DMSBaseUrl")
+        let authToken = userDefaults.string(forKey: "DMSAuthToken")
+        let instanceType = userDefaults.string(forKey: "DMSInstanceType")
+        let customerHostname = userDefaults.string(forKey: "DMSCustomerHostname")
+        
+        print("🔍 DEBUG: DMSBaseUrl: \(baseUrl ?? "nil")")
+        print("🔍 DEBUG: DMSAuthToken: \(authToken != nil ? "Present (\(authToken!.count) chars)" : "nil")")
+        print("🔍 DEBUG: DMSInstanceType: \(instanceType ?? "nil")")
+        print("🔍 DEBUG: DMSCustomerHostname: \(customerHostname ?? "nil")")
+        
+        if let baseUrl = baseUrl,
+           let authToken = authToken,
+           let instanceType = instanceType {
             
-            print("🔍 DEBUG: Found DMS credentials - BaseURL: \(baseUrl), InstanceType: \(instanceType)")
+            print("🔍 DEBUG: ✅ Found all DMS credentials")
+            print("🔍 DEBUG: BaseURL: \(baseUrl)")
+            print("🔍 DEBUG: InstanceType: \(instanceType)")
             print("🔍 DEBUG: AuthToken length: \(authToken.count) characters")
             loadDMSFolders(baseUrl: baseUrl, authToken: authToken, instanceType: instanceType)
         } else {
-            print("🔍 DEBUG: No DMS settings found in App Groups")
-            print("🔍 DEBUG: Available keys: \(userDefaults.dictionaryRepresentation().keys)")
-            loadDefaultFolders()
+            print("🔍 DEBUG: ❌ Missing DMS credentials")
+            print("🔍 DEBUG: Available keys in UserDefaults: \(Array(userDefaults.dictionaryRepresentation().keys).sorted())")
+            showCredentialsNotFoundError()
         }
+        print("🔍 DEBUG: ========== LOAD DMS SETTINGS END ==========")
     }
     
     private func loadDMSFolders(baseUrl: String, authToken: String, instanceType: String) {
-        // Create URL for fetching folders
+        print("🔍 DEBUG: ========== LOAD DMS FOLDERS START ==========")
+        print("🔍 DEBUG: Instance Type: \(instanceType)")
+        print("🔍 DEBUG: Base URL: \(baseUrl)")
+        
+        // Create URL for fetching folders/departments
         let urlString: String
         if instanceType.lowercased() == "angora" {
-            urlString = "\(baseUrl)/api/folders"
+            // Angora: Get departments (root level)
+            urlString = "\(baseUrl)/api/departments?slim=true"
+            print("🔍 DEBUG: ✅ Using Angora endpoint: \(urlString)")
         } else {
             // Classic/Alfresco - get sites first, then document libraries
             urlString = "\(baseUrl)/api/-default-/public/alfresco/versions/1/sites"
+            print("🔍 DEBUG: ✅ Using Classic endpoint: \(urlString)")
         }
         
         guard let url = URL(string: urlString) else {
-            print("🔍 DEBUG: Invalid URL: \(urlString)")
-            loadDefaultFolders()
+            print("🔍 DEBUG: ❌ Invalid URL: \(urlString)")
+            showAPIError(message: "Invalid server URL. Please check your settings.")
             return
         }
         
         var request = URLRequest(url: url)
         request.setValue(authToken, forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("en", forHTTPHeaderField: "Accept-Language")
         
         if instanceType.lowercased() == "angora" {
             request.setValue("web", forHTTPHeaderField: "x-portal")
+            request.setValue("service-file", forHTTPHeaderField: "x-service-name")
             if let customerHostname = UserDefaults(suiteName: "group.com.eisenvault.eisenvaultappflutter")?.string(forKey: "DMSCustomerHostname") {
                 request.setValue(customerHostname, forHTTPHeaderField: "x-customer-hostname")
+                print("🔍 DEBUG: ✅ Added x-customer-hostname: \(customerHostname)")
+            } else {
+                print("🔍 DEBUG: ⚠️ No customer hostname found")
             }
+            print("🔍 DEBUG: ✅ Added headers: x-portal=web, x-service-name=service-file, Accept-Language=en")
         }
         
         print("🔍 DEBUG: Making network request to: \(urlString)")
+        print("🔍 DEBUG: Request headers:")
+        print("🔍 DEBUG:   Authorization: \(authToken.prefix(20))...")
+        print("🔍 DEBUG:   Content-Type: application/json")
+        print("🔍 DEBUG:   Accept: application/json")
+        print("🔍 DEBUG:   Accept-Language: en")
+        if instanceType.lowercased() == "angora" {
+            print("🔍 DEBUG:   x-portal: web")
+            print("🔍 DEBUG:   x-service-name: service-file")
+        }
         
         URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             DispatchQueue.main.async {
+                print("🔍 DEBUG: ========== NETWORK RESPONSE RECEIVED ==========")
+                
                 if let error = error {
-                    print("🔍 DEBUG: Error loading DMS folders: \(error)")
-                    self?.loadDefaultFolders()
+                    print("🔍 DEBUG: ❌ Network error: \(error.localizedDescription)")
+                    print("🔍 DEBUG: Error details: \(error)")
+                    self?.showAPIError(message: "Failed to connect to server. Please check your internet connection and try again.")
                     return
                 }
                 
                 if let httpResponse = response as? HTTPURLResponse {
                     print("🔍 DEBUG: HTTP Response status: \(httpResponse.statusCode)")
-                }
-                
-                guard let data = data else {
-                    print("🔍 DEBUG: No data received")
-                    self?.loadDefaultFolders()
+                    print("🔍 DEBUG: Response headers: \(httpResponse.allHeaderFields)")
+                    
+                    // Handle 401 Unauthorized - token may have expired
+                    if httpResponse.statusCode == 401 {
+                        print("🔍 DEBUG: ❌ 401 Unauthorized - authentication failed")
+                        if let data = data, let responseString = String(data: data, encoding: .utf8) {
+                            print("🔍 DEBUG: Response body: \(responseString)")
+                        }
+                        self?.showAPIError(message: "Session expired. Please log in to EisenVault app again.")
                         return
                     }
                     
-                print("🔍 DEBUG: Received \(data.count) bytes of data")
+                    // Handle other error status codes
+                    if httpResponse.statusCode < 200 || httpResponse.statusCode >= 300 {
+                        print("🔍 DEBUG: ❌ HTTP error status: \(httpResponse.statusCode)")
+                        if let data = data, let responseString = String(data: data, encoding: .utf8) {
+                            print("🔍 DEBUG: Response body: \(responseString)")
+                        }
+                        
+                        // Provide more specific error messages based on status code
+                        let errorMessage: String
+                        switch httpResponse.statusCode {
+                        case 400:
+                            errorMessage = "Invalid request. Please check your settings and try again."
+                        case 403:
+                            errorMessage = "Access denied. Please check your permissions."
+                        case 404:
+                            errorMessage = "Server endpoint not found. Please check your server URL."
+                        case 500...599:
+                            errorMessage = "Server error. Please try again later."
+                        default:
+                            errorMessage = "Failed to load folders (HTTP \(httpResponse.statusCode)). Please try again later."
+                        }
+                        self?.showAPIError(message: errorMessage)
+                        return
+                    }
+                } else {
+                    print("🔍 DEBUG: ⚠️ No HTTP response received")
+                }
+                
+                guard let data = data else {
+                    print("🔍 DEBUG: ❌ No data received")
+                    self?.showAPIError(message: "No data received from server. Please try again.")
+                    return
+                }
+                    
+                print("🔍 DEBUG: ✅ Received \(data.count) bytes of data")
+                
+                // Log raw response for debugging
+                if let responseString = String(data: data, encoding: .utf8) {
+                    print("🔍 DEBUG: Raw response (first 500 chars): \(String(responseString.prefix(500)))")
+                }
                 
                 do {
                     if instanceType.lowercased() == "angora" {
+                        print("🔍 DEBUG: Parsing as Angora response...")
                         self?.parseAngoraFolders(data: data)
                     } else {
+                        print("🔍 DEBUG: Parsing as Classic response...")
                         self?.parseClassicSites(data: data, baseUrl: baseUrl, authToken: authToken)
                     }
-            } catch {
-                    print("🔍 DEBUG: Error parsing DMS response: \(error)")
-                    self?.loadDefaultFolders()
+                } catch {
+                    print("🔍 DEBUG: ❌ Error parsing DMS response: \(error)")
+                    print("🔍 DEBUG: Error details: \(error.localizedDescription)")
+                    self?.showAPIError(message: "Failed to parse server response. Please try again.")
                 }
+                
+                print("🔍 DEBUG: ========== NETWORK RESPONSE PROCESSED ==========")
             }
         }.resume()
+        print("🔍 DEBUG: Network request initiated")
+        print("🔍 DEBUG: ========== LOAD DMS FOLDERS END ==========")
     }
     
     private func parseAngoraFolders(data: Data) {
+        print("🔍 DEBUG: ========== PARSE ANGORA FOLDERS START ==========")
         do {
-            print("🔍 DEBUG: Parsing Angora folders response...")
+            print("🔍 DEBUG: Parsing Angora departments response...")
             if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                print("🔍 DEBUG: JSON keys: \(json.keys)")
-                if let folders = json["folders"] as? [[String: Any]] {
-                    print("🔍 DEBUG: Found \(folders.count) folders in response")
+                print("🔍 DEBUG: ✅ Successfully parsed JSON")
+                print("🔍 DEBUG: JSON keys: \(Array(json.keys).sorted())")
+                
+                // Log full JSON structure for debugging
+                if let jsonData = try? JSONSerialization.data(withJSONObject: json, options: .prettyPrinted),
+                   let jsonString = String(data: jsonData, encoding: .utf8) {
+                    print("🔍 DEBUG: Full JSON response (first 1000 chars):")
+                    print(String(jsonString.prefix(1000)))
+                }
+                
+                // Check response status
+                if let status = json["status"] as? Int {
+                    print("🔍 DEBUG: Response status: \(status)")
+                    if status == 200 {
+                        print("🔍 DEBUG: ✅ Status is 200, proceeding to parse data")
+                    } else {
+                        print("🔍 DEBUG: ❌ Status is not 200: \(status)")
+                        showAPIError(message: "Server returned an error. Please try again later.")
+                        return
+                    }
+                } else {
+                    print("🔍 DEBUG: ⚠️ No 'status' field found in response")
+                }
+                
+                // Parse departments from data array
+                if let dataArray = json["data"] as? [[String: Any]] {
+                    print("🔍 DEBUG: ✅ Found 'data' array with \(dataArray.count) items")
                     
-                    sites = folders.compactMap { folder in
-                        guard let id = folder["id"] as? String,
-                              let name = folder["name"] as? String else { 
-                            print("🔍 DEBUG: Skipping folder with missing id/name: \(folder)")
-                            return nil 
+                    sites = []
+                    for (index, dept) in dataArray.enumerated() {
+                        print("🔍 DEBUG: Processing item \(index): \(dept)")
+                        guard let id = dept["id"] as? String else {
+                            print("🔍 DEBUG: ⚠️ Skipping item \(index) - missing id. Keys: \(Array(dept.keys))")
+                            continue
                         }
-                        print("🔍 DEBUG: Adding site: \(name) (id: \(id))")
-                        return (id: id, name: name)
+                        
+                        // Angora API returns 'raw_file_name' instead of 'name'
+                        let name = (dept["raw_file_name"] as? String) ?? (dept["name"] as? String) ?? "Unnamed"
+                        
+                    print("🔍 DEBUG: ✅ Adding department: \(name) (id: \(id))")
+                    sites.append((id: id, name: name))
+                    // Mark as department for navigation tracking
+                    currentIsDepartment = true
                     }
                     
-                    print("🔍 DEBUG: Loaded \(sites.count) Angora sites")
-                    loadSites()
+                    print("🔍 DEBUG: Loaded \(sites.count) Angora departments")
+                    if sites.isEmpty {
+                        print("🔍 DEBUG: ❌ No valid departments found after parsing")
+                        showAPIError(message: "No departments found. Please check your account settings.")
+                    } else {
+                        print("🔍 DEBUG: ✅ Successfully loaded \(sites.count) departments, calling loadSites()")
+                        loadSites()
+                    }
                 } else {
-                    print("🔍 DEBUG: No 'folders' key found in response")
-                    loadDefaultFolders()
+                    print("🔍 DEBUG: ❌ No 'data' array found in response")
+                    print("🔍 DEBUG: Available keys: \(Array(json.keys).sorted())")
+                    if let dataValue = json["data"] {
+                        print("🔍 DEBUG: 'data' field exists but is not an array. Type: \(type(of: dataValue))")
+                        print("🔍 DEBUG: Value: \(dataValue)")
+                    }
+                    showAPIError(message: "Invalid server response format. Please try again.")
                 }
             } else {
-                print("🔍 DEBUG: Failed to parse JSON response")
-                loadDefaultFolders()
+                print("🔍 DEBUG: ❌ Failed to parse JSON response - not a dictionary")
+                showAPIError(message: "Failed to parse server response. Please try again.")
             }
         } catch {
-            print("🔍 DEBUG: Error parsing Angora folders: \(error)")
-            loadDefaultFolders()
+            print("🔍 DEBUG: ❌ Error parsing Angora departments: \(error)")
+            print("🔍 DEBUG: Error details: \(error.localizedDescription)")
+            showAPIError(message: "Error parsing server response. Please try again.")
         }
+        print("🔍 DEBUG: ========== PARSE ANGORA FOLDERS END ==========")
     }
     
     private func parseClassicSites(data: Data, baseUrl: String, authToken: String) {
@@ -922,15 +1185,15 @@ class ShareViewController: UIViewController {
                     loadSites()
                 } else {
                     print("🔍 DEBUG: No 'list.entries' found in response")
-                    loadDefaultFolders()
+                    showAPIError(message: "Invalid server response format. Please try again.")
                 }
             } else {
                 print("🔍 DEBUG: Failed to parse JSON response")
-                loadDefaultFolders()
+                showAPIError(message: "Failed to parse server response. Please try again.")
             }
             } catch {
             print("🔍 DEBUG: Error parsing Classic sites: \(error)")
-            loadDefaultFolders()
+            showAPIError(message: "Error parsing server response. Please try again.")
         }
     }
     
@@ -941,6 +1204,8 @@ class ShareViewController: UIViewController {
         
         var request = URLRequest(url: url)
         request.setValue(authToken, forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("en", forHTTPHeaderField: "Accept-Language")
         
         URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             DispatchQueue.main.async {
@@ -965,12 +1230,18 @@ class ShareViewController: UIViewController {
     }
     
     private func loadSites() {
+        print("🔍 DEBUG: ========== LOAD SITES ==========")
+        print("🔍 DEBUG: Loading \(sites.count) sites/departments into UI")
+        for (index, site) in sites.enumerated() {
+            print("🔍 DEBUG:   [\(index)] \(site.name) (id: \(site.id))")
+        }
         folders = sites
         breadcrumbLabel.text = "Select destination..."
         backButton.isHidden = true
         folderTableView.reloadData()
         updateScrollIndicator()
-        print("🔍 DEBUG: Loaded \(sites.count) sites for browsing")
+        print("🔍 DEBUG: ✅ Loaded \(sites.count) sites for browsing")
+        print("🔍 DEBUG: ========== LOAD SITES END ==========")
     }
     
     private func updateScrollIndicator() {
@@ -994,18 +1265,31 @@ class ShareViewController: UIViewController {
             return
         }
         
-        // Only handle Classic DMS for now
-        guard instanceType.lowercased() == "classic" else {
-            print("🔍 DEBUG: Only Classic DMS supported for subfolder browsing")
-            return
-        }
+        let isAngora = instanceType.lowercased() == "angora"
         
-        if let currentId = currentFolderId {
-            // Load containers for a site or children for a container
-            loadClassicSubfolders(baseUrl: baseUrl, authToken: authToken, parentId: currentId)
+        if isAngora {
+            // Handle Angora DMS
+            if let currentId = currentFolderId {
+                if currentIsDepartment {
+                    // Load department children
+                    loadAngoraDepartmentChildren(baseUrl: baseUrl, authToken: authToken, departmentId: currentId)
+                } else {
+                    // Load folder children
+                    loadAngoraFolderChildren(baseUrl: baseUrl, authToken: authToken, folderId: currentId)
+                }
+            } else {
+                // Load root departments (already handled by loadDMSFolders, but can be called here too)
+                loadDMSFolders(baseUrl: baseUrl, authToken: authToken, instanceType: instanceType)
+            }
         } else {
-            // Load sites
-            loadClassicSites(baseUrl: baseUrl, authToken: authToken)
+            // Handle Classic DMS
+            if let currentId = currentFolderId {
+                // Load containers for a site or children for a container
+                loadClassicSubfolders(baseUrl: baseUrl, authToken: authToken, parentId: currentId)
+            } else {
+                // Load sites
+                loadClassicSites(baseUrl: baseUrl, authToken: authToken)
+            }
         }
     }
     
@@ -1020,6 +1304,8 @@ class ShareViewController: UIViewController {
         var request = URLRequest(url: url)
         request.setValue(authToken, forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("en", forHTTPHeaderField: "Accept-Language")
         
         print("🔍 DEBUG: Loading Classic sites from: \(urlString)")
         
@@ -1064,6 +1350,8 @@ class ShareViewController: UIViewController {
         var request = URLRequest(url: url)
         request.setValue(authToken, forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("en", forHTTPHeaderField: "Accept-Language")
         
         print("🔍 DEBUG: Loading Classic subfolders from: \(urlString)")
         
@@ -1108,6 +1396,8 @@ class ShareViewController: UIViewController {
         var request = URLRequest(url: url)
         request.setValue(authToken, forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("en", forHTTPHeaderField: "Accept-Language")
         
         print("🔍 DEBUG: Loading Classic children from: \(urlString)")
         
@@ -1134,6 +1424,8 @@ class ShareViewController: UIViewController {
     }
     
     private func loadDefaultFolders() {
+        print("🔍 DEBUG: ========== LOAD DEFAULT FOLDERS ==========")
+        print("🔍 DEBUG: ⚠️ Falling back to default generic folders")
         sites = [
             (id: "default", name: "Default Folder"),
             (id: "documents", name: "Documents"),
@@ -1142,7 +1434,42 @@ class ShareViewController: UIViewController {
         ]
         
         loadSites()
-        print("🔍 DEBUG: Loaded default folders")
+        print("🔍 DEBUG: ✅ Loaded \(sites.count) default folders")
+        print("🔍 DEBUG: ========== LOAD DEFAULT FOLDERS END ==========")
+    }
+    
+    private func showCredentialsNotFoundError() {
+        print("🔍 DEBUG: ========== SHOWING CREDENTIALS NOT FOUND ERROR ==========")
+        showError(message: "Please log in to EisenVault app first to use the Share Extension.")
+        print("🔍 DEBUG: ✅ Error message displayed to user")
+        print("🔍 DEBUG: ========== CREDENTIALS NOT FOUND ERROR END ==========")
+    }
+    
+    private func showError(message: String) {
+        // Hide folder selection UI
+        folderSelectionView.isHidden = true
+        folderTableView.isHidden = true
+        uploadButton.isEnabled = false
+        uploadButton.alpha = 0.5
+        
+        // Show clear error message
+        statusLabel.text = message
+        statusLabel.textColor = UIColor(red: 0.698, green: 0.290, blue: 0.231, alpha: 1.0) // paletteButton
+        statusLabel.font = UIFont.systemFont(ofSize: 16, weight: .medium)
+        statusLabel.numberOfLines = 0
+        statusLabel.textAlignment = .center
+        
+        // Update title to indicate error
+        titleLabel.text = "EisenVault Share Extension"
+        titleLabel.textColor = UIColor(red: 0.698, green: 0.290, blue: 0.231, alpha: 1.0)
+    }
+    
+    private func showAPIError(message: String) {
+        print("🔍 DEBUG: ========== SHOWING API ERROR ==========")
+        print("🔍 DEBUG: Error message: \(message)")
+        showError(message: message)
+        print("🔍 DEBUG: ✅ API error message displayed to user")
+        print("🔍 DEBUG: ========== API ERROR END ==========")
     }
     
     private func parseClassicSitesResponse(data: Data) {
@@ -1170,15 +1497,15 @@ class ShareViewController: UIViewController {
                     loadSites()
                 } else {
                     print("🔍 DEBUG: No 'list.entries' found in sites response")
-                    loadDefaultFolders()
+                    showAPIError(message: "Invalid server response format. Please try again.")
                 }
             } else {
                 print("🔍 DEBUG: Failed to parse sites JSON response")
-                loadDefaultFolders()
+                showAPIError(message: "Failed to parse server response. Please try again.")
             }
             } catch {
             print("🔍 DEBUG: Error parsing Classic sites: \(error)")
-            loadDefaultFolders()
+            showAPIError(message: "Error parsing server response. Please try again.")
         }
     }
     
@@ -1255,6 +1582,185 @@ class ShareViewController: UIViewController {
             }
         } catch {
             print("🔍 DEBUG: Error parsing Classic children: \(error)")
+        }
+    }
+    
+    // MARK: - Angora Subfolder Loading
+    private func loadAngoraDepartmentChildren(baseUrl: String, authToken: String, departmentId: String) {
+        let urlString = "\(baseUrl)/api/departments/\(departmentId)/children?page=1&limit=100"
+        
+        guard let url = URL(string: urlString) else {
+            print("🔍 DEBUG: Invalid Angora department children URL: \(urlString)")
+            showAPIError(message: "Invalid URL. Please try again.")
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.setValue(authToken, forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("en", forHTTPHeaderField: "Accept-Language")
+        request.setValue("web", forHTTPHeaderField: "x-portal")
+        request.setValue("service-file", forHTTPHeaderField: "x-service-name")
+        
+        if let customerHostname = UserDefaults(suiteName: "group.com.eisenvault.eisenvaultappflutter")?.string(forKey: "DMSCustomerHostname") {
+            request.setValue(customerHostname, forHTTPHeaderField: "x-customer-hostname")
+        }
+        
+        print("🔍 DEBUG: Loading Angora department children from: \(urlString)")
+        
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("🔍 DEBUG: Error loading Angora department children: \(error)")
+                    self?.showAPIError(message: "Failed to load folders. Please try again.")
+                    return
+                }
+                
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("🔍 DEBUG: Angora department children HTTP Response status: \(httpResponse.statusCode)")
+                    
+                    if httpResponse.statusCode == 401 {
+                        self?.showAPIError(message: "Session expired. Please log in to EisenVault app again.")
+                        return
+                    }
+                    
+                    if httpResponse.statusCode < 200 || httpResponse.statusCode >= 300 {
+                        self?.showAPIError(message: "Failed to load folders (Status: \(httpResponse.statusCode)). Please try again.")
+                        return
+                    }
+                }
+                
+                guard let data = data else {
+                    print("🔍 DEBUG: No department children data received")
+                    self?.showAPIError(message: "No data received from server. Please try again.")
+                    return
+                }
+                
+                print("🔍 DEBUG: Received \(data.count) bytes of department children data")
+                self?.parseAngoraChildrenResponse(data: data)
+            }
+        }.resume()
+    }
+    
+    private func loadAngoraFolderChildren(baseUrl: String, authToken: String, folderId: String) {
+        let urlString = "\(baseUrl)/api/folders/\(folderId)/children?page=1&limit=100"
+        
+        guard let url = URL(string: urlString) else {
+            print("🔍 DEBUG: Invalid Angora folder children URL: \(urlString)")
+            showAPIError(message: "Invalid URL. Please try again.")
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.setValue(authToken, forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("en", forHTTPHeaderField: "Accept-Language")
+        request.setValue("web", forHTTPHeaderField: "x-portal")
+        request.setValue("service-file", forHTTPHeaderField: "x-service-name")
+        
+        if let customerHostname = UserDefaults(suiteName: "group.com.eisenvault.eisenvaultappflutter")?.string(forKey: "DMSCustomerHostname") {
+            request.setValue(customerHostname, forHTTPHeaderField: "x-customer-hostname")
+        }
+        
+        print("🔍 DEBUG: Loading Angora folder children from: \(urlString)")
+        
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("🔍 DEBUG: Error loading Angora folder children: \(error)")
+                    self?.showAPIError(message: "Failed to load folders. Please try again.")
+                    return
+                }
+                
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("🔍 DEBUG: Angora folder children HTTP Response status: \(httpResponse.statusCode)")
+                    
+                    if httpResponse.statusCode == 401 {
+                        self?.showAPIError(message: "Session expired. Please log in to EisenVault app again.")
+                        return
+                    }
+                    
+                    if httpResponse.statusCode < 200 || httpResponse.statusCode >= 300 {
+                        self?.showAPIError(message: "Failed to load folders (Status: \(httpResponse.statusCode)). Please try again.")
+                        return
+                    }
+                }
+                
+                guard let data = data else {
+                    print("🔍 DEBUG: No folder children data received")
+                    self?.showAPIError(message: "No data received from server. Please try again.")
+                    return
+                }
+                
+                print("🔍 DEBUG: Received \(data.count) bytes of folder children data")
+                self?.parseAngoraChildrenResponse(data: data)
+            }
+        }.resume()
+    }
+    
+    private func parseAngoraChildrenResponse(data: Data) {
+        do {
+            print("🔍 DEBUG: Parsing Angora children response...")
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                print("🔍 DEBUG: Failed to parse Angora children JSON")
+                showAPIError(message: "Failed to parse server response. Please try again.")
+                return
+            }
+            
+            print("🔍 DEBUG: JSON keys: \(Array(json.keys))")
+            
+            // Check response status
+            if let status = json["status"] as? Int, status != 200 {
+                print("🔍 DEBUG: ❌ Status is not 200: \(status)")
+                showAPIError(message: "Server returned an error. Please try again.")
+                return
+            }
+            
+            // Parse children from data array
+            guard let dataArray = json["data"] as? [[String: Any]] else {
+                print("🔍 DEBUG: No 'data' array found in children response")
+                showAPIError(message: "Invalid server response format. Please try again.")
+                return
+            }
+            
+            print("🔍 DEBUG: Found \(dataArray.count) children items")
+            folders = []
+            
+            for (index, item) in dataArray.enumerated() {
+                guard let id = item["id"] as? String else {
+                    print("🔍 DEBUG: ⚠️ Skipping item \(index) - missing id. Keys: \(Array(item.keys))")
+                    continue
+                }
+                
+                // Get name (Angora uses raw_file_name)
+                let name = (item["raw_file_name"] as? String) ?? (item["name"] as? String) ?? "Unnamed"
+                
+                // Only include folders/departments, not files
+                let isDepartment = item["is_department"] as? Bool ?? false
+                let isFolder = item["is_folder"] as? Bool ?? false
+                let hasFileType = item["file_type"] != nil || item["content_type"] != nil || item["mime_type"] != nil
+                
+                if isDepartment || isFolder || (!hasFileType && (item["can_have_children"] as? Bool ?? false)) {
+                    print("🔍 DEBUG: ✅ Adding folder/department: \(name) (id: \(id), isDept: \(isDepartment), isFolder: \(isFolder))")
+                    folders.append((id: id, name: name))
+                } else {
+                    print("🔍 DEBUG: Skipping file: \(name)")
+                }
+            }
+            
+            print("🔍 DEBUG: Loaded \(folders.count) Angora folders/departments")
+            folderTableView.reloadData()
+            updateScrollIndicator()
+            
+            if folders.isEmpty {
+                statusLabel.text = "No subfolders in this location"
+                statusLabel.textColor = UIColor(red: 0.698, green: 0.290, blue: 0.231, alpha: 1.0)
+            }
+        } catch {
+            print("🔍 DEBUG: Error parsing Angora children: \(error)")
+            showAPIError(message: "Error parsing server response. Please try again.")
         }
     }
 
@@ -1377,13 +1883,27 @@ extension ShareViewController: UITableViewDataSource, UITableViewDelegate {
         // Tapping the row navigates into the folder (browse subfolders)
         navigationStack.append((id: folder.id, name: folder.name))
         currentFolderId = folder.id
+        
+        // Check if this is a department (for Angora)
+        // We need to check the current instance type and determine if this item is a department
+        if let userDefaults = UserDefaults(suiteName: "group.com.eisenvault.eisenvaultappflutter"),
+           let instanceType = userDefaults.string(forKey: "DMSInstanceType"),
+           instanceType.lowercased() == "angora" {
+            // For Angora, check if this folder was originally a department
+            // We'll determine this by checking if we're at root level (sites) or if we need to check the item
+            // For now, assume if we're navigating from sites, it's a department
+            currentIsDepartment = (currentFolderId == nil || sites.contains { $0.id == folder.id })
+        } else {
+            currentIsDepartment = false
+        }
+        
         breadcrumbLabel.text = folder.name
         backButton.isHidden = false
         
         // Load subfolders for the next level
         loadFoldersForCurrentLevel()
         
-        print("🔍 DEBUG: Navigating into folder: \(folder.name) (id: \(folder.id))")
+        print("🔍 DEBUG: Navigating into folder: \(folder.name) (id: \(folder.id), isDept: \(currentIsDepartment))")
     }
     
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {

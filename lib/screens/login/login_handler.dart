@@ -14,6 +14,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 /// Handles login logic and authentication, including offline mode
 class LoginHandler {
@@ -212,6 +213,14 @@ class LoginHandler {
       // Save credentials to SharedPreferences for ShareActivity
       EVLogger.productionLog('Saving credentials after successful login');
       await _saveCredentialsToSharedPrefs(
+        baseUrl: baseUrl,
+        authToken: tokenString,
+        instanceType: detectedInstanceType,
+        customerHostname: customerHostname,
+      );
+      
+      // Save DMS credentials to App Groups for Share Extension (iOS)
+      await _saveDMSCredentialsToAppGroups(
         baseUrl: baseUrl,
         authToken: tokenString,
         instanceType: detectedInstanceType,
@@ -475,6 +484,30 @@ class LoginHandler {
       EVLogger.error('Failed to save credentials to SharedPreferences', {
         'error': e.toString()
       });
+    }
+  }
+  
+  /// Save DMS credentials to App Groups for Share Extension access (iOS)
+  Future<void> _saveDMSCredentialsToAppGroups({
+    required String baseUrl,
+    required String authToken,
+    required String instanceType,
+    required String customerHostname,
+  }) async {
+    try {
+      if (!kIsWeb && Platform.isIOS) {
+        EVLogger.productionLog('Saving DMS credentials to App Groups for Share Extension');
+        const MethodChannel channel = MethodChannel('uploadChannel');
+        await channel.invokeMethod('saveDMSCredentials', {
+          'baseUrl': baseUrl,
+          'authToken': authToken,
+          'instanceType': instanceType,
+          'customerHostname': customerHostname,
+        });
+        EVLogger.productionLog('DMS credentials saved to App Groups successfully');
+      }
+    } catch (e) {
+      EVLogger.error('Failed to save DMS credentials to App Groups: $e');
     }
   }
 }

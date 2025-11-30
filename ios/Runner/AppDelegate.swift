@@ -71,18 +71,33 @@ import UIKit
     // Save DMS credentials
     if let baseUrl = args["baseUrl"] as? String {
       userDefaults.set(baseUrl, forKey: "DMSBaseUrl")
+      print("🔍 DEBUG: Saved DMSBaseUrl: \(baseUrl)")
     }
     if let authToken = args["authToken"] as? String {
       userDefaults.set(authToken, forKey: "DMSAuthToken")
+      print("🔍 DEBUG: Saved DMSAuthToken: Present (\(authToken.count) chars)")
     }
     if let instanceType = args["instanceType"] as? String {
       userDefaults.set(instanceType, forKey: "DMSInstanceType")
+      print("🔍 DEBUG: Saved DMSInstanceType: \(instanceType)")
     }
     if let customerHostname = args["customerHostname"] as? String {
       userDefaults.set(customerHostname, forKey: "DMSCustomerHostname")
+      print("🔍 DEBUG: Saved DMSCustomerHostname: \(customerHostname)")
     }
 
     userDefaults.synchronize()
+    
+    // Verify what was saved
+    let savedBaseUrl = userDefaults.string(forKey: "DMSBaseUrl")
+    let savedAuthToken = userDefaults.string(forKey: "DMSAuthToken")
+    let savedInstanceType = userDefaults.string(forKey: "DMSInstanceType")
+    let savedCustomerHostname = userDefaults.string(forKey: "DMSCustomerHostname")
+    
+    print("🔍 DEBUG: Verification - DMSBaseUrl: \(savedBaseUrl ?? "nil")")
+    print("🔍 DEBUG: Verification - DMSAuthToken: \(savedAuthToken != nil ? "Present (\(savedAuthToken!.count) chars)" : "nil")")
+    print("🔍 DEBUG: Verification - DMSInstanceType: \(savedInstanceType ?? "nil")")
+    print("🔍 DEBUG: Verification - DMSCustomerHostname: \(savedCustomerHostname ?? "nil")")
     print("🔍 DEBUG: DMS credentials saved to App Groups successfully")
   }
 }
