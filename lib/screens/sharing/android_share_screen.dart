@@ -1164,7 +1164,12 @@ class _AndroidShareScreenState extends State<AndroidShareScreen> {
   }
   
   Future<void> _uploadToAngoraDMS(List<int> fileBytes, String fileName, String folderId) async {
-    final url = Uri.parse('$baseUrl/api/files');
+    // Use /api/uploads endpoint (same as iOS Share Extension)
+    final url = Uri.parse('$baseUrl/api/uploads');
+    
+    // Generate a unique file ID in Angora format: parentId_fileName_fileSize_timestamp
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final fileId = '${folderId}_${fileName}_${fileBytes.length}_$timestamp';
     
     final request = http.MultipartRequest('POST', url);
     // For Angora DMS, authToken is just the token (no "Bearer" prefix)
@@ -1173,6 +1178,18 @@ class _AndroidShareScreenState extends State<AndroidShareScreen> {
     request.headers['Accept-Language'] = 'en';
     request.headers['x-portal'] = 'web';
     request.headers['x-service-name'] = 'service-file';
+    request.headers['x-file-id'] = fileId;
+    request.headers['x-file-name'] = fileName;
+    request.headers['x-start-byte'] = '0';
+    request.headers['x-file-size'] = fileBytes.length.toString();
+    request.headers['x-resumable'] = 'true';
+    request.headers['x-relative-path'] = '';
+    request.headers['x-parent-id'] = folderId;
+    
+    if (customerHostname != null && customerHostname!.isNotEmpty) {
+      request.headers['x-customer-hostname'] = customerHostname!;
+    }
+    
     // Don't set Content-Type for multipart - let the library handle it
     
     request.files.add(http.MultipartFile.fromBytes(
@@ -1180,9 +1197,6 @@ class _AndroidShareScreenState extends State<AndroidShareScreen> {
       fileBytes,
       filename: fileName,
     ));
-    
-    request.fields['folder_id'] = folderId;
-    request.fields['name'] = fileName;
     
     final response = await request.send();
     
@@ -1193,6 +1207,7 @@ class _AndroidShareScreenState extends State<AndroidShareScreen> {
     
     EVLogger.info('File uploaded successfully to Angora DMS', {
       'fileName': fileName,
+      'folderId': folderId,
       'statusCode': response.statusCode
     });
   }
