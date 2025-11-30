@@ -206,6 +206,7 @@ class LoginHandler {
         instanceType: detectedInstanceType,
         baseUrl: baseUrl,
         customerHostname: customerHostname,
+        password: password, // Store password for Angora token refresh
       );
       
       // Save credentials to SharedPreferences for ShareActivity

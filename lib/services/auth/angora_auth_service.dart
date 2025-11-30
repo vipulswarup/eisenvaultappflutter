@@ -151,4 +151,22 @@ class AngoraAuthService extends AngoraBaseService {
       throw Exception('Login failed: $e');
     }
   }
+  
+  /// Refreshes the authentication token by re-authenticating with stored credentials
+  /// 
+  /// [username] Email address of the user
+  /// [password] User's password
+  /// 
+  /// Returns a Map containing the new authentication token and user profile
+  /// Throws an Exception if refresh fails
+  Future<Map<String, dynamic>> refreshToken(String username, String password) async {
+    EVLogger.info('Refreshing Angora authentication token');
+    try {
+      // Use the same login endpoint to refresh the token
+      return await login(username, password);
+    } catch (e, stackTrace) {
+      EVLogger.error('Token refresh failed', e, stackTrace);
+      rethrow;
+    }
+  }
 }

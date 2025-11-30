@@ -176,7 +176,7 @@ class AngoraPermissionService extends AngoraBaseService implements PermissionSer
     final url = buildUrl(endpoint);
     
     // Create headers with required parameters from the API documentation
-    final headers = createHeaders(serviceName: 'service-file');
+    var headers = createHeaders(serviceName: 'service-file');
     
     // Add the x-customer-hostname header if not already included
     if (!headers.containsKey('x-customer-hostname')) {
@@ -188,13 +188,27 @@ class AngoraPermissionService extends AngoraBaseService implements PermissionSer
     }
     
     try {
-      final response = await http.get(
+      var response = await http.get(
         Uri.parse(url),
         headers: headers,
       );
       
+      // Handle 401 Unauthorized - attempt token refresh and retry
       if (response.statusCode == 401) {
-        throw Exception('Authentication failed: ${response.statusCode}');
+        final refreshed = await handleAuthFailure(response.statusCode);
+        if (refreshed) {
+          // Update token and retry request
+          headers = createHeaders(serviceName: 'service-file');
+          if (!headers.containsKey('x-customer-hostname')) {
+            final uri = Uri.parse(baseUrl);
+            final hostname = uri.host;
+            headers['x-customer-hostname'] = hostname;
+          }
+          response = await http.get(
+            Uri.parse(url),
+            headers: headers,
+          );
+        }
       }
       
       if (response.statusCode != 200) {

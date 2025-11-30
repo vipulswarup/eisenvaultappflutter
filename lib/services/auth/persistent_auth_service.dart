@@ -13,6 +13,7 @@ class PersistentAuthService {
   // Keys for stored values
   static const String _tokenKey = 'auth_token';
   static const String _usernameKey = 'username';
+  static const String _passwordKey = 'password';
   static const String _firstNameKey = 'first_name';
   static const String _instanceTypeKey = 'instance_type';
   static const String _baseUrlKey = 'base_url';
@@ -30,6 +31,7 @@ class PersistentAuthService {
     required String baseUrl,
     required String customerHostname,
     String? tokenExpiry,
+    String? password,
   }) async {
     try {
       await _storage.write(key: _tokenKey, value: token);
@@ -38,6 +40,12 @@ class PersistentAuthService {
       await _storage.write(key: _instanceTypeKey, value: instanceType);
       await _storage.write(key: _baseUrlKey, value: baseUrl);
       await _storage.write(key: _customerHostnameKey, value: customerHostname);
+      
+      // Store password for Angora instances only (needed for token refresh)
+      // Classic uses Basic Auth which doesn't expire, so password not needed
+      if (password != null && instanceType.toLowerCase() == 'angora') {
+        await _storage.write(key: _passwordKey, value: password);
+      }
       
       // Store token expiry if provided (for JWT tokens)
       if (tokenExpiry != null) {
@@ -60,6 +68,7 @@ class PersistentAuthService {
       return {
         'token': await _storage.read(key: _tokenKey),
         'username': await _storage.read(key: _usernameKey),
+        'password': await _storage.read(key: _passwordKey),
         'firstName': await _storage.read(key: _firstNameKey),
         'instanceType': await _storage.read(key: _instanceTypeKey),
         'baseUrl': await _storage.read(key: _baseUrlKey),
@@ -114,6 +123,21 @@ class PersistentAuthService {
     } catch (e) {
       EVLogger.error('Failed to clear credentials', e);
       rethrow;
+    }
+  }
+  
+  /// Gets stored password for token refresh (Angora only)
+  /// Returns null if password is not stored or instance is not Angora
+  Future<String?> getStoredPassword() async {
+    try {
+      final instanceType = await _storage.read(key: _instanceTypeKey);
+      if (instanceType?.toLowerCase() != 'angora') {
+        return null;
+      }
+      return await _storage.read(key: _passwordKey);
+    } catch (e) {
+      EVLogger.error('Failed to retrieve stored password', e);
+      return null;
     }
   }
 }

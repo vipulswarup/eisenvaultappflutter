@@ -2,10 +2,13 @@ import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/services/api/angora_base_service.dart';
 import 'package:eisenvaultappflutter/services/browse/browse_service_factory.dart';
+import 'package:eisenvaultappflutter/services/browse/browse_service.dart';
+import 'package:eisenvaultappflutter/services/auth/auth_state_manager.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:debounce_throttle/debounce_throttle.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
@@ -69,6 +72,10 @@ class BrowseScreenController extends ChangeNotifier {
     // Initialize Angora base service if needed
     if (angoraBaseService != null) {
       angoraBaseService!.setToken(authToken);
+      // Set up token refresh callback for Angora
+      if (instanceType.toLowerCase() == 'angora') {
+        angoraBaseService!.setTokenRefreshCallback(_createTokenRefreshCallback());
+      }
     }
     
     // Check initial connectivity
@@ -119,6 +126,58 @@ class BrowseScreenController extends ChangeNotifier {
       EVLogger.error('Error checking connectivity', e);
     }
   }
+  
+  /// Creates a token refresh callback for Angora services
+  /// This callback will be called when a 401 is detected, and it will update
+  /// the token in AuthStateManager and return the new token so the service instance
+  /// can update its own token
+  Future<String?> Function() _createTokenRefreshCallback() {
+    return () async {
+      try {
+        final authStateManager = Provider.of<AuthStateManager>(context, listen: false);
+        EVLogger.info('Token refresh callback invoked');
+        final refreshed = await authStateManager.refreshToken();
+        if (refreshed) {
+          final newToken = authStateManager.currentToken;
+          if (newToken != null) {
+            // Update token in the controller's base service
+            if (angoraBaseService != null) {
+              angoraBaseService!.setToken(newToken);
+              EVLogger.info('Token updated in BrowseScreenController angoraBaseService');
+            }
+            EVLogger.info('Token refresh completed successfully, new token length: ${newToken.length}');
+            return newToken;
+          } else {
+            EVLogger.warning('Token refresh succeeded but new token is null');
+            return null;
+          }
+        } else {
+          EVLogger.warning('Token refresh failed');
+          return null;
+        }
+      } catch (e) {
+        EVLogger.error('Error in token refresh callback', e);
+        return null;
+      }
+    };
+  }
+  
+  /// Helper method to get browse service with token refresh callback
+  /// Gets the latest token from AuthStateManager to ensure we use refreshed tokens
+  BrowseService _getBrowseService() {
+    // Get the latest token from AuthStateManager in case it was refreshed
+    final authStateManager = Provider.of<AuthStateManager>(context, listen: false);
+    final currentToken = authStateManager.currentToken ?? authToken;
+    
+    return BrowseServiceFactory.getService(
+      instanceType,
+      baseUrl,
+      currentToken,
+      tokenRefreshCallback: instanceType.toLowerCase() == 'angora' 
+        ? _createTokenRefreshCallback()
+        : null,
+    );
+  }
 
   /// Set offline mode
   void setOfflineMode(bool offline) {
@@ -148,11 +207,7 @@ class BrowseScreenController extends ChangeNotifier {
     try {
       final nextPage = _currentPage + 1;
       final skipCount = nextPage * _itemsPerPage;
-      final browseService = BrowseServiceFactory.getService(
-        instanceType, 
-        baseUrl, 
-        authToken
-      );
+      final browseService = _getBrowseService();
       final moreItems = await browseService.getChildren(
         currentFolder!,
         skipCount: skipCount,
@@ -199,11 +254,7 @@ class BrowseScreenController extends ChangeNotifier {
         items = offlineItems;
         _hasMoreItems = false;
       } else {
-        final browseService = BrowseServiceFactory.getService(
-          instanceType, 
-          baseUrl, 
-          authToken
-        );
+        final browseService = _getBrowseService();
         
         final result = await browseService.getChildren(
           folder,
@@ -265,11 +316,7 @@ class BrowseScreenController extends ChangeNotifier {
         EVLogger.productionLog('Loaded ${offlineItems.length} offline items');
       } else {
         EVLogger.productionLog('Creating browse service...');
-        final browseService = BrowseServiceFactory.getService(
-          instanceType, 
-          baseUrl, 
-          authToken
-        );
+        final browseService = _getBrowseService();
         EVLogger.productionLog('Browse service created successfully');
 
         final rootItem = BrowseItem(
@@ -308,11 +355,7 @@ class BrowseScreenController extends ChangeNotifier {
     isLoading = true;
     _notifyListeners();
     try {
-      final browseService = BrowseServiceFactory.getService(
-        instanceType, 
-        baseUrl, 
-        authToken
-      );
+      final browseService = _getBrowseService();
       final rootItem = BrowseItem(
         id: 'root',
         name: 'Root',
@@ -361,11 +404,7 @@ class BrowseScreenController extends ChangeNotifier {
         items = offlineItems;
         _hasMoreItems = false;
       } else {
-        final browseService = BrowseServiceFactory.getService(
-          instanceType, 
-          baseUrl, 
-          authToken
-        );
+        final browseService = _getBrowseService();
         
         final result = await browseService.getChildren(
           folder,
