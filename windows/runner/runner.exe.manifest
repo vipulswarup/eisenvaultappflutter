@@ -5,7 +5,7 @@
       <dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">PerMonitorV2</dpiAwareness>
     </windowsSettings>
   </application>
-  <file xmlns="urn:schemas-microsoft-com:asm.v1">
+  <file name="eisenvaultappflutter.exe" xmlns="urn:schemas-microsoft-com:asm.v1">
     <fileAssociation>
       <extension name="eisenvault" />
       <progid>EisenVault.Upload</progid>
