@@ -50,36 +50,40 @@ class _LoginFormState extends State<LoginForm> {
           constraints: BoxConstraints(
             minHeight: size.height - screenPadding.top - screenPadding.bottom,
           ),
-          child: IntrinsicHeight(
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Image.asset(
-                    'assets/images/eisenvault_logo.png',
-                    height: logoHeight,
-                  ),                  
-                  SizedBox(height: elementSpacing * 2), // Increased spacing after logo
-                 
-                  _buildTextField(
-                    controller: _urlController,
-                    label: 'Server URL',
-                    hint: 'https://your-instance.eisenvault.net',
-                    icon: Icons.link,
-                  ),
-                  SizedBox(height: elementSpacing),
-                  _buildTextField(
-                    controller: _usernameController,
-                    label: 'Username',
-                    icon: Icons.person,
-                  ),
-                  SizedBox(height: elementSpacing),
-                  _buildPasswordField(),
-                  SizedBox(height: elementSpacing * 2), // Increased spacing before button
-                  _buildLoginButton(),
-                  SizedBox(height: elementSpacing), // Add bottom spacing
-                ],
+            child: IntrinsicHeight(
+            child: AutofillGroup(
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Image.asset(
+                      'assets/images/eisenvault_logo.png',
+                      height: logoHeight,
+                    ),                  
+                    SizedBox(height: elementSpacing * 2), // Increased spacing after logo
+                   
+                    _buildTextField(
+                      controller: _urlController,
+                      label: 'Server URL',
+                      hint: 'https://your-instance.eisenvault.net',
+                      icon: Icons.link,
+                      autofillHints: const [AutofillHints.url],
+                    ),
+                    SizedBox(height: elementSpacing),
+                    _buildTextField(
+                      controller: _usernameController,
+                      label: 'Username',
+                      icon: Icons.person,
+                      autofillHints: const [AutofillHints.username],
+                    ),
+                    SizedBox(height: elementSpacing),
+                    _buildPasswordField(),
+                    SizedBox(height: elementSpacing * 2), // Increased spacing before button
+                    _buildLoginButton(),
+                    SizedBox(height: elementSpacing), // Add bottom spacing
+                  ],
+                ),
               ),
             ),
           ),
@@ -93,12 +97,17 @@ class _LoginFormState extends State<LoginForm> {
     required String label,
     String? hint,
     IconData? icon,
+    List<String>? autofillHints,
   }) {
     return TextFormField(
       controller: controller,
       autocorrect: false,
       enableSuggestions: false,
       textCapitalization: TextCapitalization.none,
+      autofillHints: autofillHints,
+      keyboardType: autofillHints?.contains(AutofillHints.url) == true 
+          ? TextInputType.url 
+          : TextInputType.text,
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
@@ -126,6 +135,8 @@ class _LoginFormState extends State<LoginForm> {
     return TextFormField(
       controller: _passwordController,
       obscureText: !_showPassword,
+      autofillHints: const [AutofillHints.password],
+      keyboardType: TextInputType.visiblePassword,
       decoration: InputDecoration(
         labelText: 'Password',
         prefixIcon: Icon(Icons.lock, color: EVColors.textFieldPrefixIcon),
