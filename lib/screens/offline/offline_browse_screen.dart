@@ -646,6 +646,7 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
           baseUrl: widget.baseUrl,
           authToken: widget.authToken,
           instanceType: widget.instanceType,
+          customerHostname: '',
           onLogoutTap: () => _authHandler.showLogoutConfirmation(),
           offlineManager: _offlineManager!,
         ),

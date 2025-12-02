@@ -52,6 +52,7 @@ dependencies:
 
   # Security and storage
   flutter_secure_storage: ^9.2.4
+  shared_preferences: ^2.3.2
   connectivity_plus: ^6.1.4
   sqflite: ^2.3.0
   sqflite_common_ffi: ^2.3.2

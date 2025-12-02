@@ -16,6 +16,8 @@ class BrowseContent extends StatelessWidget {
   final bool selectionMode;
   final Set<String> selectedItems;
   final Function(String, bool)? onSelectionChanged;
+  final Future<bool> Function(String)? isItemFavorite;
+  final Function(BrowseItem)? onFavoriteToggle;
 
   const BrowseContent({
     super.key,
@@ -26,6 +28,8 @@ class BrowseContent extends StatelessWidget {
     this.selectionMode = false,
     this.selectedItems = const {},
     this.onSelectionChanged,
+    this.isItemFavorite,
+    this.onFavoriteToggle,
   });
   @override
   Widget build(BuildContext context) {
@@ -101,6 +105,8 @@ class BrowseContent extends StatelessWidget {
           },
           isItemAvailableOffline: controller.isItemAvailableOffline,
           onOfflineToggle: controller.toggleOfflineAvailability,
+          isItemFavorite: isItemFavorite,
+          onFavoriteToggle: onFavoriteToggle,
         );
       },
     );

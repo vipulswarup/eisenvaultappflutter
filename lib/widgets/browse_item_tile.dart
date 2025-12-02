@@ -17,6 +17,8 @@ class BrowseItemTile extends StatelessWidget {
   final Function(bool)? onSelectionChanged;
   final bool isAvailableOffline;
   final Function(BrowseItem)? onOfflineToggle;
+  final bool isFavorite;
+  final Function(BrowseItem)? onFavoriteToggle;
 
   const BrowseItemTile({
     super.key,
@@ -34,12 +36,35 @@ class BrowseItemTile extends StatelessWidget {
     this.onSelectionChanged,
     this.isAvailableOffline = false,
     this.onOfflineToggle,
+    this.isFavorite = false,
+    this.onFavoriteToggle,
   });
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: _buildLeadingIcon(),
+      leading: Stack(
+        children: [
+          _buildLeadingIcon(),
+          if (isFavorite)
+            Positioned(
+              right: 0,
+              top: 0,
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: EVColors.screenBackground,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.star,
+                  size: 14,
+                  color: Colors.amber,
+                ),
+              ),
+            ),
+        ],
+      ),
       title: Text(
         item.name,
         style: const TextStyle(
@@ -74,11 +99,13 @@ class BrowseItemTile extends StatelessWidget {
         onChanged: (value) => onSelectionChanged?.call(value ?? false),
       );
     }
-    if (showDeleteOption || showRenameOption || onOfflineToggle != null) {
+    if (showDeleteOption || showRenameOption || onOfflineToggle != null || onFavoriteToggle != null) {
       return PopupMenuButton<String>(
         onSelected: (value) {
           if (value == 'offline' && onOfflineToggle != null) {
             onOfflineToggle!(item);
+          } else if (value == 'favorite' && onFavoriteToggle != null) {
+            onFavoriteToggle!(item);
           } else if (value == 'delete' && onDeleteTap != null && !item.isSystemFolder) {
             onDeleteTap!(item);
           } else if (value == 'rename' && onRenameTap != null && !item.isSystemFolder) {
@@ -86,6 +113,20 @@ class BrowseItemTile extends StatelessWidget {
           }
         },
         itemBuilder: (context) => [
+          if (onFavoriteToggle != null)
+            PopupMenuItem<String>(
+              value: 'favorite',
+              child: Row(
+                children: [
+                  Icon(
+                    isFavorite ? Icons.star : Icons.star_border,
+                    color: isFavorite ? Colors.amber : EVColors.iconTeal,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(isFavorite ? 'Remove from Favourites' : 'Add to Favourites'),
+                ],
+              ),
+            ),
           if (onOfflineToggle != null)
             PopupMenuItem<String>(
               value: 'offline',

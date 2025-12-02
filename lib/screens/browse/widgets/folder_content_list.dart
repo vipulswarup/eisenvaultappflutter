@@ -25,6 +25,8 @@ class FolderContentList extends StatefulWidget {
   final Function(String, bool)? onItemSelected;
   final Future<bool> Function(String)? isItemAvailableOffline;
   final Function(BrowseItem)? onOfflineToggle;
+  final Future<bool> Function(String)? isItemFavorite;
+  final Function(BrowseItem)? onFavoriteToggle;
 
   const FolderContentList({
     super.key,
@@ -44,6 +46,8 @@ class FolderContentList extends StatefulWidget {
     this.onItemSelected,
     this.isItemAvailableOffline,
     this.onOfflineToggle,
+    this.isItemFavorite,
+    this.onFavoriteToggle,
   });
 
   @override
@@ -105,9 +109,17 @@ class _FolderContentListState extends State<FolderContentList> {
           // Always pass onSelectionChanged to BrowseItemTile
           return widget.selectionMode
               ? _buildSelectableItem(context, item, isSelected)
-              : FutureBuilder<bool>(
-                  future: widget.isItemAvailableOffline?.call(item.id) ?? Future.value(false),
+              : FutureBuilder<Map<String, bool>>(
+                  future: Future.wait([
+                    widget.isItemAvailableOffline?.call(item.id) ?? Future.value(false),
+                    widget.isItemFavorite?.call(item.id) ?? Future.value(false),
+                  ]).then((results) => {
+                    'offline': results[0],
+                    'favorite': results[1],
+                  }),
                   builder: (context, snapshot) {
+                    final isAvailableOffline = snapshot.data?['offline'] ?? false;
+                    final isFavorite = snapshot.data?['favorite'] ?? false;
                     return BrowseItemTile(
                       item: item,
                       onTap: () {
@@ -121,8 +133,10 @@ class _FolderContentListState extends State<FolderContentList> {
                       onRenameTap: widget.showRenameOption ? widget.onRenameTap : null,
                       showDeleteOption: widget.showDeleteOption,
                       showRenameOption: widget.showRenameOption,
-                      isAvailableOffline: snapshot.data ?? false,
+                      isAvailableOffline: isAvailableOffline,
                       onOfflineToggle: widget.onOfflineToggle,
+                      isFavorite: isFavorite,
+                      onFavoriteToggle: widget.onFavoriteToggle,
                       selectionMode: false,
                       isSelected: isSelected,
                       onSelectionChanged: (selected) {

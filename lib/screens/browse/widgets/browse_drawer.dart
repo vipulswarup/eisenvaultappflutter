@@ -2,6 +2,7 @@ import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/screens/offline/offline_settings_screen.dart';
 import 'package:eisenvaultappflutter/screens/browse/browse_screen.dart';
 import 'package:eisenvaultappflutter/screens/offline/offline_browse_screen.dart';
+import 'package:eisenvaultappflutter/screens/favorites/favorites_screen.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:flutter/material.dart';
 
@@ -11,6 +12,7 @@ class BrowseDrawer extends StatelessWidget {
   final String baseUrl;
   final String authToken;
   final String instanceType;
+  final String customerHostname;
   final VoidCallback onLogoutTap;
   final OfflineManager offlineManager;
 
@@ -20,6 +22,7 @@ class BrowseDrawer extends StatelessWidget {
     required this.baseUrl,
     required this.authToken,
     required this.instanceType,
+    required this.customerHostname,
     required this.onLogoutTap,
     required this.offlineManager,
   });
@@ -101,7 +104,26 @@ class BrowseDrawer extends StatelessWidget {
                     authToken: authToken,
                     firstName: firstName,
                     instanceType: instanceType,
-                    customerHostname: '', // Add appropriate hostname if needed
+                    customerHostname: customerHostname,
+                  ),
+                ),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.star),
+            title: const Text('Favourites'),
+            onTap: () {
+              Navigator.pop(context); // Close the drawer
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => FavoritesScreen(
+                    baseUrl: baseUrl,
+                    authToken: authToken,
+                    firstName: firstName,
+                    instanceType: instanceType,
+                    customerHostname: customerHostname,
                   ),
                 ),
               );

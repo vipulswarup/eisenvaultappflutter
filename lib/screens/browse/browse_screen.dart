@@ -15,6 +15,7 @@ import 'package:eisenvaultappflutter/screens/browse/widgets/browse_drawer.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_list.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_navigation.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/download_progress_indicator.dart';
+import 'package:eisenvaultappflutter/services/favorites/favorites_service.dart';
 import 'package:eisenvaultappflutter/services/delete/delete_service.dart';
 import 'package:eisenvaultappflutter/services/rename/rename_service.dart';
 import 'package:eisenvaultappflutter/services/offline/download_manager.dart';
@@ -41,6 +42,7 @@ class BrowseScreen extends StatefulWidget {
   final String firstName;
   final String instanceType;
   final String customerHostname;
+  final BrowseItem? initialFolder;
 
   const BrowseScreen({
     super.key,
@@ -49,6 +51,7 @@ class BrowseScreen extends StatefulWidget {
     required this.firstName,
     required this.instanceType,
     required this.customerHostname,
+    this.initialFolder,
   });
 
   @override
@@ -149,8 +152,47 @@ class _BrowseScreenState extends State<BrowseScreen> {
   final Set<String> _selectedItems = {};
 
   OfflineManager? _offlineManager;
+  FavoritesService? _favoritesService;
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  
+  Future<bool> _isItemFavorite(String itemId) async {
+    if (_favoritesService == null) {
+      _favoritesService = await FavoritesService.getInstance();
+    }
+    return await _favoritesService!.isFavorite(itemId);
+  }
+  
+  Future<void> _toggleFavorite(BrowseItem item) async {
+    if (_favoritesService == null) {
+      _favoritesService = await FavoritesService.getInstance();
+    }
+    final isFavorite = await _favoritesService!.isFavorite(item.id);
+    if (isFavorite) {
+      await _favoritesService!.removeFavorite(item.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Removed from favourites'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } else {
+      await _favoritesService!.addFavorite(item);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Added to favourites'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+    if (mounted) {
+      setState(() {});
+    }
+  }
 
   // A helper method to log the current folder state for debugging purposes
   // This method is called after the current folder is refreshed
@@ -218,6 +260,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
     EVLogger.productionLog('Customer Hostname: ${widget.customerHostname}');
     
     _offlineManager = await OfflineManager.createDefault(requireCredentials: false);
+    _favoritesService = await FavoritesService.getInstance();
     EVLogger.productionLog('Offline manager created');
     
     if (!mounted) return;
@@ -323,7 +366,33 @@ class _BrowseScreenState extends State<BrowseScreen> {
     );
 
     EVLogger.productionLog('Calling loadDepartments() on controller...');
-    _controller?.loadDepartments();
+    if (widget.initialFolder != null) {
+      // Wait for the next frame to ensure controller is fully initialized
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        // Wait a bit to ensure controller is fully ready
+        await Future.delayed(const Duration(milliseconds: 300));
+        if (mounted && _controller != null) {
+          try {
+            EVLogger.productionLog('Navigating to initial folder: ${widget.initialFolder!.name} (${widget.initialFolder!.id})');
+            await _controller!.navigateToFolder(widget.initialFolder!);
+          } catch (e) {
+            EVLogger.error('Error navigating to initial folder', e);
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error loading folder: ${e.toString()}'),
+                  backgroundColor: EVColors.statusError,
+                ),
+              );
+              // Fallback to loading departments
+              _controller?.loadDepartments();
+            }
+          }
+        }
+      });
+    } else {
+      _controller?.loadDepartments();
+    }
   }
 
   bool _isInSelectionMode = false;
@@ -367,6 +436,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
             baseUrl: widget.baseUrl,
             authToken: widget.authToken,
             instanceType: widget.instanceType,
+            customerHostname: widget.customerHostname,
             onLogoutTap: () => _authHandler.showLogoutConfirmation(),
             offlineManager: _offlineManager!,
           ),
@@ -524,12 +594,24 @@ class _BrowseScreenState extends State<BrowseScreen> {
     if (_isOffline) return;
 
     final bool isOffline = await _offlineManager!.isItemOffline(item.id);
+    final bool isFavorite = await _isItemFavorite(item.id);
     
     showModalBottomSheet(
       context: context,
       builder: (sheetContext) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          ListTile(
+            leading: Icon(
+              isFavorite ? Icons.star : Icons.star_border,
+              color: isFavorite ? Colors.amber : EVColors.iconTeal,
+            ),
+            title: Text(isFavorite ? 'Remove from Favourites' : 'Add to Favourites'),
+            onTap: () async {
+              Navigator.pop(sheetContext);
+              await _toggleFavorite(item);
+            },
+          ),
           ListTile(
             leading: const Icon(Icons.offline_pin),
             title: Text(isOffline ? 'Remove from Offline' : 'Keep Offline'),

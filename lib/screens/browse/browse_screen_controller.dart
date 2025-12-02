@@ -387,8 +387,23 @@ class BrowseScreenController extends ChangeNotifier {
   
   /// Navigates to a specific folder and loads its contents
   Future<void> navigateToFolder(BrowseItem folder) async {
-    // Don't navigate if we're already loading
-    if (isLoading) return;
+    EVLogger.productionLog('=== NAVIGATE TO FOLDER START ===');
+    EVLogger.productionLog('Folder ID: ${folder.id}');
+    EVLogger.productionLog('Folder Name: ${folder.name}');
+    EVLogger.productionLog('Is Department: ${folder.isDepartment}');
+    EVLogger.productionLog('Current isLoading: $isLoading');
+    
+    // Don't navigate if we're already loading (unless it's been loading for too long)
+    if (isLoading) {
+      EVLogger.productionLog('Controller is already loading, waiting...');
+      // Wait a bit and try again if still loading
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (isLoading) {
+        EVLogger.productionLog('Still loading after wait, proceeding anyway');
+        // Reset loading state and proceed
+        isLoading = false;
+      }
+    }
     
     try {
       isLoading = true;
@@ -397,14 +412,19 @@ class BrowseScreenController extends ChangeNotifier {
       
       // Check both actual connectivity and forced offline mode
       _isOffline =  await _offlineManager.isOffline();
+      EVLogger.productionLog('Offline mode: $_isOffline');
       
       // No special handling for departments/sites; just load their children
       if (_isOffline) {
+        EVLogger.productionLog('Loading offline items for folder: ${folder.id}');
         final offlineItems = await _offlineManager.getOfflineItems(folder.id);
         items = offlineItems;
         _hasMoreItems = false;
+        EVLogger.productionLog('Loaded ${offlineItems.length} offline items');
       } else {
+        EVLogger.productionLog('Creating browse service...');
         final browseService = _getBrowseService();
+        EVLogger.productionLog('Browse service created, calling getChildren...');
         
         final result = await browseService.getChildren(
           folder,
@@ -412,6 +432,7 @@ class BrowseScreenController extends ChangeNotifier {
           maxItems: _itemsPerPage,
         );
         
+        EVLogger.productionLog('Successfully loaded ${result.length} items');
         items = result;
         _hasMoreItems = result.length >= _itemsPerPage;
       }
@@ -433,11 +454,14 @@ class BrowseScreenController extends ChangeNotifier {
     } catch (e) {
       EVLogger.error('FOLDER NAVIGATION: Error navigating to folder', {
         'error': e.toString(),
+        'folderId': folder.id,
+        'folderName': folder.name,
       });
       errorMessage = 'Failed to load folder contents: ${e.toString()}';
     } finally {
       // Always reset loading state
       isLoading = false;
+      EVLogger.productionLog('=== NAVIGATE TO FOLDER END ===');
       _notifyListeners();
     }
   }
