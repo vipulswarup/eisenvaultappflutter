@@ -1,22 +1,49 @@
 import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 
 /// Service to manage favorite files and folders
+/// Favorites are stored per account (username + baseUrl combination)
 class FavoritesService {
-  static const String _favoritesKey = 'favorites';
+  static const String _favoritesKeyPrefix = 'favorites_';
   static FavoritesService? _instance;
   
   SharedPreferences? _prefs;
+  String? _currentAccountId;
   
   FavoritesService._();
   
   /// Get singleton instance
-  static Future<FavoritesService> getInstance() async {
+  /// [accountId] - Unique identifier for the current account (username + baseUrl hash)
+  static Future<FavoritesService> getInstance({String? accountId}) async {
     _instance ??= FavoritesService._();
     _instance!._prefs ??= await SharedPreferences.getInstance();
+    
+    // Update account ID if provided
+    if (accountId != null) {
+      _instance!._currentAccountId = accountId;
+    }
+    
     return _instance!;
+  }
+  
+  /// Generate a unique account identifier from username and baseUrl
+  static String generateAccountId(String username, String baseUrl) {
+    final combined = '$username|$baseUrl';
+    final bytes = utf8.encode(combined);
+    final digest = sha256.convert(bytes);
+    return digest.toString();
+  }
+  
+  /// Get the storage key for the current account
+  String _getFavoritesKey() {
+    if (_currentAccountId == null) {
+      EVLogger.warning('FavoritesService: No account ID set, using default key');
+      return '${_favoritesKeyPrefix}default';
+    }
+    return '${_favoritesKeyPrefix}$_currentAccountId';
   }
   
   /// Add an item to favorites
@@ -61,14 +88,15 @@ class FavoritesService {
     }
   }
   
-  /// Get all favorites
+  /// Get all favorites for the current account
   Future<List<BrowseItem>> getFavorites() async {
     try {
       if (_prefs == null) {
         _prefs = await SharedPreferences.getInstance();
       }
       
-      final favoritesJson = _prefs!.getString(_favoritesKey);
+      final favoritesKey = _getFavoritesKey();
+      final favoritesJson = _prefs!.getString(favoritesKey);
       if (favoritesJson == null || favoritesJson.isEmpty) {
         return [];
       }
@@ -81,30 +109,32 @@ class FavoritesService {
     }
   }
   
-  /// Clear all favorites
+  /// Clear all favorites for the current account
   Future<bool> clearFavorites() async {
     try {
       if (_prefs == null) {
         _prefs = await SharedPreferences.getInstance();
       }
-      return await _prefs!.remove(_favoritesKey);
+      final favoritesKey = _getFavoritesKey();
+      return await _prefs!.remove(favoritesKey);
     } catch (e) {
       EVLogger.error('Failed to clear favorites', e);
       return false;
     }
   }
   
-  /// Save favorites to storage
+  /// Save favorites to storage for the current account
   Future<bool> _saveFavorites(List<BrowseItem> favorites) async {
     try {
       if (_prefs == null) {
         _prefs = await SharedPreferences.getInstance();
       }
       
+      final favoritesKey = _getFavoritesKey();
       final favoritesJson = json.encode(
         favorites.map((item) => _browseItemToJson(item)).toList()
       );
-      return await _prefs!.setString(_favoritesKey, favoritesJson);
+      return await _prefs!.setString(favoritesKey, favoritesJson);
     } catch (e) {
       EVLogger.error('Failed to save favorites', e);
       return false;

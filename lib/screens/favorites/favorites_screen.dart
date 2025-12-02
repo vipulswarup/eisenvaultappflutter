@@ -4,8 +4,10 @@ import 'package:eisenvaultappflutter/screens/browse/browse_screen.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/file_tap_handler.dart';
 import 'package:eisenvaultappflutter/services/api/angora_base_service.dart';
 import 'package:eisenvaultappflutter/services/favorites/favorites_service.dart';
+import 'package:eisenvaultappflutter/services/auth/auth_state_manager.dart';
 import 'package:eisenvaultappflutter/widgets/browse_item_tile.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class FavoritesScreen extends StatefulWidget {
   final String baseUrl;
@@ -40,7 +42,11 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   }
 
   Future<void> _initialize() async {
-    _favoritesService = await FavoritesService.getInstance();
+    // Get account-specific favorites service
+    final authStateManager = Provider.of<AuthStateManager>(context, listen: false);
+    final username = authStateManager.username ?? '';
+    final accountId = FavoritesService.generateAccountId(username, widget.baseUrl);
+    _favoritesService = await FavoritesService.getInstance(accountId: accountId);
     
     AngoraBaseService? angoraBaseService;
     if (widget.instanceType.toLowerCase() == 'angora') {

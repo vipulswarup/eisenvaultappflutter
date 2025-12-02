@@ -22,6 +22,7 @@ import 'package:eisenvaultappflutter/services/delete/delete_service.dart';
 import 'package:eisenvaultappflutter/services/rename/rename_service.dart';
 import 'package:eisenvaultappflutter/services/offline/download_manager.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
+import 'package:eisenvaultappflutter/services/auth/auth_state_manager.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -34,8 +35,6 @@ import 'package:eisenvaultappflutter/services/permission_service.dart';
 import 'dart:io' show Platform;
 // Temporarily disabled on Android due to 16KB page size compliance issue with Google ML Kit
 // import 'package:aio_scanner/aio_scanner.dart';
-import 'package:device_info_plus/device_info_plus.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 /// BrowseScreen handles online browsing of the repository content.
 class BrowseScreen extends StatefulWidget {
@@ -160,14 +159,20 @@ class _BrowseScreenState extends State<BrowseScreen> {
   
   Future<bool> _isItemFavorite(String itemId) async {
     if (_favoritesService == null) {
-      _favoritesService = await FavoritesService.getInstance();
+      final authStateManager = Provider.of<AuthStateManager>(context, listen: false);
+      final username = authStateManager.username ?? '';
+      final accountId = FavoritesService.generateAccountId(username, widget.baseUrl);
+      _favoritesService = await FavoritesService.getInstance(accountId: accountId);
     }
     return await _favoritesService!.isFavorite(itemId);
   }
   
   Future<void> _toggleFavorite(BrowseItem item) async {
     if (_favoritesService == null) {
-      _favoritesService = await FavoritesService.getInstance();
+      final authStateManager = Provider.of<AuthStateManager>(context, listen: false);
+      final username = authStateManager.username ?? '';
+      final accountId = FavoritesService.generateAccountId(username, widget.baseUrl);
+      _favoritesService = await FavoritesService.getInstance(accountId: accountId);
     }
     final isFavorite = await _favoritesService!.isFavorite(item.id);
     if (isFavorite) {
@@ -262,7 +267,13 @@ class _BrowseScreenState extends State<BrowseScreen> {
     EVLogger.productionLog('Customer Hostname: ${widget.customerHostname}');
     
     _offlineManager = await OfflineManager.createDefault(requireCredentials: false);
-    _favoritesService = await FavoritesService.getInstance();
+    
+    // Initialize favorites service with account-specific ID
+    final authStateManager = Provider.of<AuthStateManager>(context, listen: false);
+    final username = authStateManager.username ?? '';
+    final accountId = FavoritesService.generateAccountId(username, widget.baseUrl);
+    _favoritesService = await FavoritesService.getInstance(accountId: accountId);
+    
     EVLogger.productionLog('Offline manager created');
     
     if (!mounted) return;
