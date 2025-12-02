@@ -4,6 +4,7 @@ import 'package:eisenvaultappflutter/services/api/angora_base_service.dart';
 import 'package:eisenvaultappflutter/services/browse/browse_service_factory.dart';
 import 'package:eisenvaultappflutter/services/browse/browse_service.dart';
 import 'package:eisenvaultappflutter/services/auth/auth_state_manager.dart';
+import 'package:eisenvaultappflutter/services/filter_sort/filter_sort_service.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:debounce_throttle/debounce_throttle.dart';
 import 'package:dio/dio.dart';
@@ -25,11 +26,15 @@ class BrowseScreenController extends ChangeNotifier {
   // State variables
   bool isLoading = true;
   List<BrowseItem> items = [];
+  List<BrowseItem> _allItems = []; // Store all items before filtering
   String? errorMessage;
   List<BrowseItem> navigationStack = [];
   BrowseItem? currentFolder;
   bool _isOffline = false;
   bool _disposed = false; // Add a flag to track if the controller has been disposed
+  
+  // Filter and sort state
+  FilterSortOptions _filterSortOptions = const FilterSortOptions();
   
   // Callback for state updates
   final Function()? onStateChanged;
@@ -217,7 +222,8 @@ class BrowseScreenController extends ChangeNotifier {
         _hasMoreItems = false;
       } else {
         _currentPage = nextPage;
-        items.addAll(moreItems);
+        _allItems.addAll(moreItems);
+        _applyFilterAndSort();
       }
     } catch (e) {
       EVLogger.error('Failed to load more items', e);
@@ -251,7 +257,7 @@ class BrowseScreenController extends ChangeNotifier {
       // Load folder contents
       if (_isOffline) {
         final offlineItems = await _offlineManager.getOfflineItems(folder.id);
-        items = offlineItems;
+        _allItems = offlineItems;
         _hasMoreItems = false;
       } else {
         final browseService = _getBrowseService();
@@ -262,12 +268,15 @@ class BrowseScreenController extends ChangeNotifier {
           maxItems: _itemsPerPage,
         );
         
-        items = result;
+        _allItems = result;
         _hasMoreItems = result.length >= _itemsPerPage;
       }
       
       // Reset pagination
       _currentPage = 0;
+      
+      // Apply filters and sorting
+      _applyFilterAndSort();
       
     } catch (e) {
       EVLogger.error('FOLDER NAVIGATION: Error loading folder contents', {
@@ -283,6 +292,41 @@ class BrowseScreenController extends ChangeNotifier {
   // Add getters for pagination state
   bool get isLoadingMore => _isLoadingMore;
   bool get hasMoreItems => _hasMoreItems;
+  
+  // Filter and sort getters
+  FilterSortOptions get filterSortOptions => _filterSortOptions;
+  bool get hasActiveFilters => _filterSortOptions.hasActiveFilters;
+  
+  /// Sets filter and sort options and applies them to items
+  void setFilterSortOptions(FilterSortOptions options) {
+    _filterSortOptions = options;
+    _applyFilterAndSort();
+    _notifyListeners();
+  }
+  
+  /// Applies current filter and sort options to items
+  void _applyFilterAndSort() {
+    // Determine source items - prefer _allItems, fallback to items if _allItems is empty
+    // This handles edge cases where filters are applied before _allItems is populated
+    final sourceItems = _allItems.isNotEmpty ? _allItems : items;
+    
+    if (sourceItems.isEmpty) {
+      EVLogger.productionLog('_applyFilterAndSort: No items to filter/sort');
+      return;
+    }
+    
+    EVLogger.productionLog('_applyFilterAndSort: Applying filters/sort to ${sourceItems.length} items (using ${_allItems.isNotEmpty ? "_allItems" : "items"} as source)');
+    final filteredSorted = FilterSortService.applyFilterAndSort(sourceItems, _filterSortOptions);
+    EVLogger.productionLog('_applyFilterAndSort: Result has ${filteredSorted.length} items');
+    items = filteredSorted;
+    
+    // If we used items as source and _allItems was empty, update _allItems for future operations
+    // But only if we don't have active filters (to avoid storing filtered data as "all items")
+    if (_allItems.isEmpty && !_filterSortOptions.hasActiveFilters && items.isNotEmpty) {
+      _allItems = List<BrowseItem>.from(sourceItems);
+      EVLogger.productionLog('_applyFilterAndSort: Synced items to _allItems (${_allItems.length} items)');
+    }
+  }
 
   /// Loads top-level departments/folders
   Future<void> loadDepartments() async {
@@ -300,6 +344,7 @@ class BrowseScreenController extends ChangeNotifier {
     navigationStack.clear();
     currentFolder = null;
     items = [];
+    _allItems = [];
     
     _notifyListeners();
 
@@ -311,7 +356,7 @@ class BrowseScreenController extends ChangeNotifier {
       if (_isOffline) {
         EVLogger.productionLog('Loading offline items...');
         final offlineItems = await _offlineManager.getOfflineItems(null);
-        items = offlineItems;
+        _allItems = offlineItems;
         _hasMoreItems = false;
         EVLogger.productionLog('Loaded ${offlineItems.length} offline items');
       } else {
@@ -334,9 +379,12 @@ class BrowseScreenController extends ChangeNotifier {
           maxItems: _itemsPerPage,
         );
         EVLogger.productionLog('Successfully loaded ${loadedItems.length} items');
-        items = loadedItems;
+        _allItems = loadedItems;
         _hasMoreItems = loadedItems.length >= _itemsPerPage;
       }
+      
+      // Apply filters and sorting
+      _applyFilterAndSort();
     } catch (e) {
       EVLogger.error('Error loading departments', e);
       EVLogger.productionLog('Error type: ${e.runtimeType}');
@@ -369,12 +417,13 @@ class BrowseScreenController extends ChangeNotifier {
         skipCount: skipCount,
         maxItems: _itemsPerPage,
       );
-      items.addAll(loadedItems);
+      _allItems.addAll(loadedItems);
       if (loadedItems.length < _itemsPerPage) {
         _hasMoreItems = false;
       } else {
         _currentPage = nextPage;
       }
+      _applyFilterAndSort();
     } catch (e) {
       EVLogger.error('Error loading more departments', e);
       errorMessage = 'Failed to load more departments: ${e.toString()}';
@@ -418,7 +467,7 @@ class BrowseScreenController extends ChangeNotifier {
       if (_isOffline) {
         EVLogger.productionLog('Loading offline items for folder: ${folder.id}');
         final offlineItems = await _offlineManager.getOfflineItems(folder.id);
-        items = offlineItems;
+        _allItems = offlineItems;
         _hasMoreItems = false;
         EVLogger.productionLog('Loaded ${offlineItems.length} offline items');
       } else {
@@ -433,9 +482,12 @@ class BrowseScreenController extends ChangeNotifier {
         );
         
         EVLogger.productionLog('Successfully loaded ${result.length} items');
-        items = result;
+        _allItems = result;
         _hasMoreItems = result.length >= _itemsPerPage;
       }
+      
+      // Apply filters and sorting
+      _applyFilterAndSort();
       
       // Update navigation stack after loading contents
       if (currentFolder != null && currentFolder!.id != 'root') {

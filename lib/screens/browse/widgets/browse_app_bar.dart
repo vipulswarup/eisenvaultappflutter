@@ -10,6 +10,8 @@ class BrowseAppBar extends StatelessWidget implements PreferredSizeWidget {
   final bool isOfflineMode;
   final bool isInSelectionMode;
   final VoidCallback? onSelectionModeToggle;
+  final VoidCallback? onFilterSortTap;
+  final bool hasActiveFilters;
 
   const BrowseAppBar({
     super.key,
@@ -21,6 +23,8 @@ class BrowseAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.isOfflineMode = false,
     this.isInSelectionMode = false,
     this.onSelectionModeToggle,
+    this.onFilterSortTap,
+    this.hasActiveFilters = false,
   });
 
   @override
@@ -76,6 +80,27 @@ class BrowseAppBar extends StatelessWidget implements PreferredSizeWidget {
           IconButton(
             icon: Icon(isInSelectionMode ? Icons.close : Icons.select_all),
             onPressed: onSelectionModeToggle,
+          ),
+          IconButton(
+            icon: Stack(
+              children: [
+                const Icon(Icons.filter_list),
+                if (hasActiveFilters)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            onPressed: onFilterSortTap,
           ),
           IconButton(
             icon: const Icon(Icons.search),

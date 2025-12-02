@@ -15,6 +15,8 @@ import 'package:eisenvaultappflutter/screens/browse/widgets/browse_drawer.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_list.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_navigation.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/download_progress_indicator.dart';
+import 'package:eisenvaultappflutter/screens/browse/widgets/filter_sort_dialog.dart';
+import 'package:eisenvaultappflutter/services/filter_sort/filter_sort_service.dart';
 import 'package:eisenvaultappflutter/services/favorites/favorites_service.dart';
 import 'package:eisenvaultappflutter/services/delete/delete_service.dart';
 import 'package:eisenvaultappflutter/services/rename/rename_service.dart';
@@ -406,6 +408,22 @@ class _BrowseScreenState extends State<BrowseScreen> {
     });
   }
 
+  Future<void> _showFilterSortDialog() async {
+    if (_controller == null) return;
+    
+    final result = await showDialog<FilterSortOptions>(
+      context: context,
+      builder: (context) => FilterSortDialog(
+        initialOptions: _controller!.filterSortOptions,
+      ),
+    );
+    
+    if (result != null && mounted) {
+      _controller?.setFilterSortOptions(result);
+      setState(() {});
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_controller == null) {
@@ -428,6 +446,8 @@ class _BrowseScreenState extends State<BrowseScreen> {
         isOfflineMode: _isOffline,
         isInSelectionMode: _isInSelectionMode,
         onSelectionModeToggle: _toggleSelectionMode,
+        onFilterSortTap: _showFilterSortDialog,
+        hasActiveFilters: _controller?.hasActiveFilters ?? false,
       ),
       drawer: _offlineManager == null 
         ? null 
