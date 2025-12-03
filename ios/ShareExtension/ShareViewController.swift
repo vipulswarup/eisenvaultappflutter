@@ -1050,8 +1050,8 @@ class ShareViewController: UIViewController {
                 guard let data = data else {
                     print("🔍 DEBUG: ❌ No data received")
                     self?.showAPIError(message: "No data received from server. Please try again.")
-                    return
-                }
+                        return
+                    }
                     
                 print("🔍 DEBUG: ✅ Received \(data.count) bytes of data")
                 
@@ -1068,7 +1068,7 @@ class ShareViewController: UIViewController {
                         print("🔍 DEBUG: Parsing as Classic response...")
                         self?.parseClassicSites(data: data, baseUrl: baseUrl, authToken: authToken)
                     }
-                } catch {
+            } catch {
                     print("🔍 DEBUG: ❌ Error parsing DMS response: \(error)")
                     print("🔍 DEBUG: Error details: \(error.localizedDescription)")
                     self?.showAPIError(message: "Failed to parse server response. Please try again.")
@@ -1137,7 +1137,7 @@ class ShareViewController: UIViewController {
                         showAPIError(message: "No departments found. Please check your account settings.")
                     } else {
                         print("🔍 DEBUG: ✅ Successfully loaded \(sites.count) departments, calling loadSites()")
-                        loadSites()
+                    loadSites()
                     }
                 } else {
                     print("🔍 DEBUG: ❌ No 'data' array found in response")
@@ -1283,12 +1283,12 @@ class ShareViewController: UIViewController {
             }
         } else {
             // Handle Classic DMS
-            if let currentId = currentFolderId {
-                // Load containers for a site or children for a container
-                loadClassicSubfolders(baseUrl: baseUrl, authToken: authToken, parentId: currentId)
-            } else {
-                // Load sites
-                loadClassicSites(baseUrl: baseUrl, authToken: authToken)
+        if let currentId = currentFolderId {
+            // Load containers for a site or children for a container
+            loadClassicSubfolders(baseUrl: baseUrl, authToken: authToken, parentId: currentId)
+        } else {
+            // Load sites
+            loadClassicSites(baseUrl: baseUrl, authToken: authToken)
             }
         }
     }

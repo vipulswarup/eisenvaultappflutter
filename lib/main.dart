@@ -291,7 +291,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       },
       home: Consumer<AuthStateManager>(
         builder: (context, authState, _) {
-          if (authState.isAuthenticated) {
+          if (authState.isAuthenticated && 
+              authState.baseUrl != null && 
+              authState.currentToken != null && 
+              authState.instanceType != null) {
             return BrowseScreen(
               baseUrl: authState.baseUrl!,
               authToken: authState.currentToken!,

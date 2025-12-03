@@ -102,7 +102,7 @@ class AngoraBrowseService extends AngoraBaseService implements BrowseService {
           );
           
           // If retry still fails, throw error
-          if (response.statusCode != 200) {
+      if (response.statusCode != 200) {
             EVLogger.error('Request failed after token refresh', {
               'statusCode': response.statusCode,
             });

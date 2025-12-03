@@ -1,4 +1,5 @@
 import 'package:eisenvaultappflutter/screens/login_screen.dart';
+import 'package:eisenvaultappflutter/screens/browse/browse_screen.dart';
 import 'package:eisenvaultappflutter/services/auth/auth_state_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -41,21 +42,39 @@ class AuthHandler {
     );
   }
 
-  /// Performs the actual logout
+  /// Performs the actual logout (removes current account)
   Future<void> performLogout() async {
     try {
       // Get auth state manager
       final authStateManager = Provider.of<AuthStateManager>(context, listen: false);
       
-      // Perform logout
+      // Perform logout (removes current account)
       await authStateManager.logout();
 
-    // Navigate back to login screen and remove all previous routes
+      // Navigate based on remaining accounts
       if (context.mounted) {
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const LoginScreen()),
-      (Route<dynamic> route) => false,
-    );
+        if (authStateManager.isAuthenticated && authStateManager.currentAccount != null) {
+          // Switch to another account
+          final account = authStateManager.currentAccount!;
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (context) => BrowseScreen(
+                baseUrl: account.baseUrl,
+                authToken: account.token,
+                firstName: account.firstName,
+                instanceType: account.instanceType,
+                customerHostname: account.customerHostname,
+              ),
+            ),
+            (Route<dynamic> route) => false,
+          );
+        } else {
+          // No accounts left, go to login
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+            (Route<dynamic> route) => false,
+          );
+        }
       }
     } catch (e) {
       if (context.mounted) {

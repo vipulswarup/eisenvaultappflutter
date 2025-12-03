@@ -50,39 +50,39 @@ class _LoginFormState extends State<LoginForm> {
           constraints: BoxConstraints(
             minHeight: size.height - screenPadding.top - screenPadding.bottom,
           ),
-            child: IntrinsicHeight(
+          child: IntrinsicHeight(
             child: AutofillGroup(
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Image.asset(
-                      'assets/images/eisenvault_logo.png',
-                      height: logoHeight,
-                    ),                  
-                    SizedBox(height: elementSpacing * 2), // Increased spacing after logo
-                   
-                    _buildTextField(
-                      controller: _urlController,
-                      label: 'Server URL',
-                      hint: 'https://your-instance.eisenvault.net',
-                      icon: Icons.link,
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Image.asset(
+                    'assets/images/eisenvault_logo.png',
+                    height: logoHeight,
+                  ),                  
+                  SizedBox(height: elementSpacing * 2), // Increased spacing after logo
+                 
+                  _buildTextField(
+                    controller: _urlController,
+                    label: 'Server URL',
+                    hint: 'https://your-instance.eisenvault.net',
+                    icon: Icons.link,
                       autofillHints: const [AutofillHints.url],
-                    ),
-                    SizedBox(height: elementSpacing),
-                    _buildTextField(
-                      controller: _usernameController,
-                      label: 'Username',
-                      icon: Icons.person,
+                  ),
+                  SizedBox(height: elementSpacing),
+                  _buildTextField(
+                    controller: _usernameController,
+                    label: 'Username',
+                    icon: Icons.person,
                       autofillHints: const [AutofillHints.username],
-                    ),
-                    SizedBox(height: elementSpacing),
-                    _buildPasswordField(),
-                    SizedBox(height: elementSpacing * 2), // Increased spacing before button
-                    _buildLoginButton(),
-                    SizedBox(height: elementSpacing), // Add bottom spacing
-                  ],
+                  ),
+                  SizedBox(height: elementSpacing),
+                  _buildPasswordField(),
+                  SizedBox(height: elementSpacing * 2), // Increased spacing before button
+                  _buildLoginButton(),
+                  SizedBox(height: elementSpacing), // Add bottom spacing
+                ],
                 ),
               ),
             ),
