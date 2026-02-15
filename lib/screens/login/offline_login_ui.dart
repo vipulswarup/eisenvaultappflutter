@@ -136,9 +136,6 @@ class _OfflineLoginUIState extends State<OfflineLoginUI> {
   Future<void> _browseOfflineContent(BuildContext context) async {
 
     try {
-      // Debug: Dump database contents
-      await _offlineManager!.dumpOfflineDatabase();
-      
       // Check if we have offline content
       final items = await _offlineManager!.getOfflineItems(null);
       
@@ -190,8 +187,6 @@ class _OfflineLoginUIState extends State<OfflineLoginUI> {
   
   Future<void> _debugOfflineDatabase(BuildContext context) async {
     try {
-      await _offlineManager!.dumpOfflineDatabase();
-      
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

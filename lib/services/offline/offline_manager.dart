@@ -109,24 +109,15 @@ class OfflineManager {
        _sync = sync,
        _config = config {
     _initConnectivityMonitoring();
-    _initConnectivityListener();
   }
   
   void _initConnectivityMonitoring() {
     _connectivitySubscription = _connectivity.onConnectivityChanged.listen((results) {
-      // Only consider ConnectivityResult.none as offline
-      // ConnectivityResult.other can be VPN connections and should not be treated as offline
-      if (!results.contains(ConnectivityResult.none) && _config.autoSync) {
+      final isOffline = results.contains(ConnectivityResult.none);
+      _connectivityStream.add(isOffline);
+      if (!isOffline && _config.autoSync) {
         _sync.startSync();
       }
-    });
-  }
-  
-  void _initConnectivityListener() {
-    Connectivity().onConnectivityChanged.listen((results) {
-      // Only consider ConnectivityResult.none as offline
-      // ConnectivityResult.other can be VPN connections and should not be treated as offline
-      _connectivityStream.add(results.contains(ConnectivityResult.none));
     });
   }
   
@@ -497,7 +488,8 @@ class OfflineManager {
     return count;
   }
   
-  /// Downloads the contents of a folder recursively
+  /// Downloads the contents of a folder recursively.
+  /// Delegates to [_downloadFolderContentsWithIndex] and discards the return value.
   Future<void> _downloadFolderContents(
     BrowseItem folder, {
     DownloadManager? downloadManager,
@@ -506,67 +498,17 @@ class OfflineManager {
     int? currentFileIndex,
     String? parentId,
   }) async {
-    try {
-      final browseService = BrowseServiceFactory.getService(
-        _sync.instanceType,
-        _sync.baseUrl,
-        _sync.authToken,
-      );
-
-      int skipCount = 0;
-      const int maxItems = 25;
-      List<BrowseItem> contents;
-      int fileIndex = currentFileIndex ?? 1; // Use 1-based indexing
-      do {
-        if (downloadManager?.isCancelled == true) return;
-        contents = await browseService.getChildren(
-          folder,
-          skipCount: skipCount,
-          maxItems: maxItems,
-        );
-
-        for (final content in contents) {
-          if (downloadManager?.isCancelled == true) return;
-          if (content.type == 'folder') {
-            // For folders, just save the folder metadata and then download its contents
-            // Don't call keepOffline here as it would cause double downloads
-            final offlineItem = OfflineItem.fromBrowseItem(content, parentId: parentId ?? folder.id);
-            await _metadata.saveItem(offlineItem);
-            
-            // Then download its contents
-            fileIndex = await _downloadFolderContentsWithIndex(
-              content,
-              downloadManager: downloadManager,
-              onError: onError,
-              totalFiles: totalFiles,
-              currentFileIndex: fileIndex,
-              parentId: content.id, // Use the folder's ID as parent for its contents
-            );
-          } else {
-            await keepOffline(
-              content,
-              parentId: parentId ?? folder.id,
-              downloadManager: downloadManager,
-              onError: onError,
-              totalFiles: totalFiles,
-              currentFileIndex: fileIndex,
-            );
-            fileIndex++; // Increment after the file is processed
-          }
-        }
-
-        skipCount += maxItems;
-      } while (contents.length >= maxItems);
-    } catch (e) {
-      EVLogger.error('Error downloading folder contents', e);
-      if (onError != null) {
-        onError('Failed to download folder contents: ${folder.name}\n${e.toString()}');
-      }
-      rethrow;
-    }
+    await _downloadFolderContentsWithIndex(
+      folder,
+      downloadManager: downloadManager,
+      onError: onError,
+      totalFiles: totalFiles,
+      currentFileIndex: currentFileIndex,
+      parentId: parentId,
+    );
   }
   
-  /// Helper that returns the updated file index after downloading a folder
+  /// Downloads the contents of a folder recursively and returns the updated file index.
   Future<int> _downloadFolderContentsWithIndex(
     BrowseItem folder, {
     DownloadManager? downloadManager,
@@ -708,25 +650,8 @@ class OfflineManager {
     }
   }
   
-  /// Clear all offline content
+  /// Clear all offline content (files and database).
   Future<void> clearOfflineContent() async {
-    await Future.wait([
-      _storage.clearStorage(),
-      _metadata.clearMetadata(),
-    ]);
-  }
-  
-  /// Debug function to dump all offline database contents
-  Future<void> dumpOfflineDatabase() async {
-    try {
-      await _database.getAllOfflineItems();
-    } catch (e) {
-      EVLogger.error('Failed to dump offline database', e);
-    }
-  }
-  
-  /// Clear all offline content (database and files)
-  Future<void> clearAllOfflineContent() async {
     await Future.wait([
       _storage.clearStorage(),
       _database.clearAllItems(),
@@ -799,20 +724,9 @@ class _DefaultSyncProvider implements sync.OfflineSyncProvider {
   @override
   String get authToken => _authToken;
   
-  // Add setters for updating credentials
-  void updateCredentials({
-    required String instanceType,
-    required String baseUrl,
-    required String authToken,
-  }) {
-    _instanceType = instanceType;
-    _baseUrl = baseUrl;
-    _authToken = authToken;
-  }
-
   @override
   Future<void> startSync() async {
-    // Default implementation
+    // Default implementation -- SyncService handles sync separately
   }
   
   @override
@@ -854,27 +768,6 @@ class _DefaultSyncProvider implements sync.OfflineSyncProvider {
       }
     } catch (e) {
       EVLogger.error('Error downloading content', e);
-      rethrow;
-    }
-  }
-  
-  @override
-  Future<List<BrowseItem>> getFolderContents(String folderId) async {
-    try {
-      final browseService = BrowseServiceFactory.getService(
-        _instanceType,
-        _baseUrl,
-        _authToken,
-      );
-      
-      final folder = await browseService.getItemDetails(folderId);
-      if (folder == null) {
-        throw Exception('Folder not found');
-      }
-      
-      return await browseService.getChildren(folder);
-    } catch (e) {
-      EVLogger.error('Error getting folder contents', e);
       rethrow;
     }
   }
@@ -935,12 +828,7 @@ class _DatabaseMetadataAdapter implements OfflineMetadataProvider {
   
   @override
   Future<void> clearMetadata() async {
-    // Since there's no direct method to clear all metadata,
-    // we'll get all items and remove them one by one
-    final items = await _database.getAllOfflineItems();
-    for (final item in items) {
-      await _database.removeItem(item['id']);
-    }
+    await _database.clearAllItems();
   }
 }
 
