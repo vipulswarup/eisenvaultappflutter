@@ -52,6 +52,7 @@ class OfflineManager {
   
   // Connectivity monitoring
   late StreamSubscription<List<ConnectivityResult>> _connectivitySubscription;
+  Timer? _syncDebounceTimer;
   
   // Event controller for offline state changes
   final _eventController = StreamController<OfflineEvent>.broadcast();
@@ -116,7 +117,12 @@ class OfflineManager {
       final isOffline = results.contains(ConnectivityResult.none);
       _connectivityStream.add(isOffline);
       if (!isOffline && _config.autoSync) {
-        _sync.startSync();
+        // Debounce: wait 5 seconds before syncing to prevent rapid-fire
+        // sync attempts on connectivity flaps (e.g. wifi <-> cellular).
+        _syncDebounceTimer?.cancel();
+        _syncDebounceTimer = Timer(const Duration(seconds: 5), () {
+          _sync.startSync();
+        });
       }
     });
   }
@@ -660,6 +666,7 @@ class OfflineManager {
   
   /// Dispose resources
   void dispose() {
+    _syncDebounceTimer?.cancel();
     _connectivitySubscription.cancel();
     _eventController.close();
     _connectivityStream.close();

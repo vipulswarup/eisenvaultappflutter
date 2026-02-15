@@ -258,10 +258,10 @@ class _AndroidShareScreenState extends State<AndroidShareScreen> {
     _showCreateFolderDialog(parentId);
   }
   
-  void _showCreateFolderDialog(String parentId) {
+  Future<void> _showCreateFolderDialog(String parentId) async {
     final TextEditingController nameController = TextEditingController();
     
-    showDialog(
+    await showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Create New Folder'),
@@ -303,6 +303,7 @@ class _AndroidShareScreenState extends State<AndroidShareScreen> {
         ],
       ),
     );
+    nameController.dispose();
   }
   
   Future<void> _performCreateFolder(String folderName, String parentId) async {

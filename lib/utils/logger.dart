@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:logger/logger.dart';
 import 'dart:convert';
 
@@ -14,9 +15,10 @@ final _logger = Logger(
 );
 
 class EVLogger {
-  /// Flag to control whether sensitive data should be sanitized
-  /// Set this to false when you need to see full authorization keys for debugging
-  static bool sanitizeSensitiveData = false;
+  /// Flag to control whether sensitive data should be sanitized.
+  /// Defaults to true in release builds to prevent credential leakage.
+  /// Set to false in debug builds when you need to see full authorization keys.
+  static bool sanitizeSensitiveData = kReleaseMode;
 
   /// Sanitizes sensitive data in logs
   static dynamic _sanitizeData(dynamic data) {

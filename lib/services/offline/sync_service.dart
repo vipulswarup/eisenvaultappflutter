@@ -34,6 +34,7 @@ class SyncService {
 
   // Sync state
   bool _isSyncing = false;
+  bool _cancelled = false;
 
   // Callbacks
   Function()? onSyncStarted;
@@ -83,6 +84,7 @@ class SyncService {
     if (_isSyncing) return;
 
     _isSyncing = true;
+    _cancelled = false;
     _notifySyncStarted();
 
     try {
@@ -134,6 +136,7 @@ class SyncService {
 
     // --- Pass 1: Update existing documents ---
     for (var item in allItems) {
+      if (_cancelled) return;
       current++;
       _notifyProgress('Syncing item $current/$total: ${item['name']}');
 
@@ -167,6 +170,7 @@ class SyncService {
     final existingOfflineIds = allItems.map((item) => item['id'] as String).toSet();
 
     for (final folderId in offlineFolderIds) {
+      if (_cancelled) return;
       try {
         _notifyProgress('Checking folder for changes...');
 
@@ -502,8 +506,9 @@ class SyncService {
     onSyncError?.call(error);
   }
 
-  /// Dispose of resources.
+  /// Cancel any in-flight sync and release resources.
   void dispose() {
+    _cancelled = true;
     _connectivitySubscription?.cancel();
     _periodicSyncTimer?.cancel();
   }

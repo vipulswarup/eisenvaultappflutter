@@ -61,6 +61,7 @@ class FolderCreationHandler {
         ],
       ),
     );
+    folderNameController.dispose();
     if (result != null && result.isNotEmpty) {
       await _createFolder(result, parentFolderId);
     }

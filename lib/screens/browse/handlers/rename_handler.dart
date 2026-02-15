@@ -137,102 +137,106 @@ class RenameHandler {
       
       bool isRenaming = false;
       
-      await showDialog(
-        context: context,
-        builder: (dialogContext) {
-          return StatefulBuilder(
-            builder: (context, setState) {
-              return AlertDialog(
-                backgroundColor: EVColors.cardBackground,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                title: Text('Rename ${item.name}', style: const TextStyle(color: EVColors.textDefault)),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Enter a new name for this $itemType:',
-                      style: const TextStyle(color: EVColors.textDefault),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: nameController,
-                      autofocus: true,
-                      decoration: const InputDecoration(
-                        labelText: 'New Name',
-                        labelStyle: TextStyle(color: EVColors.textFieldLabel),
-                        enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: EVColors.textFieldBorder),
-                        ),
-                        focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: EVColors.buttonBackground),
+      try {
+        await showDialog(
+          context: context,
+          builder: (dialogContext) {
+            return StatefulBuilder(
+              builder: (context, setState) {
+                return AlertDialog(
+                  backgroundColor: EVColors.cardBackground,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  title: Text('Rename ${item.name}', style: const TextStyle(color: EVColors.textDefault)),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Enter a new name for this $itemType:',
+                        style: const TextStyle(color: EVColors.textDefault),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: nameController,
+                        autofocus: true,
+                        decoration: const InputDecoration(
+                          labelText: 'New Name',
+                          labelStyle: TextStyle(color: EVColors.textFieldLabel),
+                          enabledBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(color: EVColors.textFieldBorder),
+                          ),
+                          focusedBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(color: EVColors.buttonBackground),
+                          ),
                         ),
                       ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: isRenaming ? null : () => Navigator.of(dialogContext).pop(),
+                      child: const Text('CANCEL', style: TextStyle(color: EVColors.textSecondary)),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: EVColors.buttonBackground,
+                        foregroundColor: EVColors.buttonForeground,
+                      ),
+                      onPressed: isRenaming ? null : () async {
+                        final newName = nameController.text.trim();
+                        if (newName.isEmpty) {
+                          _showErrorMessage(context, 'Name cannot be empty');
+                          return;
+                        }
+                        if (newName == item.name) {
+                          Navigator.of(dialogContext).pop();
+                          return;
+                        }
+                        
+                        // Set loading state
+                        setState(() {
+                          isRenaming = true;
+                        });
+                        
+                        try {
+                          // Perform the rename operation
+                          final result = await _performRename(item, newName);
+                          
+                          // Close dialog and show success message
+                          if (dialogContext.mounted) {
+                            Navigator.of(dialogContext).pop();
+                            _showSuccessMessage(context, result);
+                          }
+                          
+                          // Notify parent to refresh
+                          onRenameSuccess();
+                        } catch (e) {
+                          // Close dialog and show error message
+                          if (dialogContext.mounted) {
+                            Navigator.of(dialogContext).pop();
+                          }
+                          
+                          if (context.mounted) {
+                            _showErrorMessage(context, 'Failed to rename: ${e.toString()}');
+                          }
+                        }
+                      },
+                      child: isRenaming 
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('RENAME'),
                     ),
                   ],
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: isRenaming ? null : () => Navigator.of(dialogContext).pop(),
-                    child: const Text('CANCEL', style: TextStyle(color: EVColors.textSecondary)),
-                  ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: EVColors.buttonBackground,
-                      foregroundColor: EVColors.buttonForeground,
-                    ),
-                    onPressed: isRenaming ? null : () async {
-                      final newName = nameController.text.trim();
-                      if (newName.isEmpty) {
-                        _showErrorMessage(context, 'Name cannot be empty');
-                        return;
-                      }
-                      if (newName == item.name) {
-                        Navigator.of(dialogContext).pop();
-                        return;
-                      }
-                      
-                      // Set loading state
-                      setState(() {
-                        isRenaming = true;
-                      });
-                      
-                      try {
-                        // Perform the rename operation
-                        final result = await _performRename(item, newName);
-                        
-                        // Close dialog and show success message
-                        if (dialogContext.mounted) {
-                          Navigator.of(dialogContext).pop();
-                          _showSuccessMessage(context, result);
-                        }
-                        
-                        // Notify parent to refresh
-                        onRenameSuccess();
-                      } catch (e) {
-                        // Close dialog and show error message
-                        if (dialogContext.mounted) {
-                          Navigator.of(dialogContext).pop();
-                        }
-                        
-                        if (context.mounted) {
-                          _showErrorMessage(context, 'Failed to rename: ${e.toString()}');
-                        }
-                      }
-                    },
-                    child: isRenaming 
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('RENAME'),
-                  ),
-                ],
-              );
-            },
-          );
-        },
-      );
+                );
+              },
+            );
+          },
+        );
+      } finally {
+        nameController.dispose();
+      }
     } catch (e) {
       if (context.mounted) {
         _showErrorMessage(context, 'Error checking permissions: ${e.toString()}');
