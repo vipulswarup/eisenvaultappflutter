@@ -1,4 +1,5 @@
 import 'package:eisenvaultappflutter/constants/colors.dart';
+import 'package:eisenvaultappflutter/constants/platform_channels.dart';
 import 'package:eisenvaultappflutter/screens/browse/browse_screen.dart';
 import 'package:eisenvaultappflutter/screens/offline/offline_browse_screen.dart';
 import 'package:eisenvaultappflutter/services/api/base_service.dart';
@@ -470,7 +471,7 @@ class LoginHandler {
       EVLogger.productionLog('instanceType: $instanceType');
       EVLogger.productionLog('customerHostname: $customerHostname');
       
-      const MethodChannel channel = MethodChannel('com.eisenvault.eisenvaultappflutter/main');
+      const MethodChannel channel = MethodChannel(PlatformChannels.androidMain);
       
       await channel.invokeMethod('saveDMSCredentials', {
         'baseUrl': baseUrl,
@@ -497,7 +498,7 @@ class LoginHandler {
     try {
       if (!kIsWeb && Platform.isIOS) {
         EVLogger.productionLog('Saving DMS credentials to App Groups for Share Extension');
-        const MethodChannel channel = MethodChannel('uploadChannel');
+        const MethodChannel channel = MethodChannel(PlatformChannels.iosUpload);
         await channel.invokeMethod('saveDMSCredentials', {
           'baseUrl': baseUrl,
           'authToken': authToken,

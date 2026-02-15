@@ -1,6 +1,7 @@
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show ChangeNotifier, kIsWeb;
 import 'package:flutter/services.dart';
+import 'package:eisenvaultappflutter/constants/platform_channels.dart';
 import 'package:eisenvaultappflutter/services/auth/persistent_auth_service.dart';
 import 'package:eisenvaultappflutter/services/auth/multi_account_auth_service.dart';
 import 'package:eisenvaultappflutter/services/auth/angora_auth_service.dart';
@@ -178,7 +179,7 @@ class AuthStateManager extends ChangeNotifier {
       
       // Only update on iOS
       if (Platform.isIOS) {
-        const MethodChannel channel = MethodChannel('uploadChannel');
+        const MethodChannel channel = MethodChannel(PlatformChannels.iosUpload);
         await channel.invokeMethod('saveDMSCredentials', {
           'baseUrl': account.baseUrl,
           'authToken': account.token,

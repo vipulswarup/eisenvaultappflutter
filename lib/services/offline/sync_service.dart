@@ -437,13 +437,29 @@ class SyncService {
       // If we're getting 404s everywhere, it might be a server issue
       bool hasSuccessfulApiCalls = false;
       try {
-        // Try to get a known good folder to see if API is working
-        final rootFolder = await browseService.getItemDetails('12e6eb38-062c-42b8-9ef4-c499c1e03480'); // documentLibrary
-        if (rootFolder != null) {
-          hasSuccessfulApiCalls = true;
-          EVLogger.debug('API is working - got root folder successfully', {
-            'step': 'api_working_check',
+        // Try to get any other known-offline folder to verify the API is working.
+        // We pick the first offline folder that is NOT the folder under test.
+        final offlineItems = await _database.getAllOfflineItems();
+        final otherFolder = offlineItems.firstWhere(
+          (item) => (item['type'] == 'folder' || item['type'] == 'department') && item['id'] != folderId,
+          orElse: () => <String, dynamic>{},
+        );
+        if (otherFolder.isNotEmpty) {
+          final probeResult = await browseService.getItemDetails(otherFolder['id']);
+          if (probeResult != null) {
+            hasSuccessfulApiCalls = true;
+            EVLogger.debug('API is working - probed another offline folder successfully', {
+              'step': 'api_working_check',
+              'probedFolderId': otherFolder['id'],
+            });
+          }
+        } else {
+          // No other offline folder to probe; we cannot confirm API health,
+          // so err on the side of caution and keep the folder.
+          EVLogger.warning('No other offline folder available for API health check - being conservative', {
+            'step': 'api_no_probe_target',
           });
+          return false;
         }
       } catch (e) {
         EVLogger.warning('API might be having issues - being conservative', {

@@ -2,13 +2,6 @@
 library;
 import 'package:flutter/foundation.dart';
 
-/// Status of an offline item
-enum OfflineStatus {
-  synced,
-  pending,
-  error,
-}
-
 /// Event for offline state changes
 class OfflineEvent {
   final String type;

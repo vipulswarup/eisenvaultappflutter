@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/services.dart';
+import 'package:eisenvaultappflutter/constants/platform_channels.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 
 class UploadData {
@@ -34,7 +35,7 @@ class UploadService {
   factory UploadService() => _instance;
   UploadService._internal();
 
-  static const MethodChannel _channel = MethodChannel('uploadChannel');
+  static const MethodChannel _channel = MethodChannel(PlatformChannels.iosUpload);
   final StreamController<UploadData> _uploadController = StreamController<UploadData>.broadcast();
 
   /// Stream of upload data from Share Extension

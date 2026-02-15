@@ -52,9 +52,9 @@ abstract class BaseService {
   }) async {
     try {
       return await requestFunction();
-    } on SocketException {
+    }     on SocketException {
       throw ServiceException(
-        'Unable to reach server at systest.eisenvault.net\nPlease check if the server is running or try again later.',
+        'Unable to reach the server.\nPlease check if the server is running or try again later.',
         type: ServiceErrorType.connectivity
       );
     } on TimeoutException {

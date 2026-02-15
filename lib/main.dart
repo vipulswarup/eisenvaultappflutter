@@ -1,4 +1,5 @@
 import 'package:eisenvaultappflutter/constants/colors.dart';
+import 'package:eisenvaultappflutter/constants/platform_channels.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_database_service.dart';
 import 'package:eisenvaultappflutter/services/offline/sync_service.dart';
 import 'package:eisenvaultappflutter/services/auth/auth_state_manager.dart';
@@ -106,7 +107,7 @@ Future<void> _saveDMSCredentialsToAppGroups({
 }) async {
   try {
     if (Platform.isIOS) {
-      const MethodChannel channel = MethodChannel('uploadChannel');
+      const MethodChannel channel = MethodChannel(PlatformChannels.iosUpload);
       await channel.invokeMethod('saveDMSCredentials', {
         'baseUrl': baseUrl,
         'authToken': authToken,
@@ -138,7 +139,7 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
-  static const MethodChannel _channel = MethodChannel('com.eisenvault.eisenvaultappflutter/main');
+  static const MethodChannel _channel = MethodChannel(PlatformChannels.androidMain);
   
   @override
   void initState() {

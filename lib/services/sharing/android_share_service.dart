@@ -1,8 +1,9 @@
 import 'package:flutter/services.dart';
+import 'package:eisenvaultappflutter/constants/platform_channels.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 
 class AndroidShareService {
-  static const MethodChannel _channel = MethodChannel('com.eisenvault.eisenvaultappflutter/share');
+  static const MethodChannel _channel = MethodChannel(PlatformChannels.androidShare);
   
   static Future<Map<String, dynamic>?> getSharedData() async {
     try {

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/services.dart';
+import 'package:eisenvaultappflutter/constants/platform_channels.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 
 class ContextMenuService {
@@ -8,7 +9,7 @@ class ContextMenuService {
   factory ContextMenuService() => _instance;
   ContextMenuService._internal();
 
-  static const MethodChannel _channel = MethodChannel('contextMenuChannel');
+  static const MethodChannel _channel = MethodChannel(PlatformChannels.macOsContextMenu);
   final StreamController<List<String>> _uploadController = StreamController<List<String>>.broadcast();
 
   /// Stream of file paths from context menu uploads
