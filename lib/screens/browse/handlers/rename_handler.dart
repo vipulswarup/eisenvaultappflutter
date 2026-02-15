@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/services/rename/rename_service.dart';
-import 'package:eisenvaultappflutter/services/permissions/angora_permission_service.dart';
+import 'package:eisenvaultappflutter/services/permissions/permission_service_factory.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 
@@ -41,7 +41,9 @@ class RenameHandler {
     try {
       bool result;
       if (repositoryType.toLowerCase() == 'angora') {
-        final permissionService = AngoraPermissionService(baseUrl, authToken);
+        final permissionService = PermissionServiceFactory.getService(
+          repositoryType, baseUrl, authToken,
+        );
         result = await permissionService.hasPermission(item.id, 'update');
       } else {
         result = item.allowableOperations?.contains('update') ?? false;

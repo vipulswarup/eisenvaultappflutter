@@ -5,231 +5,115 @@ import '../../utils/logger.dart';
 import '../api/angora_base_service.dart';
 import '../api/classic_base_service.dart';
 
-/// Service for renaming repository items
-/// 
-/// This service provides a unified interface for renaming various types of items
-/// (files, folders, departments, etc.) across different repository types.
+/// Service for renaming repository items.
+///
+/// Provides a unified interface for renaming files, folders, and departments
+/// across Angora and Classic repository types.
 class RenameService {
   final String _repositoryType;
-  final String _baseUrl;
-  final String _authToken;
   final String _customerHostname;
-  
-  /// Create a RenameService using the specified repository details
-  /// 
-  /// [repositoryType]: 'Angora' or 'Classic'
-  /// [baseUrl]: The base URL for the repository
-  /// [authToken]: Authentication token
-  /// [customerHostname]: Required for Angora repositories
+
+  // Base services created once and reused across all rename calls
+  final AngoraBaseService? _angoraService;
+  final ClassicBaseService? _classicService;
+
   RenameService({
     required String repositoryType,
     required String baseUrl,
     required String authToken,
     required String customerHostname,
-  }) : _repositoryType = repositoryType,
-       _baseUrl = baseUrl,
-       _authToken = authToken,
-       _customerHostname = customerHostname;
-  
-  /// Rename a file in the repository
-  Future<String> renameFile(String fileId, String newName) async {
-    try {
-      if (_repositoryType.toLowerCase() == 'angora') {
-        return await _renameAngoraFile(fileId, newName);
-      } else {
-        return await _renameClassicFile(fileId, newName);
-      }
-    } catch (e) {
-      EVLogger.error('Error in RenameService.renameFile', {'error': e.toString()});
-      rethrow;
-    }
-  }
-  
-  /// Rename a folder in the repository
-  Future<String> renameFolder(String folderId, String newName) async {
-    try {
-      if (_repositoryType.toLowerCase() == 'angora') {
-        return await _renameAngoraFolder(folderId, newName);
-      } else {
-        return await _renameClassicFolder(folderId, newName);
-      }
-    } catch (e) {
-      EVLogger.error('Error in RenameService.renameFolder', {'error': e.toString()});
-      rethrow;
-    }
-  }
-  
-  /// Rename a department in the repository
-  Future<String> renameDepartment(String departmentId, String newName) async {
-    try {
-      if (_repositoryType.toLowerCase() == 'angora') {
-        return await _renameAngoraDepartment(departmentId, newName);
-      } else {
-        return await _renameClassicDepartment(departmentId, newName);
-      }
-    } catch (e) {
-      EVLogger.error('Error in RenameService.renameDepartment', {'error': e.toString()});
-      rethrow;
-    }
-  }
-  
-  /// Rename an item based on its type
+  })  : _repositoryType = repositoryType,
+        _customerHostname = customerHostname,
+        _angoraService = repositoryType.toLowerCase() == 'angora'
+            ? (AngoraBaseService(baseUrl)..setToken(authToken))
+            : null,
+        _classicService = repositoryType.toLowerCase() != 'angora'
+            ? (ClassicBaseService(baseUrl)..setToken(authToken))
+            : null;
+
+  /// Rename an item based on its type.
   Future<String> renameItem(BrowseItem item, String newName) async {
     try {
       if (item.isDepartment) {
-        return await renameDepartment(item.id, newName);
+        return await _rename(item.id, newName, entityType: 'departments', entityLabel: 'Department');
       } else if (item.type == 'folder') {
-        return await renameFolder(item.id, newName);
+        return await _rename(item.id, newName, entityType: 'folders', entityLabel: 'Folder');
       } else {
-        return await renameFile(item.id, newName);
+        return await _rename(item.id, newName, entityType: 'files', entityLabel: 'File');
       }
     } catch (e) {
       EVLogger.error('Error in RenameService.renameItem', {'error': e.toString()});
       rethrow;
     }
   }
-  
-  /// Angora implementation for renaming files
-  Future<String> _renameAngoraFile(String fileId, String newName) async {
-    final angoraService = AngoraBaseService(_baseUrl);
-    angoraService.setToken(_authToken);
-    
-    final url = angoraService.buildUrl('files/$fileId');
-    final headers = angoraService.createHeaders();
+
+  Future<String> renameFile(String fileId, String newName) =>
+      _rename(fileId, newName, entityType: 'files', entityLabel: 'File');
+
+  Future<String> renameFolder(String folderId, String newName) =>
+      _rename(folderId, newName, entityType: 'folders', entityLabel: 'Folder');
+
+  Future<String> renameDepartment(String departmentId, String newName) =>
+      _rename(departmentId, newName, entityType: 'departments', entityLabel: 'Department');
+
+  /// Single consolidated rename method for both backends.
+  Future<String> _rename(
+    String itemId,
+    String newName, {
+    required String entityType,
+    required String entityLabel,
+  }) async {
+    if (_repositoryType.toLowerCase() == 'angora') {
+      return _renameAngora(itemId, newName, entityType: entityType, entityLabel: entityLabel);
+    } else {
+      return _renameClassic(itemId, newName, entityLabel: entityLabel);
+    }
+  }
+
+  Future<String> _renameAngora(
+    String itemId,
+    String newName, {
+    required String entityType,
+    required String entityLabel,
+  }) async {
+    final url = _angoraService!.buildUrl('$entityType/$itemId');
+    final headers = _angoraService!.createHeaders();
     headers['x-portal'] = 'mobile';
     headers['x-customer-hostname'] = _customerHostname;
-    
+
     final response = await http.put(
       Uri.parse(url),
       headers: headers,
-      body: jsonEncode({
-        'name': newName,
-      }),
+      body: jsonEncode({'name': newName}),
     );
-    
+
     if (response.statusCode == 200) {
-      return 'File renamed successfully';
+      return '$entityLabel renamed successfully';
     } else {
-      throw Exception('Failed to rename file: ${response.statusCode}');
+      throw Exception('Failed to rename $entityLabel: ${response.statusCode}');
     }
   }
-  
-  /// Angora implementation for renaming folders
-  Future<String> _renameAngoraFolder(String folderId, String newName) async {
-    final angoraService = AngoraBaseService(_baseUrl);
-    angoraService.setToken(_authToken);
-    
-    final url = angoraService.buildUrl('folders/$folderId');
-    final headers = angoraService.createHeaders();
-    headers['x-portal'] = 'mobile';
-    headers['x-customer-hostname'] = _customerHostname;
-    
+
+  Future<String> _renameClassic(
+    String itemId,
+    String newName, {
+    required String entityLabel,
+  }) async {
+    final url = _classicService!.buildUrl(
+      'api/-default-/public/alfresco/versions/1/nodes/$itemId',
+    );
+    final headers = _classicService!.createHeaders();
+
     final response = await http.put(
       Uri.parse(url),
       headers: headers,
-      body: jsonEncode({
-        'name': newName,
-      }),
+      body: jsonEncode({'name': newName}),
     );
-    
+
     if (response.statusCode == 200) {
-      return 'Folder renamed successfully';
+      return '$entityLabel renamed successfully';
     } else {
-      throw Exception('Failed to rename folder: ${response.statusCode}');
+      throw Exception('Failed to rename $entityLabel: ${response.statusCode}');
     }
   }
-  
-  /// Angora implementation for renaming departments
-  Future<String> _renameAngoraDepartment(String departmentId, String newName) async {
-    final angoraService = AngoraBaseService(_baseUrl);
-    angoraService.setToken(_authToken);
-    
-    final url = angoraService.buildUrl('departments/$departmentId');
-    final headers = angoraService.createHeaders();
-    headers['x-portal'] = 'mobile';
-    headers['x-customer-hostname'] = _customerHostname;
-    
-    final response = await http.put(
-      Uri.parse(url),
-      headers: headers,
-      body: jsonEncode({
-        'name': newName,
-      }),
-    );
-    
-    if (response.statusCode == 200) {
-      return 'Department renamed successfully';
-    } else {
-      throw Exception('Failed to rename department: ${response.statusCode}');
-    }
-  }
-  
-  /// Classic implementation for renaming files
-  Future<String> _renameClassicFile(String fileId, String newName) async {
-    final classicService = ClassicBaseService(_baseUrl);
-    classicService.setToken(_authToken);
-    
-    final url = classicService.buildUrl('api/-default-/public/alfresco/versions/1/nodes/$fileId');
-    final headers = classicService.createHeaders();
-    
-    final response = await http.put(
-      Uri.parse(url),
-      headers: headers,
-      body: jsonEncode({
-        'name': newName,
-      }),
-    );
-    
-    if (response.statusCode == 200) {
-      return 'File renamed successfully';
-    } else {
-      throw Exception('Failed to rename file: ${response.statusCode}');
-    }
-  }
-  
-  /// Classic implementation for renaming folders
-  Future<String> _renameClassicFolder(String folderId, String newName) async {
-    final classicService = ClassicBaseService(_baseUrl);
-    classicService.setToken(_authToken);
-    
-    final url = classicService.buildUrl('api/-default-/public/alfresco/versions/1/nodes/$folderId');
-    final headers = classicService.createHeaders();
-    
-    final response = await http.put(
-      Uri.parse(url),
-      headers: headers,
-      body: jsonEncode({
-        'name': newName,
-      }),
-    );
-    
-    if (response.statusCode == 200) {
-      return 'Folder renamed successfully';
-    } else {
-      throw Exception('Failed to rename folder: ${response.statusCode}');
-    }
-  }
-  
-  /// Classic implementation for renaming departments
-  Future<String> _renameClassicDepartment(String departmentId, String newName) async {
-    final classicService = ClassicBaseService(_baseUrl);
-    classicService.setToken(_authToken);
-    
-    final url = classicService.buildUrl('api/-default-/public/alfresco/versions/1/nodes/$departmentId');
-    final headers = classicService.createHeaders();
-    
-    final response = await http.put(
-      Uri.parse(url),
-      headers: headers,
-      body: jsonEncode({
-        'name': newName,
-      }),
-    );
-    
-    if (response.statusCode == 200) {
-      return 'Department renamed successfully';
-    } else {
-      throw Exception('Failed to rename department: ${response.statusCode}');
-    }
-  }
-} 
+}

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/services/delete/delete_service.dart';
 import 'package:eisenvaultappflutter/widgets/delete_confirmation_dialog.dart';
-import 'package:eisenvaultappflutter/services/permissions/angora_permission_service.dart';
+import 'package:eisenvaultappflutter/services/permissions/permission_service_factory.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 
 /// Handles UI interactions related to deleting repository items
@@ -41,10 +41,10 @@ class DeleteHandler {
     try {
       bool result;
       if (repositoryType.toLowerCase() == 'angora') {
-        
-        final permissionService = AngoraPermissionService(baseUrl, authToken);
+        final permissionService = PermissionServiceFactory.getService(
+          repositoryType, baseUrl, authToken,
+        );
         result = await permissionService.hasPermission(item.id, 'delete');
-        
       } else {
         result = item.canDelete;
       }
