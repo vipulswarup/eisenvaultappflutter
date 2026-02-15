@@ -1,6 +1,4 @@
-import 'dart:async';
 import 'dart:convert';
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/screens/browse/browse_screen_controller.dart';
@@ -129,15 +127,6 @@ class UploadNavigationHandler {
 }
 
 class _BrowseScreenState extends State<BrowseScreen> {
-  /// Connectivity instance to monitor network changes.
-  final Connectivity _connectivity = Connectivity();
-  
-  //a boolean to track if the app is offline
-  bool _isOffline = false;
-  //a stream subscription to listen to connectivity changes
-  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
-
-
   BrowseScreenController? _controller;
   late FileTapHandler _fileTapHandler;
   late AuthHandler _authHandler;
@@ -148,9 +137,6 @@ class _BrowseScreenState extends State<BrowseScreen> {
   late BatchDeleteHandler _batchDeleteHandler;
   late UploadNavigationHandler _uploadHandler;
   late SearchNavigationHandler _searchHandler;
-
-  // A set to keep track of selected items for batch operations
-  final Set<String> _selectedItems = {};
 
   OfflineManager? _offlineManager;
   FavoritesService? _favoritesService;
@@ -218,45 +204,10 @@ class _BrowseScreenState extends State<BrowseScreen> {
   }
 
 
-  void _setupConnectivityListener() {
-    _connectivitySubscription = _connectivity.onConnectivityChanged.listen(_updateConnectionStatus);
-  }
-
-  Future<void> _updateConnectionStatus(List<ConnectivityResult> results) async {
-    if (!mounted) return;
-    
-    // Only consider ConnectivityResult.none as offline
-    // ConnectivityResult.other can be VPN connections and should not be treated as offline
-    final isNowOffline = results.contains(ConnectivityResult.none);
-    
-    if (isNowOffline != _isOffline) {
-      setState(() {
-        _isOffline = isNowOffline;
-      });
-      
-      if (isNowOffline) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('You are offline. Switching to offline mode.'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('You are back online.'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    }
-  }
-
   @override
   void initState() {
     super.initState();
     _initializeComponents();
-    _setupConnectivityListener();
   }
 
   Future<void> _initializeComponents() async {
@@ -333,14 +284,12 @@ class _BrowseScreenState extends State<BrowseScreen> {
       baseUrl: widget.baseUrl,
       authToken: widget.authToken,
       deleteService: _deleteService,
-      getSelectedItems: () => _controller?.items.where((item) => _selectedItems.contains(item.id)).toList() ?? [],
+      getSelectedItems: () => _controller?.getSelectedBrowseItems() ?? [],
       onDeleteSuccess: () {
         _refreshCurrentFolder();
       },
       clearSelectionMode: () {
-        setState(() {
-          _selectedItems.clear();
-        });
+        _controller?.exitSelectionMode();
       },
     );
 
@@ -408,17 +357,6 @@ class _BrowseScreenState extends State<BrowseScreen> {
     }
   }
 
-  bool _isInSelectionMode = false;
-
-  void _toggleSelectionMode() {
-    setState(() {
-      _isInSelectionMode = !_isInSelectionMode;
-      if (!_isInSelectionMode) {
-        _selectedItems.clear();
-      }
-    });
-  }
-
   Future<void> _showFilterSortDialog() async {
     if (_controller == null) return;
     
@@ -454,9 +392,9 @@ class _BrowseScreenState extends State<BrowseScreen> {
         onLogoutTap: () => _authHandler.showLogoutConfirmation(),
         showBackButton: _controller?.currentFolder != null && _controller?.currentFolder?.id != 'root',
         onBackPressed: _controller?.handleBackNavigation,
-        isOfflineMode: _isOffline,
-        isInSelectionMode: _isInSelectionMode,
-        onSelectionModeToggle: _toggleSelectionMode,
+        isOfflineMode: _controller?.isOffline ?? false,
+        isInSelectionMode: _controller?.isInSelectionMode ?? false,
+        onSelectionModeToggle: () => _controller?.toggleSelectionMode(),
         onFilterSortTap: _showFilterSortDialog,
         hasActiveFilters: _controller?.hasActiveFilters ?? false,
       ),
@@ -476,7 +414,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
           // Main content
           Column(
             children: [
-              if (_isOffline)
+              if (_controller?.isOffline ?? false)
                 Container(
                   width: double.infinity,
                   color: EVColors.offlineBackground,
@@ -568,17 +506,11 @@ class _BrowseScreenState extends State<BrowseScreen> {
                                 errorMessage: _controller!.errorMessage,
                                 onItemTap: _handleItemTap,
                                 onItemLongPress: _handleItemLongPress,
-                                isOffline: _isOffline,
-                                isInSelectionMode: _isInSelectionMode,
-                                selectedItems: _selectedItems,
+                                isOffline: _controller!.isOffline,
+                                isInSelectionMode: _controller!.isInSelectionMode,
+                                selectedItems: _controller!.selectedItems,
                                 onItemSelectionChanged: (itemId, selected) {
-                                  setState(() {
-                                    if (selected) {
-                                      _selectedItems.add(itemId);
-                                    } else {
-                                      _selectedItems.remove(itemId);
-                                    }
-                                  });
+                                  _controller!.toggleItemSelection(itemId);
                                 },
                                 onLoadMore: _controller!.loadMoreItems,
                                 isLoadingMore: _controller!.isLoadingMore,
@@ -592,8 +524,8 @@ class _BrowseScreenState extends State<BrowseScreen> {
         ],
       ),
       floatingActionButton: ActionButtonBuilder.buildFloatingActionButton(
-        isInSelectionMode: _isInSelectionMode,
-        hasSelectedItems: _selectedItems.isNotEmpty,
+        isInSelectionMode: _controller?.isInSelectionMode ?? false,
+        hasSelectedItems: _controller?.selectedItemCount != 0,
         isInFolder: _controller?.currentFolder != null && !_controller!.currentFolder!.isDepartment,
         hasWritePermission: _controller?.currentFolder?.allowableOperations?.contains('create') ?? false,
         onBatchDelete: () => _batchDeleteHandler.handleBatchDelete(),
@@ -616,13 +548,12 @@ class _BrowseScreenState extends State<BrowseScreen> {
 
   @override
   void dispose() {
-    _connectivitySubscription?.cancel();
     _controller?.dispose();
     super.dispose();
   }
 
   Future<void> _handleItemLongPress(BrowseItem item) async {
-    if (_isOffline) return;
+    if (_controller?.isOffline ?? false) return;
 
     final bool isOffline = await _offlineManager!.isItemOffline(item.id);
     final bool isFavorite = await _isItemFavorite(item.id);

@@ -31,7 +31,49 @@ class BrowseScreenController extends ChangeNotifier {
   List<BrowseItem> navigationStack = [];
   BrowseItem? currentFolder;
   bool _isOffline = false;
-  bool _disposed = false; // Add a flag to track if the controller has been disposed
+  bool _disposed = false;
+
+  bool get isOffline => _isOffline;
+
+  // Selection state
+  bool _isInSelectionMode = false;
+  final Set<String> _selectedItems = {};
+
+  bool get isInSelectionMode => _isInSelectionMode;
+  Set<String> get selectedItems => Set.unmodifiable(_selectedItems);
+  int get selectedItemCount => _selectedItems.length;
+
+  void toggleSelectionMode() {
+    _isInSelectionMode = !_isInSelectionMode;
+    if (!_isInSelectionMode) _selectedItems.clear();
+    _notifyListeners();
+  }
+
+  void toggleItemSelection(String itemId) {
+    if (_selectedItems.contains(itemId)) {
+      _selectedItems.remove(itemId);
+    } else {
+      _selectedItems.add(itemId);
+    }
+    _notifyListeners();
+  }
+
+  bool isItemSelected(String itemId) => _selectedItems.contains(itemId);
+
+  List<BrowseItem> getSelectedBrowseItems() {
+    return items.where((item) => _selectedItems.contains(item.id)).toList();
+  }
+
+  void clearSelection() {
+    _selectedItems.clear();
+    _notifyListeners();
+  }
+
+  void exitSelectionMode() {
+    _isInSelectionMode = false;
+    _selectedItems.clear();
+    _notifyListeners();
+  }
   
   // Filter and sort state
   FilterSortOptions _filterSortOptions = const FilterSortOptions();
