@@ -1,13 +1,15 @@
-import 'dart:convert';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/screens/browse/browse_screen_controller.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/auth_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/batch_delete_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/delete_handler.dart';
+import 'package:eisenvaultappflutter/screens/browse/handlers/folder_creation_handler.dart';
+import 'package:eisenvaultappflutter/screens/browse/handlers/media_upload_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/rename_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/file_tap_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/search_navigation_handler.dart';
+import 'package:eisenvaultappflutter/screens/browse/handlers/upload_navigation_handler.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_app_bar.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_drawer.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_list.dart';
@@ -24,15 +26,8 @@ import 'package:eisenvaultappflutter/services/auth/auth_state_manager.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:eisenvaultappflutter/screens/document_upload_screen.dart';
 import 'package:eisenvaultappflutter/screens/browse/components/action_button_builder.dart';
-import 'package:http/http.dart' as http;
-import 'package:image_picker/image_picker.dart';
-import 'package:eisenvaultappflutter/services/upload/upload_service_factory.dart';
-import 'package:eisenvaultappflutter/services/permission_service.dart';
 import 'dart:io' show Platform;
-// Temporarily disabled on Android due to 16KB page size compliance issue with Google ML Kit
-// import 'package:aio_scanner/aio_scanner.dart';
 
 /// BrowseScreen handles online browsing of the repository content.
 class BrowseScreen extends StatefulWidget {
@@ -55,75 +50,6 @@ class BrowseScreen extends StatefulWidget {
 
   @override
   State<BrowseScreen> createState() => _BrowseScreenState();
-}
-
-class UploadNavigationHandler {
-  final BuildContext context;
-  final String instanceType;
-  final String baseUrl;
-  final String authToken;
-  final Function() refreshCurrentFolder;
-  final BrowseScreenController controller;
-
-  UploadNavigationHandler({
-    required this.context,
-    required this.instanceType,
-    required this.baseUrl,
-    required this.authToken,
-    required this.refreshCurrentFolder,
-    required this.controller,
-  });
-
-  /// Navigate to the upload screen to add files to the current folder.
-  Future<void> navigateToUploadScreen() async {
-    final currentFolder = controller.currentFolder;
-    if (currentFolder == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Please select a folder to upload files'),
-          backgroundColor: EVColors.statusError,
-        ),
-      );
-      return;
-    }
-
-    String parentFolderId;
-    if (instanceType.toLowerCase() == 'angora') {
-      parentFolderId = currentFolder.id;
-    } else {
-      if (currentFolder.isDepartment) {
-        if (currentFolder.documentLibraryId != null) {
-          parentFolderId = currentFolder.documentLibraryId!;
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Cannot upload at this level. Please navigate to a subfolder.'),
-              backgroundColor: EVColors.statusError,
-            ),
-          );
-          return;
-        }
-      } else {
-        parentFolderId = currentFolder.id;
-      }
-    }
-
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => DocumentUploadScreen(
-          repositoryType: instanceType,
-          parentFolderId: parentFolderId,
-          baseUrl: baseUrl,
-          authToken: authToken,
-        ),
-      ),
-    );
-
-    if (result == true) {
-      refreshCurrentFolder();
-    }
-  }
 }
 
 class _BrowseScreenState extends State<BrowseScreen> {
@@ -692,617 +618,54 @@ class _BrowseScreenState extends State<BrowseScreen> {
   }
 
   Future<void> _handleCreateFolder() async {
-    final TextEditingController _folderNameController = TextEditingController();
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: EVColors.cardBackground,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Create Folder', style: TextStyle(color: EVColors.textDefault)),
-        content: TextField(
-          controller: _folderNameController,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Folder Name',
-            labelStyle: TextStyle(color: EVColors.textFieldLabel),
-            enabledBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: EVColors.textFieldBorder),
-            ),
-            focusedBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: EVColors.buttonBackground),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('CANCEL', style: TextStyle(color: EVColors.textSecondary)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: EVColors.buttonBackground,
-              foregroundColor: EVColors.buttonForeground,
-            ),
-            onPressed: () => Navigator.of(context).pop(_folderNameController.text.trim()),
-            child: const Text('CREATE'),
-          ),
-        ],
-      ),
-    );
-    if (result != null && result.isNotEmpty) {
-      await _createFolder(result);
-    }
-  }
-
-  Future<void> _createFolder(String folderName) async {
     final currentFolder = _controller?.currentFolder;
     if (currentFolder == null) return;
-    try {
-      // Angora and Classic APIs differ, so handle both
-      if (widget.instanceType.toLowerCase() == 'angora') {
-        // POST /folders for Angora
-        final response = await http.post(
-          Uri.parse('${widget.baseUrl}/api/folders'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': widget.authToken,
-            'x-portal': 'web',
-            'x-customer-hostname': widget.customerHostname,
-          },
-          body: jsonEncode({
-            'name': folderName,
-            'parent_id': currentFolder.id,
-          }),
-        );
-        if (response.statusCode == 201) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Folder created successfully'),
-              backgroundColor: EVColors.successGreen,
-            ),
-          );
-          await _refreshCurrentFolder();
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to create folder: ${response.body}'),
-              backgroundColor: EVColors.statusError,
-            ),
-          );
-        }
-      } else {
-        // Classic/Alfresco: POST to /nodes/{parentId}/children
-        final response = await http.post(
-          Uri.parse('${widget.baseUrl}/api/-default-/public/alfresco/versions/1/nodes/${currentFolder.id}/children'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': widget.authToken,
-          },
-          body: jsonEncode({
-            'name': folderName,
-            'nodeType': 'cm:folder',
-          }),
-        );
-        if (response.statusCode == 201) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Folder created successfully'),
-              backgroundColor: EVColors.successGreen,
-            ),
-          );
-          await _refreshCurrentFolder();
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to create folder: ${response.body}'),
-              backgroundColor: EVColors.statusError,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString()}'),
-          backgroundColor: EVColors.statusError,
-        ),
-      );
-    }
+    final handler = FolderCreationHandler(
+      context: context,
+      instanceType: widget.instanceType,
+      baseUrl: widget.baseUrl,
+      authToken: widget.authToken,
+      customerHostname: widget.customerHostname,
+      onFolderCreated: _refreshCurrentFolder,
+    );
+    await handler.showCreateFolderDialog(currentFolder.id);
   }
 
   void _handleTakePicture() async {
-    // Only run on mobile
-    if (!(Platform.isAndroid || Platform.isIOS)) return;
-    // Detect iOS simulator
-    bool isIOSSimulator = false;
-    try {
-      isIOSSimulator = Platform.isIOS && !Platform.isMacOS &&
-        (Platform.environment['SIMULATOR_DEVICE_NAME'] != null);
-    } catch (_) {}
-    if (isIOSSimulator) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Camera is not supported on the iOS simulator. Please use the gallery option.'),
-          backgroundColor: EVColors.statusWarning,
-        ),
-      );
-      return;
-    }
-    final picker = ImagePicker();
-    XFile? image;
-    if (Platform.isAndroid) {
-      // Android: check/request permission
-      final hasCameraPermission = await PermissionService.checkCameraPermission();
-      if (!hasCameraPermission) {
-        final granted = await PermissionService.requestCameraPermission(context);
-        if (!granted) return;
-      }
-      image = await picker.pickImage(source: ImageSource.camera);
-    } else if (Platform.isIOS) {
-      // iOS: directly open camera, system will prompt for permission
-      image = await picker.pickImage(source: ImageSource.camera);
-    }
-    if (image == null) return; // User cancelled
-    // Upload the image using the same logic as the upload screen
-    try {
-      String uploadName = image.name;
-      if (Platform.isIOS && uploadName.startsWith('image_picker_')) {
-        uploadName = uploadName.replaceFirst('image_picker_', 'ios_camera_');
-      }
-      final uploadService = UploadServiceFactory.getService(
-        instanceType: widget.instanceType,
-        baseUrl: widget.baseUrl,
-        authToken: widget.authToken,
-      );
-      final parentFolderId = _controller?.currentFolder?.id;
-      if (parentFolderId == null) throw Exception('No folder selected');
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(child: CircularProgressIndicator()),
-      );
-      await uploadService.uploadDocument(
-        parentFolderId: parentFolderId,
-        filePath: image.path,
-        fileName: uploadName,
-      );
-      Navigator.of(context).pop(); // Close progress dialog
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Image uploaded successfully'),
-          backgroundColor: EVColors.successGreen,
-        ),
-      );
-      _refreshCurrentFolder();
-    } catch (e) {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to upload image: $e'),
-          backgroundColor: EVColors.statusError,
-        ),
-      );
-    }
+    final handler = MediaUploadHandler(
+      context: context,
+      instanceType: widget.instanceType,
+      baseUrl: widget.baseUrl,
+      authToken: widget.authToken,
+      getCurrentFolderId: () => _controller?.currentFolder?.id,
+      onUploadComplete: _refreshCurrentFolder,
+    );
+    await handler.takePictureAndUpload();
   }
 
   void _handleScanDocument() async {
-    // Only run on mobile
     if (!(Platform.isAndroid || Platform.isIOS)) return;
-    
-    // Temporarily disabled on Android due to 16KB page size compliance issue with Google ML Kit
-    if (Platform.isAndroid) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Document scanning is temporarily disabled on Android. Please use the camera or gallery options instead.'),
-          backgroundColor: EVColors.statusWarning,
-        ),
-      );
-      return;
-    }
-    
-    // Detect iOS simulator
-    bool isIOSSimulator = false;
-    try {
-      isIOSSimulator = Platform.isIOS && !Platform.isMacOS &&
-        (Platform.environment['SIMULATOR_DEVICE_NAME'] != null);
-    } catch (_) {}
-    if (isIOSSimulator) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Document scanning is not supported on the iOS simulator. Please use a physical device.'),
-          backgroundColor: EVColors.statusWarning,
-        ),
-      );
-      return;
-    }
-
-    // Temporarily disabled - uncomment when Google ML Kit supports 16KB page sizes
-    /*
-    try {
-      // Check if document scanning is supported
-      if (!await AioScanner.isDocumentScanningSupported()) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Document scanning is not supported on this device'),
-            backgroundColor: EVColors.statusError,
-          ),
-        );
-        return;
-      }
-
-      // Request permissions
-      final hasPermissions = await _requestScannerPermissions();
-      if (!hasPermissions) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Camera and storage permissions are required for document scanning'),
-            backgroundColor: EVColors.statusError,
-          ),
-        );
-        return;
-      }
-
-      // Show scan options dialog
-      final scanOptions = await _showScanOptionsDialog();
-      if (scanOptions == null) return; // User cancelled
-
-      // Start document scanning with selected options
-      final result = await AioScanner.startDocumentScanning(
-        maxNumPages: scanOptions.maxPages,
-        initialMessage: 'Position document in frame',
-        scanningMessage: 'Hold still...',
-        allowGalleryImport: true,
-        outputFormat: scanOptions.outputFormat,
-        mergePDF: scanOptions.mergePDF,
-      );
-
-      if (result != null && result.isSuccessful) {
-        // Get custom filename from user
-        final fileName = await _getCustomFileName(scanOptions.outputFormat);
-        if (fileName == null) return; // User cancelled
-
-        // Upload scanned files
-        final uploadService = UploadServiceFactory.getService(
-          instanceType: widget.instanceType,
-          baseUrl: widget.baseUrl,
-          authToken: widget.authToken,
-        );
-        final parentFolderId = _controller?.currentFolder?.id;
-        if (parentFolderId == null) throw Exception('No folder selected');
-
-        // Show progress dialog
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => const Center(child: CircularProgressIndicator()),
-        );
-
-        try {
-          if (scanOptions.mergePDF && scanOptions.outputFormat == ScanOutputFormat.pdf) {
-            // Upload single merged PDF
-            final scannedFile = result.scannedFiles.first;
-            await uploadService.uploadDocument(
-              parentFolderId: parentFolderId,
-              filePath: scannedFile.filePath,
-              fileName: fileName,
-            );
-          } else {
-            // Upload individual files
-            for (int i = 0; i < result.scannedFiles.length; i++) {
-              final scannedFile = result.scannedFiles[i];
-              final individualFileName = result.scannedFiles.length > 1 
-                ? '${fileName.replaceAll(RegExp(r'\.[^.]*$'), '')}_page_${i + 1}${_getFileExtension(scanOptions.outputFormat)}'
-                : fileName;
-              await uploadService.uploadDocument(
-                parentFolderId: parentFolderId,
-                filePath: scannedFile.filePath,
-                fileName: individualFileName,
-              );
-            }
-          }
-
-          Navigator.of(context).pop(); // Close progress dialog
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('${result.scannedFiles.length} scanned document(s) uploaded successfully'),
-              backgroundColor: EVColors.successGreen,
-            ),
-          );
-          _refreshCurrentFolder();
-        } catch (e) {
-          Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to upload scanned documents: $e'),
-              backgroundColor: EVColors.statusError,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error scanning document: $e'),
-          backgroundColor: EVColors.statusError,
-        ),
-      );
-    }
-    */
-  }
-
-  // Temporarily disabled - uncomment when Google ML Kit supports 16KB page sizes
-  // These helper functions are commented out because they depend on aio_scanner types
-  /*
-  Future<ScanOptions?> _showScanOptionsDialog() async {
-    ScanOutputFormat selectedFormat = ScanOutputFormat.image;
-    bool mergePDF = false;
-    int maxPages = 5;
-
-    return showDialog<ScanOptions>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          backgroundColor: EVColors.cardBackground,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Scan Options', style: TextStyle(color: EVColors.textDefault)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Output Format Selection
-              const Text('Output Format:', style: TextStyle(color: EVColors.textDefault, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              DropdownButton<ScanOutputFormat>(
-                value: selectedFormat,
-                items: const [
-                  DropdownMenuItem(
-                    value: ScanOutputFormat.image,
-                    child: Text('Images (JPG)'),
-                  ),
-                  DropdownMenuItem(
-                    value: ScanOutputFormat.pdf,
-                    child: Text('PDF'),
-                  ),
-                ],
-                onChanged: (value) {
-                  setState(() {
-                    selectedFormat = value!;
-                    if (selectedFormat == ScanOutputFormat.image) {
-                      mergePDF = false;
-                    }
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
-              
-              // Max Pages Selection
-              const Text('Maximum Pages:', style: TextStyle(color: EVColors.textDefault, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              DropdownButton<int>(
-                value: maxPages,
-                items: [1, 2, 3, 4, 5, 10].map((pages) => DropdownMenuItem(
-                  value: pages,
-                  child: Text('$pages page${pages > 1 ? 's' : ''}'),
-                )).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    maxPages = value!;
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
-              
-              // Merge PDF Option (only for PDF format)
-              if (selectedFormat == ScanOutputFormat.pdf) ...[
-                Row(
-                  children: [
-                    Checkbox(
-                      value: mergePDF,
-                      onChanged: (value) {
-                        setState(() {
-                          mergePDF = value!;
-                        });
-                      },
-                    ),
-                    const Expanded(
-                      child: Text(
-                        'Merge all pages into single PDF',
-                        style: TextStyle(color: EVColors.textDefault),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('CANCEL', style: TextStyle(color: EVColors.textSecondary)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: EVColors.buttonBackground,
-                foregroundColor: EVColors.buttonForeground,
-              ),
-              onPressed: () {
-                Navigator.of(context).pop(ScanOptions(
-                  outputFormat: selectedFormat,
-                  maxPages: maxPages,
-                  mergePDF: mergePDF,
-                ));
-              },
-              child: const Text('SCAN'),
-            ),
-          ],
-        ),
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Document scanning is temporarily disabled. Please use the camera or gallery options instead.'),
+        backgroundColor: EVColors.statusWarning,
       ),
     );
   }
-
-  Future<String?> _getCustomFileName(ScanOutputFormat format) async {
-    final TextEditingController fileNameController = TextEditingController();
-    final extension = _getFileExtension(format);
-    fileNameController.text = 'scanned_document_${DateTime.now().millisecondsSinceEpoch}$extension';
-
-    return showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: EVColors.cardBackground,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Name Your File', style: TextStyle(color: EVColors.textDefault)),
-        content: TextField(
-          controller: fileNameController,
-          autofocus: true,
-          decoration: InputDecoration(
-            labelText: 'File Name',
-            labelStyle: const TextStyle(color: EVColors.textFieldLabel),
-            enabledBorder: const UnderlineInputBorder(
-              borderSide: BorderSide(color: EVColors.textFieldBorder),
-            ),
-            focusedBorder: const UnderlineInputBorder(
-              borderSide: BorderSide(color: EVColors.buttonBackground),
-            ),
-            suffixText: extension,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('CANCEL', style: TextStyle(color: EVColors.textSecondary)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: EVColors.buttonBackground,
-              foregroundColor: EVColors.buttonForeground,
-            ),
-            onPressed: () {
-              final fileName = fileNameController.text.trim();
-              if (fileName.isNotEmpty) {
-                Navigator.of(context).pop('$fileName$extension');
-              }
-            },
-            child: const Text('SAVE'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _getFileExtension(ScanOutputFormat format) {
-    switch (format) {
-      case ScanOutputFormat.image:
-        return '.jpg';
-      case ScanOutputFormat.pdf:
-        return '.pdf';
-    }
-  }
-
-  Future<bool> _requestScannerPermissions() async {
-    if (Platform.isAndroid) {
-      // Get Android SDK version using device_info_plus
-      final deviceInfo = DeviceInfoPlugin();
-      final androidInfo = await deviceInfo.androidInfo;
-      final sdkVersion = androidInfo.version.sdkInt;
-
-      final bool isAndroid13OrHigher = sdkVersion >= 33; // SDK 33 = Android 13
-
-      // Request camera permission
-      final cameraStatus = await Permission.camera.request();
-      if (cameraStatus.isDenied || cameraStatus.isPermanentlyDenied) {
-        return false;
-      }
-
-      // Request storage permissions based on Android version
-      if (isAndroid13OrHigher) {
-        // Android 13+ uses more granular storage permissions
-        final photosStatus = await Permission.photos.request();
-        if (photosStatus.isDenied || photosStatus.isPermanentlyDenied) {
-          return false;
-        }
-      } else {
-        // Android < 13 uses general storage permission
-        final storageStatus = await Permission.storage.request();
-        if (storageStatus.isDenied || storageStatus.isPermanentlyDenied) {
-          return false;
-        }
-      }
-
-      return true;
-    }
-
-    // iOS permissions are requested automatically when using the scanner
-    return true;
-  }
-  */
 
   void _handleUploadFromGallery() async {
-    // Only run on mobile
-    if (!(Platform.isAndroid || Platform.isIOS)) return;
-    try {
-      final picker = ImagePicker();
-      final List<XFile> images = await picker.pickMultiImage();
-      if (images.isEmpty) return; // User cancelled
-      // Use the same upload service as the upload screen
-      final uploadService = UploadServiceFactory.getService(
-        instanceType: widget.instanceType,
-        baseUrl: widget.baseUrl,
-        authToken: widget.authToken,
-      );
-      final parentFolderId = _controller?.currentFolder?.id;
-      if (parentFolderId == null) throw Exception('No folder selected');
-      // Show progress indicator
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(child: CircularProgressIndicator()),
-      );
-      for (final image in images) {
-        String uploadName = image.name;
-        if (Platform.isIOS && uploadName.startsWith('image_picker_')) {
-          uploadName = uploadName.replaceFirst('image_picker_', 'ios_photo_');
-        }
-        await uploadService.uploadDocument(
-          parentFolderId: parentFolderId,
-          filePath: image.path,
-          fileName: uploadName,
-        );
-      }
-      Navigator.of(context).pop(); // Close progress dialog
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Images uploaded successfully'),
-          backgroundColor: EVColors.successGreen,
-        ),
-      );
-      _refreshCurrentFolder();
-    } catch (e) {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to upload images: $e'),
-          backgroundColor: EVColors.statusError,
-        ),
-      );
-    }
+    final handler = MediaUploadHandler(
+      context: context,
+      instanceType: widget.instanceType,
+      baseUrl: widget.baseUrl,
+      authToken: widget.authToken,
+      getCurrentFolderId: () => _controller?.currentFolder?.id,
+      onUploadComplete: _refreshCurrentFolder,
+    );
+    await handler.uploadFromGallery();
   }
 
   void _handleUploadFromFilePicker() {
     _uploadHandler.navigateToUploadScreen();
-    // TODO: Pass file picker intent to upload screen if needed
   }
 }
-
-// Temporarily disabled - uncomment when Google ML Kit supports 16KB page sizes
-/*
-class ScanOptions {
-  final ScanOutputFormat outputFormat;
-  final int maxPages;
-  final bool mergePDF;
-
-  ScanOptions({
-    required this.outputFormat,
-    required this.maxPages,
-    required this.mergePDF,
-  });
-}
-*/

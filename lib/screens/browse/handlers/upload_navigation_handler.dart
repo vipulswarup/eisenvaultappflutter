@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../../screens/document_upload_screen.dart';
-import '../../../screens/browse/browse_screen_controller.dart';
+import 'package:eisenvaultappflutter/constants/colors.dart';
+import 'package:eisenvaultappflutter/screens/browse/browse_screen_controller.dart';
+import 'package:eisenvaultappflutter/screens/document_upload_screen.dart';
 
+/// Navigates to the file-picker upload screen.
 class UploadNavigationHandler {
   final BuildContext context;
   final String instanceType;
@@ -19,36 +21,40 @@ class UploadNavigationHandler {
     required this.controller,
   });
 
-  /// Navigate to the upload screen to add files to the current folder
+  /// Navigate to the upload screen to add files to the current folder.
   Future<void> navigateToUploadScreen() async {
-    // Get the current folder from the controller
     final currentFolder = controller.currentFolder;
-    
     if (currentFolder == null) {
-      _showErrorMessage('Please select a folder to upload files');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Please select a folder to upload files'),
+          backgroundColor: EVColors.statusError,
+        ),
+      );
       return;
     }
-  
-    // Get the correct parent folder ID
+
     String parentFolderId;
-  
     if (instanceType.toLowerCase() == 'angora') {
-      // For Angora, we use the current folder ID directly
       parentFolderId = currentFolder.id;
     } else {
-      // For Alfresco/Classic, handle documentLibrary ID
       if (currentFolder.isDepartment) {
         if (currentFolder.documentLibraryId != null) {
           parentFolderId = currentFolder.documentLibraryId!;
         } else {
-          _showErrorMessage('Cannot upload at this level. Please navigate to a subfolder.');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Cannot upload at this level. Please navigate to a subfolder.'),
+              backgroundColor: EVColors.statusError,
+            ),
+          );
           return;
         }
       } else {
         parentFolderId = currentFolder.id;
       }
     }
-  
+
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
@@ -60,20 +66,9 @@ class UploadNavigationHandler {
         ),
       ),
     );
-  
-    // If upload was successful, refresh the current folder
+
     if (result == true) {
       refreshCurrentFolder();
     }
-  }
-
-  void _showErrorMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: Colors.red,
-      )
-    );
   }
 }
