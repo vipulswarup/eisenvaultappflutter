@@ -1,9 +1,6 @@
-import 'dart:io';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:path_provider/path_provider.dart';
 import 'package:eisenvaultappflutter/services/api/angora/angora_document_service.dart';
 import 'package:eisenvaultappflutter/services/api/angora_base_service.dart';
 
@@ -37,22 +34,7 @@ class AlfrescoDocumentService implements DocumentService {
         throw Exception('Failed to download document: ${response.statusCode}');
       }
 
-      // For web platform, return the bytes directly
-      if (kIsWeb) {
-  
-        return response.bodyBytes;
-      } 
-      
-      // For mobile and desktop platforms, save to a temporary file and return the path
-      else {
-        final tempDir = await getTemporaryDirectory();
-        final filePath = '${tempDir.path}/${document.name}';
-        
-        final file = File(filePath);
-        await file.writeAsBytes(response.bodyBytes);
-        
-        return filePath;
-      }
+      return response.bodyBytes;
     } catch (e) {
       EVLogger.error('Error getting document content', e);
       throw Exception('Error getting document content: ${e.toString()}');
@@ -68,24 +50,8 @@ class AngoraDocumentServiceAdapter implements DocumentService {
   @override
   Future<dynamic> getDocumentContent(BrowseItem document) async {
     try {
-      // Get document content using Angora service - directly downloads now
       final bytes = await _angoraService.downloadDocument(document.id);
-      
-      // For web platform, return the bytes directly
-      if (kIsWeb) {
-  
-        return bytes;
-      } 
-      
-      // For mobile and desktop platforms, save to a temporary file and return the path
-      else {
-        final tempDir = await getTemporaryDirectory();
-        final filePath = '${tempDir.path}/${document.name}';
-        final file = File(filePath);
-        await file.writeAsBytes(bytes);
-        
-        return filePath;
-      }
+      return bytes;
     } catch (e) {
       EVLogger.error('Error getting Angora document content', e);
       throw Exception('Error getting document content: ${e.toString()}');

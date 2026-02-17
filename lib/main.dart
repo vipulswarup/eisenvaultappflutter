@@ -204,6 +204,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
   
   Future<void> _saveDMSCredentialsToSharedPrefs() async {
+    if (!Platform.isAndroid) return;
     try {
       final authState = Provider.of<AuthStateManager>(context, listen: false);
       

@@ -240,6 +240,7 @@
 				33CC110E2044A8840003C045 /* Bundle Framework */,
 				3399D490228B24CF009A79C7 /* ShellScript */,
 				8CB4EEBF1042CB38C4086B34 /* [CP] Embed Pods Frameworks */,
+				F1X9A2B3C4D5E6F7089A1B2C3 /* Fix Framework Symlinks for App Store */,
 			);
 			buildRules = (
 			);
@@ -397,6 +398,26 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		F1X9A2B3C4D5E6F7089A1B2C3 /* Fix Framework Symlinks for App Store */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Fix Framework Symlinks for App Store";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Fix macOS framework structure for App Store (ITMS-90291)\n# Frameworks must have Resources -> Versions/Current/Resources symlink\nFRAMEWORKS_DIR=\"${BUILT_PRODUCTS_DIR}/${WRAPPER_NAME}/Contents/Frameworks\"\nif [ ! -d \"$FRAMEWORKS_DIR\" ]; then exit 0; fi\nfor fw in \"$FRAMEWORKS_DIR\"/*.framework; do\n  [ -d \"$fw\" ] || continue\n  VC=\"$fw/Versions/Current\"\n  RD=\"$fw/Versions/Current/Resources\"\n  RL=\"$fw/Resources\"\n  if [ -e \"$VC\" ]; then\n    mkdir -p \"$RD\"\n    [ -e \"$RL\" ] || ln -sf \"Versions/Current/Resources\" \"$RL\"\n  fi\ndone\n";
 			showEnvVarsInLog = 0;
 		};
 		B22FA778B654C5CF5228AF12 /* [CP] Check Pods Manifest.lock */ = {

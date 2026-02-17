@@ -457,13 +457,14 @@ class LoginHandler {
     return url;
   }
   
-  /// Save credentials to SharedPreferences for ShareActivity access
+  /// Save credentials to SharedPreferences for ShareActivity access (Android only)
   Future<void> _saveCredentialsToSharedPrefs({
     required String baseUrl,
     required String authToken,
     required String instanceType,
     required String customerHostname,
   }) async {
+    if (!Platform.isAndroid) return;
     try {
       EVLogger.productionLog('=== SAVING CREDENTIALS TO SHARED PREFERENCES ===');
       EVLogger.productionLog('baseUrl: $baseUrl');

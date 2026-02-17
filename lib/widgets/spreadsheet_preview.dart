@@ -47,9 +47,9 @@ class _SpreadsheetPreviewState extends State<SpreadsheetPreview> {
       
       List<List<dynamic>> parsedData;
       if (extension == '.csv') {
-        parsedData = const CsvToListConverter().convert(content);
+        parsedData = const CsvDecoder().convert(content);
       } else if (extension == '.tsv') {
-        parsedData = const CsvToListConverter(
+        parsedData = const CsvDecoder(
           fieldDelimiter: '\t',
         ).convert(content);
       } else {
