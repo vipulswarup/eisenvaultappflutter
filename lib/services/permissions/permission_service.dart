@@ -1,5 +1,7 @@
-import 'package:permission_handler/permission_handler.dart';
+import 'dart:io';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 abstract class PermissionService {
   /// Checks if a specific permission exists for a node
@@ -16,14 +18,16 @@ abstract class PermissionService {
   void clearCache();
 
   static Future<bool> requestMediaPermissions(BuildContext context) async {
-    // Request each permission individually
+    if (Platform.isAndroid) {
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      if (androidInfo.version.sdkInt >= 33) {
+        return true;
+      }
+    }
     final photos = await Permission.photos.request();
     final videos = await Permission.videos.request();
     final audio = await Permission.audio.request();
-
-    // Check if any permission was denied
     if (photos.isDenied || videos.isDenied || audio.isDenied) {
-      // Show dialog explaining why permissions are needed
       if (context.mounted) {
         await showDialog(
           context: context,
@@ -51,15 +55,19 @@ abstract class PermissionService {
       }
       return false;
     }
-
     return true;
   }
 
   static Future<bool> checkMediaPermissions() async {
+    if (Platform.isAndroid) {
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      if (androidInfo.version.sdkInt >= 33) {
+        return true;
+      }
+    }
     final photos = await Permission.photos.status;
     final videos = await Permission.videos.status;
     final audio = await Permission.audio.status;
-
     return photos.isGranted && videos.isGranted && audio.isGranted;
   }
 }

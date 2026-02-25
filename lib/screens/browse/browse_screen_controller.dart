@@ -422,7 +422,8 @@ class BrowseScreenController extends ChangeNotifier {
         );
         EVLogger.productionLog('Successfully loaded ${loadedItems.length} items');
         _allItems = loadedItems;
-        _hasMoreItems = loadedItems.length >= _itemsPerPage;
+        // Angora departments API returns all items in one call; no pagination at root
+        _hasMoreItems = instanceType.toLowerCase() != 'angora' && loadedItems.length >= _itemsPerPage;
       }
       
       // Apply filters and sorting
@@ -441,8 +442,8 @@ class BrowseScreenController extends ChangeNotifier {
 
   /// Loads more departments/sites for pagination
   Future<void> loadMoreDepartments() async {
-    if (!_hasMoreItems || isLoading || currentFolder != null) return;
-    isLoading = true;
+    if (!_hasMoreItems || isLoading || _isLoadingMore || currentFolder != null) return;
+    _isLoadingMore = true;
     _notifyListeners();
     try {
       final browseService = _getBrowseService();
@@ -470,7 +471,7 @@ class BrowseScreenController extends ChangeNotifier {
       EVLogger.error('Error loading more departments', e);
       errorMessage = 'Failed to load more departments: ${e.toString()}';
     } finally {
-      isLoading = false;
+      _isLoadingMore = false;
       _notifyListeners();
     }
   }

@@ -209,12 +209,11 @@ class ShareViewController: UIViewController {
             fileCountLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             fileCountLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             
-            // Folder Selection View - Dynamic height based on available space
+            // Folder Selection View - Use ~50% of safe area height, with min for small screens
             folderSelectionView.topAnchor.constraint(equalTo: fileCountLabel.bottomAnchor, constant: 20),
             folderSelectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             folderSelectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-            folderSelectionView.heightAnchor.constraint(greaterThanOrEqualToConstant: 280),
-            folderSelectionView.heightAnchor.constraint(lessThanOrEqualToConstant: 450),
+            folderSelectionView.heightAnchor.constraint(greaterThanOrEqualToConstant: 240),
             
             // Selected Destination View
             selectedDestinationView.topAnchor.constraint(equalTo: folderSelectionView.bottomAnchor, constant: 15),
@@ -285,6 +284,13 @@ class ShareViewController: UIViewController {
             statusLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             statusLabel.bottomAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20)
         ])
+        // Prefer folder area to use ~50% of safe area (below required so min 240 can win on small screens)
+        let folderHeightProportional = folderSelectionView.heightAnchor.constraint(
+            equalTo: view.safeAreaLayoutGuide.heightAnchor,
+            multiplier: 0.50
+        )
+        folderHeightProportional.priority = UILayoutPriority(999)
+        folderHeightProportional.isActive = true
     }
     
     // MARK: - Content Loading

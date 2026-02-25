@@ -3,13 +3,9 @@
 
     <!-- Network permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
-    
-    <!-- Media permissions -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
-    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
 
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+    <!-- Storage for gallery pick on Android 10-12; Android 13+ uses Photo Picker (no permission needed) -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" tools:replace="android:maxSdkVersion"/>
     <uses-permission android:name="android.permission.CAMERA"/>
 

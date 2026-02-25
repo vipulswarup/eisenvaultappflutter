@@ -18,7 +18,6 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import 'package:eisenvaultappflutter/services/offline/download_manager.dart';
 import 'dart:io'; // Required for Platform.isWindows check
-import 'package:permission_handler/permission_handler.dart';
 
 // Global navigator key for context menu navigation
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -74,14 +73,8 @@ void main() async {
     EVLogger.error('Failed to initialize auth state: $e');
   }
 
-  // Request permissions when app starts
-  if (!kIsWeb) {
-    if (Platform.isAndroid || Platform.isIOS) {
-      await Permission.photos.request();
-      await Permission.videos.request();
-      await Permission.audio.request();
-    }
-  }
+  // Do not request photos/videos/audio at startup: app uses one-time picker access for uploads.
+  // Requesting at startup would imply persistent access and violate Play policy for READ_MEDIA_*.
 
   runApp(
     MultiProvider(

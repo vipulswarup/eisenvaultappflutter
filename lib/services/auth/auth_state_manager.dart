@@ -294,6 +294,10 @@ class AuthStateManager extends ChangeNotifier {
       _allAccounts = await _multiAccountAuth.getAllAccounts();
       _currentAccount = await _multiAccountAuth.getActiveAccount();
       
+      if (_currentAccount != null) {
+        await _updateShareExtensionCredentials(_currentAccount!);
+      }
+      
       EVLogger.info('Token refreshed successfully');
       notifyListeners();
       
