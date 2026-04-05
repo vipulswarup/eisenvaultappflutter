@@ -19,18 +19,22 @@ class AlfrescoDocumentService implements DocumentService {
     try {
       // Get the content URL for the document
       final nodeId = document.id;
-      final contentUrl = '$baseUrl/api/-default-/public/alfresco/versions/1/nodes/$nodeId/content';
-      
+      final contentUrl =
+          '$baseUrl/api/-default-/public/alfresco/versions/1/nodes/$nodeId/content';
+
       // Make the request
       final response = await http.get(
         Uri.parse(contentUrl),
         headers: {
-          'Authorization': ' $authToken', // Space before token is intentional for Alfresco
+          'Authorization':
+              ' $authToken', // Space before token is intentional for Alfresco
         },
       );
 
       if (response.statusCode != 200) {
-        EVLogger.error('Failed to download document', {'statusCode': response.statusCode});
+        EVLogger.error('Failed to download document', {
+          'statusCode': response.statusCode,
+        });
         throw Exception('Failed to download document: ${response.statusCode}');
       }
 
@@ -44,9 +48,9 @@ class AlfrescoDocumentService implements DocumentService {
 
 class AngoraDocumentServiceAdapter implements DocumentService {
   final AngoraDocumentService _angoraService;
-  
+
   AngoraDocumentServiceAdapter(this._angoraService);
-  
+
   @override
   Future<dynamic> getDocumentContent(BrowseItem document) async {
     try {
@@ -58,23 +62,30 @@ class AngoraDocumentServiceAdapter implements DocumentService {
     }
   }
 }
+
 class DocumentServiceFactory {
   static DocumentService getService(
-    String instanceType, 
-    String baseUrl, 
-    String authToken,
-    {AngoraBaseService? angoraBaseService}
-  ) {
+    String instanceType,
+    String baseUrl,
+    String authToken, {
+    AngoraBaseService? angoraBaseService,
+    TokenRefreshCallback? tokenRefreshCallback,
+  }) {
     if (instanceType == 'Classic' || instanceType == 'Alfresco') {
       return AlfrescoDocumentService(baseUrl, authToken);
     } else if (instanceType == 'Angora') {
-      if (angoraBaseService == null) {
-        throw Exception('AngoraBaseService is required for Angora document service');
+      final resolvedBaseService =
+          angoraBaseService ?? AngoraBaseService(baseUrl);
+      if (resolvedBaseService.getToken() == null) {
+        resolvedBaseService.setToken(authToken);
       }
-      final angoraService = AngoraDocumentService(angoraBaseService);
+      if (tokenRefreshCallback != null) {
+        resolvedBaseService.setTokenRefreshCallback(tokenRefreshCallback);
+      }
+      final angoraService = AngoraDocumentService(resolvedBaseService);
       return AngoraDocumentServiceAdapter(angoraService);
     }
-    
+
     throw Exception('Document service not implemented for $instanceType');
   }
 }

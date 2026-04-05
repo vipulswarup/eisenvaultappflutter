@@ -29,23 +29,23 @@ class LoginHandler {
   }) async {
     // Preserve original baseUrl for error retry
     final originalBaseUrl = baseUrl;
-    
+
     try {
       // Detect instance type from URL if not explicitly provided or if it's 'Classic' (legacy default)
       String detectedInstanceType = instanceType;
       if (instanceType == 'Classic' || instanceType.isEmpty) {
         detectedInstanceType = _detectInstanceType(baseUrl);
       }
-      
+
       // Strip known suffixes (e.g., /share/page, /share, /page, /alfresco, /s, trailing slashes)
       baseUrl = _stripUrlSuffixes(baseUrl);
-      
+
       // Handle URL formatting based on instance type
       String customerHostname;
       bool shouldTryBoth = false;
       final uri = Uri.parse(baseUrl);
       final hostname = uri.host.toLowerCase();
-      
+
       if (detectedInstanceType.toLowerCase() == 'angora') {
         // Angora: Use base URL as-is, extract customer hostname from domain
         customerHostname = uri.host;
@@ -73,14 +73,14 @@ class LoginHandler {
       EVLogger.productionLog('Instance Type: $detectedInstanceType');
       EVLogger.productionLog('Customer Hostname: $customerHostname');
       EVLogger.productionLog('Should try both: $shouldTryBoth');
-      
+
       Map<String, dynamic> loginResult;
-      
+
       if (detectedInstanceType.toLowerCase() == 'angora' && !shouldTryBoth) {
         // Confident it's Angora (domain contains "angora")
         final authService = AngoraAuthService(baseUrl);
         EVLogger.productionLog('Angora auth service created');
-        
+
         loginResult = await authService.login(username, password);
         detectedInstanceType = 'Angora';
       } else if (shouldTryBoth) {
@@ -99,24 +99,33 @@ class LoginHandler {
           //   - Invalid credentials (should NOT try Classic, show auth error)
           // We need to check the error message to distinguish
           final errorStr = e.toString().toLowerCase();
-          
+
           // Check for clear endpoint errors (404, route not found, etc.)
-          final isEndpointNotFound = 
+          final isEndpointNotFound =
               errorStr.contains('status code: 404') ||
               errorStr.contains('status code 404') ||
-              (errorStr.contains('404') && (errorStr.contains('status') || errorStr.contains('authentication failed'))) ||
+              (errorStr.contains('404') &&
+                  (errorStr.contains('status') ||
+                      errorStr.contains('authentication failed'))) ||
               errorStr.contains('not found') ||
               errorStr.contains('route not found') ||
               errorStr.contains('endpoint not found') ||
-              (e is http.ClientException && (errorStr.contains('failed host lookup') || errorStr.contains('connection refused')));
-          
+              (e is http.ClientException &&
+                  (errorStr.contains('failed host lookup') ||
+                      errorStr.contains('connection refused')));
+
           // Check for 400 errors that indicate wrong endpoint (not auth errors)
-          final is400EndpointError = 
-              (errorStr.contains('status code: 400') || errorStr.contains('status code 400') || errorStr.contains('status: 400')) &&
-              (errorStr.contains('route') || errorStr.contains('endpoint') || errorStr.contains('not found') || errorStr.contains('invalid path'));
-          
+          final is400EndpointError =
+              (errorStr.contains('status code: 400') ||
+                  errorStr.contains('status code 400') ||
+                  errorStr.contains('status: 400')) &&
+              (errorStr.contains('route') ||
+                  errorStr.contains('endpoint') ||
+                  errorStr.contains('not found') ||
+                  errorStr.contains('invalid path'));
+
           // Check for auth-related errors (should NOT fall back to Classic)
-          final isAuthError = 
+          final isAuthError =
               errorStr.contains('invalid credentials') ||
               errorStr.contains('authentication failed') ||
               errorStr.contains('unauthorized') ||
@@ -124,35 +133,46 @@ class LoginHandler {
               errorStr.contains('invalid password') ||
               errorStr.contains('user not found') ||
               errorStr.contains('incorrect password');
-          
+
           if (isEndpointNotFound || is400EndpointError) {
             // Endpoint doesn't exist or wrong API format, try Classic
             final statusCode = errorStr.contains('400') ? '400' : '404';
-            EVLogger.productionLog('Angora endpoint returned $statusCode (endpoint error), trying Classic');
+            EVLogger.productionLog(
+              'Angora endpoint returned $statusCode (endpoint error), trying Classic',
+            );
             if (!baseUrl.endsWith('/alfresco')) {
               baseUrl = '$baseUrl/alfresco';
             }
             customerHostname = 'classic-repository';
             final classicAuthService = ClassicAuthService(baseUrl);
             EVLogger.productionLog('Classic auth service created');
-            
+
             loginResult = await classicAuthService.makeRequest(
               'login',
-              requestFunction: () => classicAuthService.login(username, password)
+              requestFunction:
+                  () => classicAuthService.login(username, password),
             );
             detectedInstanceType = 'Classic';
           } else if (isAuthError) {
             // Authentication error - don't fall back, show the error
-            EVLogger.productionLog('Angora login failed with authentication error, not falling back to Classic');
+            EVLogger.productionLog(
+              'Angora login failed with authentication error, not falling back to Classic',
+            );
             rethrow;
           } else {
             // Unknown error - for 400, be conservative and don't fall back (might be auth issue)
             // Only fall back for 404 or connection errors
-            if (errorStr.contains('status code: 400') || errorStr.contains('status code 400') || errorStr.contains('status: 400')) {
-              EVLogger.productionLog('Angora login returned 400 (unknown reason), not falling back - might be auth issue');
+            if (errorStr.contains('status code: 400') ||
+                errorStr.contains('status code 400') ||
+                errorStr.contains('status: 400')) {
+              EVLogger.productionLog(
+                'Angora login returned 400 (unknown reason), not falling back - might be auth issue',
+              );
               rethrow;
             } else {
-              EVLogger.productionLog('Angora login failed with unknown error, not falling back');
+              EVLogger.productionLog(
+                'Angora login failed with unknown error, not falling back',
+              );
               rethrow;
             }
           }
@@ -165,31 +185,36 @@ class LoginHandler {
         customerHostname = 'classic-repository';
         final authService = ClassicAuthService(baseUrl);
         EVLogger.productionLog('Classic auth service created');
-        
+
         loginResult = await authService.makeRequest(
           'login',
-          requestFunction: () => authService.login(username, password)
+          requestFunction: () => authService.login(username, password),
         );
         detectedInstanceType = 'Classic';
       }
-      
+
       // Validate token is present and not null
       final token = loginResult['token'];
       if (token == null || token.toString().isEmpty) {
-        throw Exception('Login failed: authentication token is missing from response');
+        throw Exception(
+          'Login failed: authentication token is missing from response',
+        );
       }
-      
+
       final tokenString = token.toString();
-      EVLogger.productionLog('Login successful, token length: ${tokenString.length}');
+      EVLogger.productionLog(
+        'Login successful, token length: ${tokenString.length}',
+      );
       EVLogger.productionLog('Login result keys: ${loginResult.keys.toList()}');
 
       if (!context.mounted) return;
-      
+
       // Extract firstName from the profile
-      final firstName = loginResult['profile']?['firstName'] ?? 
-                       loginResult['profile']?['name']?.split(' ').first ?? 
-                       username;
-      
+      final firstName =
+          loginResult['profile']?['firstName'] ??
+          loginResult['profile']?['name']?.split(' ').first ??
+          username;
+
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -198,9 +223,12 @@ class LoginHandler {
           behavior: SnackBarBehavior.floating,
         ),
       );
-      
+
       // Update auth state
-      final authStateManager = Provider.of<AuthStateManager>(context, listen: false);
+      final authStateManager = Provider.of<AuthStateManager>(
+        context,
+        listen: false,
+      );
       await authStateManager.handleSuccessfulLogin(
         token: tokenString,
         username: username,
@@ -210,7 +238,7 @@ class LoginHandler {
         customerHostname: customerHostname,
         password: password, // Store password for Angora token refresh
       );
-      
+
       // Save credentials to SharedPreferences for ShareActivity
       EVLogger.productionLog('Saving credentials after successful login');
       await _saveCredentialsToSharedPrefs(
@@ -219,7 +247,7 @@ class LoginHandler {
         instanceType: detectedInstanceType,
         customerHostname: customerHostname,
       );
-      
+
       // Save DMS credentials to App Groups for Share Extension (iOS)
       await _saveDMSCredentialsToAppGroups(
         baseUrl: baseUrl,
@@ -227,7 +255,7 @@ class LoginHandler {
         instanceType: detectedInstanceType,
         customerHostname: customerHostname,
       );
-      
+
       // Initialize offline components and wait for completion
       await _initializeOfflineComponents(
         instanceType: detectedInstanceType,
@@ -240,101 +268,109 @@ class LoginHandler {
       if (context.mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-              builder: (context) => BrowseScreen(
-              baseUrl: baseUrl,
-              authToken: tokenString,
-              firstName: firstName,
-              instanceType: detectedInstanceType,
-              customerHostname: customerHostname,
-            ),
+            builder:
+                (context) => BrowseScreen(
+                  baseUrl: baseUrl,
+                  authToken: tokenString,
+                  firstName: firstName,
+                  instanceType: detectedInstanceType,
+                  customerHostname: customerHostname,
+                ),
           ),
         );
       }
     } catch (e) {
       if (!context.mounted) return;
-      
+
       String errorMessage = 'Login failed';
-      
+
       // Handle specific error cases
       if (e is SocketException) {
-        errorMessage = 'Network error: Unable to connect to the server. Please check your internet connection and try again.';
+        errorMessage =
+            'Network error: Unable to connect to the server. Please check your internet connection and try again.';
       } else if (e is HttpException) {
-        errorMessage = 'Server error: The server is not responding correctly. Please try again later.';
+        errorMessage =
+            'Server error: The server is not responding correctly. Please try again later.';
       } else if (e is ServiceException) {
         errorMessage = e.toString();
       } else {
         errorMessage = 'An unexpected error occurred: ${e.toString()}';
       }
-      
+
       // Detect instance type for error retry
       final detectedInstanceType = _detectInstanceType(originalBaseUrl);
-      
+
       // Show error dialog
       showDialog(
         context: context,
         barrierDismissible: true,
-        builder: (BuildContext context) => Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          backgroundColor: EVColors.screenBackground,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: 400,
-              minWidth: 300,
-              maxHeight: 250,
+        builder: (BuildContext context) {
+          final screenSize = MediaQuery.of(context).size;
+          return Dialog(
+            insetPadding: const EdgeInsets.symmetric(
+              horizontal: 24,
+              vertical: 24,
             ),
-            child: Stack(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24.0,
-                    vertical: 20.0
-                  ),
-                  child: ErrorDisplay(
-                    error: ServiceException(errorMessage),
-                    onRetry: () {
-                      Navigator.of(context).pop();
-                      performLogin(
-                        context: context,
-                        baseUrl: originalBaseUrl,
-                        username: username,
-                        password: password,
-                        instanceType: detectedInstanceType,
-                      );
-                    },
-                  ),
-                ),
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: IconButton(
-                    icon: Icon(Icons.close, color: EVColors.textFieldLabel),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ),
-              ],
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
             ),
-          ),
-        ),
+            backgroundColor: EVColors.screenBackground,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: 460,
+                minWidth: 320,
+                maxHeight: screenSize.height * 0.65,
+              ),
+              child: Stack(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
+                    child: ErrorDisplay(
+                      error: ServiceException(errorMessage),
+                      compact: true,
+                      onRetry: () {
+                        Navigator.of(context).pop();
+                        performLogin(
+                          context: context,
+                          baseUrl: originalBaseUrl,
+                          username: username,
+                          password: password,
+                          instanceType: detectedInstanceType,
+                        );
+                      },
+                    ),
+                  ),
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: IconButton(
+                      icon: Icon(Icons.close, color: EVColors.textFieldLabel),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       );
-      
+
       // Re-throw to be handled by caller
       rethrow;
     }
   }
-  
+
   /// Detects instance type from URL based on domain patterns
   String _detectInstanceType(String baseUrl) {
     try {
       final uri = Uri.parse(baseUrl);
       final hostname = uri.host.toLowerCase();
-      
+
       // Check if domain contains "angora"
       if (hostname.contains('angora')) {
         return 'Angora';
       }
-      
+
       // Default to Classic
       return 'Classic';
     } catch (e) {
@@ -342,7 +378,7 @@ class LoginHandler {
       return 'Classic';
     }
   }
-  
+
   /// Initializes offline components with user credentials
   Future<void> _initializeOfflineComponents({
     required String instanceType,
@@ -352,15 +388,17 @@ class LoginHandler {
   }) async {
     try {
       // Create offline manager without requiring credentials
-      final offlineManager = await OfflineManager.createDefault(requireCredentials: false);
-      
+      final offlineManager = await OfflineManager.createDefault(
+        requireCredentials: false,
+      );
+
       // Save credentials
       await offlineManager.saveCredentials(
         instanceType: instanceType,
         baseUrl: baseUrl,
         authToken: authToken,
       );
-      
+
       // Initialize the sync service
       final syncService = SyncService();
       syncService.initialize(
@@ -373,16 +411,16 @@ class LoginHandler {
       print('Error initializing offline components: $e');
     }
   }
-  
+
   /// Checks if the device has offline content available
   Future<bool> hasOfflineContent() async {
     try {
       // Get offline manager
       final offlineManager = await OfflineManager.createDefault();
-      
+
       // Get the list of offline items at the root level
       final items = await offlineManager.getOfflineItems(null);
-      
+
       // If there are any items, offline content is available
       return items.isNotEmpty;
     } catch (e) {
@@ -390,34 +428,40 @@ class LoginHandler {
       return false;
     }
   }
-  
+
   /// Navigates to the offline browse screen
   Future<void> navigateToOfflineBrowse(BuildContext context) async {
     try {
       // Get saved credentials
       final offlineManager = await OfflineManager.createDefault();
       final credentials = await offlineManager.getSavedCredentials();
-      
+
       if (credentials == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Cannot access offline content without logging in first'),
+            content: Text(
+              'Cannot access offline content without logging in first',
+            ),
             backgroundColor: Colors.red,
           ),
         );
         return;
       }
-      
+
       if (context.mounted) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => OfflineBrowseScreen(
-              instanceType: credentials['instanceType']!,
-              baseUrl: credentials['baseUrl']!,
-              authToken: credentials['authToken']!,
-              firstName: credentials['firstName'] ?? credentials['username'] ?? 'User',
-            ),
+            builder:
+                (context) => OfflineBrowseScreen(
+                  instanceType: credentials['instanceType']!,
+                  baseUrl: credentials['baseUrl']!,
+                  authToken: credentials['authToken']!,
+                  firstName:
+                      credentials['firstName'] ??
+                      credentials['username'] ??
+                      'User',
+                ),
           ),
         );
       }
@@ -438,13 +482,7 @@ class LoginHandler {
     // Remove trailing slashes first
     url = url.replaceAll(RegExp(r'/+\u0000'), '');
     // List of known suffixes to strip
-    final suffixes = [
-      '/share/page',
-      '/share',
-      '/page',
-      '/alfresco',
-      '/s',
-    ];
+    final suffixes = ['/share/page', '/share', '/page', '/alfresco', '/s'];
     for (final suffix in suffixes) {
       if (url.endsWith(suffix)) {
         url = url.substring(0, url.length - suffix.length);
@@ -456,7 +494,7 @@ class LoginHandler {
     url = url.replaceAll(RegExp(r'/+\u0000'), '');
     return url;
   }
-  
+
   /// Save credentials to SharedPreferences for ShareActivity access (Android only)
   Future<void> _saveCredentialsToSharedPrefs({
     required String baseUrl,
@@ -466,29 +504,33 @@ class LoginHandler {
   }) async {
     if (!Platform.isAndroid) return;
     try {
-      EVLogger.productionLog('=== SAVING CREDENTIALS TO SHARED PREFERENCES ===');
+      EVLogger.productionLog(
+        '=== SAVING CREDENTIALS TO SHARED PREFERENCES ===',
+      );
       EVLogger.productionLog('baseUrl: $baseUrl');
       EVLogger.productionLog('hasAuthToken: ${authToken.isNotEmpty}');
       EVLogger.productionLog('instanceType: $instanceType');
       EVLogger.productionLog('customerHostname: $customerHostname');
-      
+
       const MethodChannel channel = MethodChannel(PlatformChannels.androidMain);
-      
+
       await channel.invokeMethod('saveDMSCredentials', {
         'baseUrl': baseUrl,
         'authToken': authToken,
         'instanceType': instanceType,
         'customerHostname': customerHostname,
       });
-      
-      EVLogger.productionLog('Credentials saved to SharedPreferences successfully');
+
+      EVLogger.productionLog(
+        'Credentials saved to SharedPreferences successfully',
+      );
     } catch (e) {
       EVLogger.error('Failed to save credentials to SharedPreferences', {
-        'error': e.toString()
+        'error': e.toString(),
       });
     }
   }
-  
+
   /// Save DMS credentials to App Groups for Share Extension access (iOS)
   Future<void> _saveDMSCredentialsToAppGroups({
     required String baseUrl,
@@ -498,7 +540,9 @@ class LoginHandler {
   }) async {
     try {
       if (!kIsWeb && Platform.isIOS) {
-        EVLogger.productionLog('Saving DMS credentials to App Groups for Share Extension');
+        EVLogger.productionLog(
+          'Saving DMS credentials to App Groups for Share Extension',
+        );
         const MethodChannel channel = MethodChannel(PlatformChannels.iosUpload);
         await channel.invokeMethod('saveDMSCredentials', {
           'baseUrl': baseUrl,
@@ -506,7 +550,9 @@ class LoginHandler {
           'instanceType': instanceType,
           'customerHostname': customerHostname,
         });
-        EVLogger.productionLog('DMS credentials saved to App Groups successfully');
+        EVLogger.productionLog(
+          'DMS credentials saved to App Groups successfully',
+        );
       }
     } catch (e) {
       EVLogger.error('Failed to save DMS credentials to App Groups: $e');

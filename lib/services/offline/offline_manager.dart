@@ -7,21 +7,24 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_item.dart';
-import 'package:eisenvaultappflutter/services/offline/offline_core.dart' show OfflineStorageProvider, OfflineEvent;
-import 'package:eisenvaultappflutter/services/offline/offline_storage_provider.dart' show LocalStorageProvider;
+import 'package:eisenvaultappflutter/services/offline/offline_core.dart'
+    show OfflineStorageProvider, OfflineEvent;
+import 'package:eisenvaultappflutter/services/offline/offline_storage_provider.dart'
+    show LocalStorageProvider;
 import 'package:eisenvaultappflutter/services/offline/offline_database_service.dart';
 import 'package:eisenvaultappflutter/services/browse/browse_service_factory.dart';
 import 'package:eisenvaultappflutter/services/document/document_service.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_file_service.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_config.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_metadata_provider.dart';
-import 'package:eisenvaultappflutter/services/offline/offline_sync_provider.dart' as sync;
+import 'package:eisenvaultappflutter/services/offline/offline_sync_provider.dart'
+    as sync;
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:eisenvaultappflutter/services/offline/download_manager.dart';
 import 'package:eisenvaultappflutter/services/offline/download_progress.dart';
 
 /// Central manager for offline functionality
-/// 
+///
 /// This class coordinates between storage, metadata, and sync providers
 /// to provide a unified interface for offline operations.
 class OfflineManager {
@@ -29,41 +32,40 @@ class OfflineManager {
   final OfflineMetadataProvider _metadata;
   final sync.OfflineSyncProvider _sync;
   final OfflineConfig _config;
-  
+
   // Services for database and file operations
   final OfflineDatabaseService _database = OfflineDatabaseService.instance;
   final OfflineFileService _fileService = OfflineFileService();
-  
+
   // Connectivity for checking network status
   final Connectivity _connectivity = Connectivity();
-  
+
   // Secure storage for credentials
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
-  
+
   // Authentication details
   String? _instanceType;
-  
-  
+
   // Storage keys for credentials
   static const String _keyInstanceType = 'offline_instance_type';
   static const String _keyBaseUrl = 'offline_base_url';
   static const String _keyAuthToken = 'offline_auth_token';
   static const String _keyUsername = 'offline_username';
-  
+
   // Connectivity monitoring
   late StreamSubscription<List<ConnectivityResult>> _connectivitySubscription;
   Timer? _syncDebounceTimer;
-  
+
   // Event controller for offline state changes
   final _eventController = StreamController<OfflineEvent>.broadcast();
-  
+
   /// Stream of offline events
   Stream<OfflineEvent> get events => _eventController.stream;
-  
+
   final _connectivityStream = StreamController<bool>.broadcast();
-  
+
   Stream<bool> get onConnectivityChanged => _connectivityStream.stream;
-  
+
   /// Factory method to create an OfflineManager with default providers
   static Future<OfflineManager> createDefault({
     OfflineConfig? config,
@@ -75,31 +77,31 @@ class OfflineManager {
     final baseUrl = await storage.read(key: _keyBaseUrl);
     final authToken = await storage.read(key: _keyAuthToken);
 
-    if (requireCredentials && (instanceType == null || baseUrl == null || authToken == null)) {
+    if (requireCredentials &&
+        (instanceType == null || baseUrl == null || authToken == null)) {
       throw Exception('Missing required credentials for offline sync');
     }
 
-    final provider = syncProvider ?? (instanceType != null && baseUrl != null && authToken != null
-        ? _DefaultSyncProvider(
-            instanceType: instanceType,
-            baseUrl: baseUrl,
-            authToken: authToken,
-          )
-        : null);
+    final provider =
+        syncProvider ??
+        (instanceType != null && baseUrl != null && authToken != null
+            ? _DefaultSyncProvider(
+              instanceType: instanceType,
+              baseUrl: baseUrl,
+              authToken: authToken,
+            )
+            : null);
 
     return OfflineManager(
       storage: LocalStorageProvider(),
       metadata: _DatabaseMetadataAdapter(OfflineDatabaseService.instance),
-      sync: provider ?? _DefaultSyncProvider(
-        instanceType: '',
-        baseUrl: '',
-        authToken: '',
-      ),
+      sync:
+          provider ??
+          _DefaultSyncProvider(instanceType: '', baseUrl: '', authToken: ''),
       config: config ?? const OfflineConfig(),
     );
   }
-  
-  
+
   OfflineManager({
     required OfflineStorageProvider storage,
     required OfflineMetadataProvider metadata,
@@ -111,9 +113,11 @@ class OfflineManager {
        _config = config {
     _initConnectivityMonitoring();
   }
-  
+
   void _initConnectivityMonitoring() {
-    _connectivitySubscription = _connectivity.onConnectivityChanged.listen((results) {
+    _connectivitySubscription = _connectivity.onConnectivityChanged.listen((
+      results,
+    ) {
       final isOffline = results.contains(ConnectivityResult.none);
       _connectivityStream.add(isOffline);
       if (!isOffline && _config.autoSync) {
@@ -126,9 +130,9 @@ class OfflineManager {
       }
     });
   }
-  
+
   /// Save user credentials for offline access
-  /// 
+  ///
   /// These credentials will be used when the app is offline to
   /// display user information and authenticate with sync services
   /// when connectivity is restored.
@@ -139,17 +143,16 @@ class OfflineManager {
   }) async {
     try {
       _instanceType = instanceType;
-      
-      
+
       // Initialize sync provider with credentials
       if (_sync is _DefaultSyncProvider) {
-        final syncProvider = _sync ;
+        final syncProvider = _sync;
         syncProvider
           .._instanceType = instanceType
           .._baseUrl = baseUrl
           .._authToken = authToken;
       }
-      
+
       await _secureStorage.write(key: _keyInstanceType, value: instanceType);
       await _secureStorage.write(key: _keyBaseUrl, value: baseUrl);
       await _secureStorage.write(key: _keyAuthToken, value: authToken);
@@ -159,9 +162,9 @@ class OfflineManager {
       rethrow;
     }
   }
-  
+
   /// Get the saved credentials
-  /// 
+  ///
   /// Returns a map with the saved credentials or null if no credentials are saved
   Future<Map<String, String?>?> getSavedCredentials() async {
     try {
@@ -169,12 +172,12 @@ class OfflineManager {
       final baseUrl = await _secureStorage.read(key: _keyBaseUrl);
       final authToken = await _secureStorage.read(key: _keyAuthToken);
       final username = await _secureStorage.read(key: _keyUsername);
-      
+
       // Return null if any of the required credentials are missing
       if (instanceType == null || baseUrl == null || authToken == null) {
         return null;
       }
-      
+
       return {
         'instanceType': instanceType,
         'baseUrl': baseUrl,
@@ -188,35 +191,33 @@ class OfflineManager {
       return null;
     }
   }
-  
+
   /// Check if the device is currently offline
   Future<bool> isOffline() async {
-
-    
     // Check connectivity first
     final result = await _connectivity.checkConnectivity();
     // Only consider ConnectivityResult.none as offline
     // ConnectivityResult.other can be VPN connections and should not be treated as offline
-    final noConnectivity = result == ConnectivityResult.none;
-    
+    final noConnectivity = result.contains(ConnectivityResult.none);
+
     // If we have connectivity, we're not offline
     if (!noConnectivity) {
       return false;
     }
-    
+
     // If we have no connectivity, check if we have offline content
     final hasContent = await hasOfflineContent();
-    
+
     // We're only considered offline if we have no connectivity AND have offline content
     return hasContent;
   }
-  
+
   /// Check if offline content is available
   Future<bool> hasOfflineContent() async {
     try {
       // Get the list of offline items at the root level
       final items = await getOfflineItems(null);
-      
+
       // If there are any items, offline content is available
       return items.isNotEmpty;
     } catch (e) {
@@ -224,7 +225,7 @@ class OfflineManager {
       return false;
     }
   }
-  
+
   /// Keep an item available for offline access
   Future<bool> keepOffline(
     BrowseItem item, {
@@ -237,10 +238,10 @@ class OfflineManager {
     try {
       // Create an OfflineItem from the BrowseItem, set parentId
       final offlineItem = OfflineItem.fromBrowseItem(item, parentId: parentId);
-      
+
       // Save metadata
       await _metadata.saveItem(offlineItem);
-      
+
       if (item.type == 'folder' || item.isDepartment) {
         // Only start download if this is the root folder/department being processed
         // (i.e., when totalFiles is provided, meaning we're in a batch operation)
@@ -270,7 +271,9 @@ class OfflineManager {
           } catch (e) {
             EVLogger.error('Error keeping folder offline', e);
             if (onError != null) {
-              onError('Failed to download folder: ${item.name}\n${e.toString()}');
+              onError(
+                'Failed to download folder: ${item.name}\n${e.toString()}',
+              );
             }
             rethrow;
           }
@@ -299,7 +302,9 @@ class OfflineManager {
             downloadManager?.completeDownload();
             EVLogger.error('Error keeping folder offline', e);
             if (onError != null) {
-              onError('Failed to download folder: ${item.name}\n${e.toString()}');
+              onError(
+                'Failed to download folder: ${item.name}\n${e.toString()}',
+              );
             }
             rethrow;
           }
@@ -317,30 +322,35 @@ class OfflineManager {
         try {
           // Download content using sync provider
           final content = await _sync.downloadContent(item.id);
-          
+
           // Update progress to 50% when download is complete
           downloadManager?.updateProgress(progress.copyWith(progress: 0.5));
-          
+
           // Store the file content
           final filePath = await _storage.storeFile(item.id, content);
-          
+
           // Update metadata with file path
           final updatedItem = offlineItem.copyWith(filePath: filePath);
           await _metadata.saveItem(updatedItem);
-          
+
           // Update progress to 100% and increment file index
           final nextFileIndex = (currentFileIndex ?? 1) + 1;
-          downloadManager?.updateProgress(progress.copyWith(
-            progress: 1.0,
-            currentFileIndex: nextFileIndex,
-          ));
-          
+          downloadManager?.updateProgress(
+            progress.copyWith(progress: 1.0, currentFileIndex: nextFileIndex),
+          );
+
           // Only complete the download if this is the last file
           if (currentFileIndex == totalFiles) {
             downloadManager?.completeDownload();
           }
-          
-          _eventController.add(OfflineEvent('item_added', 'Item added to offline storage', updatedItem));
+
+          _eventController.add(
+            OfflineEvent(
+              'item_added',
+              'Item added to offline storage',
+              updatedItem,
+            ),
+          );
           return true;
         } catch (e) {
           downloadManager?.completeDownload();
@@ -359,7 +369,7 @@ class OfflineManager {
       rethrow;
     }
   }
-  
+
   /// Downloads the contents of a site with pagination
   Future<void> _downloadSiteContents(
     BrowseItem site, {
@@ -380,8 +390,9 @@ class OfflineManager {
       const int maxItems = 25;
       List<BrowseItem> containers;
       int actualTotalFiles = totalFiles ?? 0;
-      int actualCurrentFileIndex = currentFileIndex ?? 1; // Use 1-based indexing
-      
+      int actualCurrentFileIndex =
+          currentFileIndex ?? 1; // Use 1-based indexing
+
       // If totalFiles is not provided, we need to count them first
       if (totalFiles == null) {
         // First pass: count total files
@@ -407,7 +418,7 @@ class OfflineManager {
         // Reset skip count for actual download
         skipCount = 0;
       }
-      
+
       // Second pass: download files
       do {
         containers = await browseService.getChildren(
@@ -421,9 +432,12 @@ class OfflineManager {
           if (container.type == 'folder') {
             // For folders, just save the folder metadata and then download its contents
             // Don't call keepOffline here as it would cause double downloads
-            final offlineItem = OfflineItem.fromBrowseItem(container, parentId: site.id);
+            final offlineItem = OfflineItem.fromBrowseItem(
+              container,
+              parentId: site.id,
+            );
             await _metadata.saveItem(offlineItem);
-            
+
             // Download folder contents
             await _downloadFolderContents(
               container,
@@ -431,7 +445,9 @@ class OfflineManager {
               onError: onError,
               totalFiles: actualTotalFiles,
               currentFileIndex: actualCurrentFileIndex,
-              parentId: container.id, // Use the container's ID as parent for its contents
+              parentId:
+                  container
+                      .id, // Use the container's ID as parent for its contents
             );
             // Update currentFileIndex based on folder contents
             actualCurrentFileIndex += await _countFolderContents(container);
@@ -454,12 +470,14 @@ class OfflineManager {
     } catch (e) {
       EVLogger.error('Error downloading site contents', e);
       if (onError != null) {
-        onError('Failed to download site contents: ${site.name}\n${e.toString()}');
+        onError(
+          'Failed to download site contents: ${site.name}\n${e.toString()}',
+        );
       }
       rethrow;
     }
   }
-  
+
   /// Counts the total number of files in a folder (recursively)
   Future<int> _countFolderContents(BrowseItem folder) async {
     int count = 0;
@@ -472,7 +490,7 @@ class OfflineManager {
     int skipCount = 0;
     const int maxItems = 25;
     List<BrowseItem> contents;
-    
+
     do {
       contents = await browseService.getChildren(
         folder,
@@ -493,7 +511,7 @@ class OfflineManager {
 
     return count;
   }
-  
+
   /// Downloads the contents of a folder recursively.
   /// Delegates to [_downloadFolderContentsWithIndex] and discards the return value.
   Future<void> _downloadFolderContents(
@@ -513,7 +531,7 @@ class OfflineManager {
       parentId: parentId,
     );
   }
-  
+
   /// Downloads the contents of a folder recursively and returns the updated file index.
   Future<int> _downloadFolderContentsWithIndex(
     BrowseItem folder, {
@@ -544,9 +562,12 @@ class OfflineManager {
         if (content.type == 'folder') {
           // For folders, just save the folder metadata and then download its contents
           // Don't call keepOffline here as it would cause double downloads
-          final offlineItem = OfflineItem.fromBrowseItem(content, parentId: parentId);
+          final offlineItem = OfflineItem.fromBrowseItem(
+            content,
+            parentId: parentId,
+          );
           await _metadata.saveItem(offlineItem);
-          
+
           // Then download its contents
           fileIndex = await _downloadFolderContentsWithIndex(
             content,
@@ -554,7 +575,8 @@ class OfflineManager {
             onError: onError,
             totalFiles: totalFiles,
             currentFileIndex: fileIndex,
-            parentId: content.id, // Use the folder's ID as parent for its contents
+            parentId:
+                content.id, // Use the folder's ID as parent for its contents
           );
         } else {
           await keepOffline(
@@ -572,7 +594,7 @@ class OfflineManager {
     } while (contents.length >= maxItems);
     return fileIndex;
   }
-  
+
   /// Check if an item is available offline
   Future<bool> isItemOffline(String itemId) async {
     try {
@@ -583,49 +605,44 @@ class OfflineManager {
       return false;
     }
   }
-  
+
   /// Get offline file content
   Future<Uint8List?> getFileContent(String itemId) async {
-    
-    
     try {
       final content = await _storage.getFile(itemId);
       if (content == null) {
-        
-      } else {
-        
-      }
+      } else {}
       return content;
     } catch (e) {
       EVLogger.error('Error getting offline file content', e);
       return null;
     }
   }
-  
+
   /// Get all offline items under a parent
   Future<List<BrowseItem>> getOfflineItems(String? parentId) async {
     try {
-      
-
       final items = await _metadata.getItemsByParent(parentId);
 
-      
-
-      return items.map((data) => BrowseItem(
-        id: data['id'],
-        name: data['name'],
-        type: data['type'],
-        isDepartment: data['is_department'] == 1,
-        description: data['description'],
-        modifiedDate: data['modified_date'],
-        modifiedBy: data['modified_by'],
-      )).toList();
+      return items
+          .map(
+            (data) => BrowseItem(
+              id: data['id'],
+              name: data['name'],
+              type: data['type'],
+              isDepartment: data['is_department'] == 1,
+              description: data['description'],
+              modifiedDate: data['modified_date'],
+              modifiedBy: data['modified_by'],
+            ),
+          )
+          .toList();
     } catch (e) {
       EVLogger.error('Failed to get offline items', e);
       return [];
     }
   }
-  
+
   /// Remove an item from offline storage
   Future<bool> removeOffline(String itemId) async {
     try {
@@ -639,11 +656,11 @@ class OfflineManager {
       return false;
     }
   }
-  
+
   /// Get the total storage used by offline files
   Future<String> getStorageUsage() async {
     final bytes = await _fileService.calculateTotalStorageUsed();
-    
+
     // Convert bytes to a human-readable format
     if (bytes < 1024) {
       return '$bytes B';
@@ -655,15 +672,12 @@ class OfflineManager {
       return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
     }
   }
-  
+
   /// Clear all offline content (files and database).
   Future<void> clearOfflineContent() async {
-    await Future.wait([
-      _storage.clearStorage(),
-      _database.clearAllItems(),
-    ]);
+    await Future.wait([_storage.clearStorage(), _database.clearAllItems()]);
   }
-  
+
   /// Dispose resources
   void dispose() {
     _syncDebounceTimer?.cancel();
@@ -671,7 +685,7 @@ class OfflineManager {
     _eventController.close();
     _connectivityStream.close();
   }
-  
+
   /// Get the total available space on the device
   Future<String> getAvailableSpace() async {
     try {
@@ -683,8 +697,9 @@ class OfflineManager {
         if (lines.length > 1) {
           final values = lines[1].split(RegExp(r'\s+'));
           if (values.length > 3) {
-            final availableBytes = int.parse(values[3]) * 1024; // Convert KB to bytes
-            
+            final availableBytes =
+                int.parse(values[3]) * 1024; // Convert KB to bytes
+
             // Convert bytes to a human-readable format
             if (availableBytes < 1024) {
               return '$availableBytes B';
@@ -712,7 +727,7 @@ class _DefaultSyncProvider implements sync.OfflineSyncProvider {
   String _instanceType;
   String _baseUrl;
   String _authToken;
-  
+
   _DefaultSyncProvider({
     required String instanceType,
     required String baseUrl,
@@ -720,30 +735,30 @@ class _DefaultSyncProvider implements sync.OfflineSyncProvider {
   }) : _instanceType = instanceType,
        _baseUrl = baseUrl,
        _authToken = authToken;
-       
+
   // Add getters for credentials
   @override
   String get instanceType => _instanceType;
-  
+
   @override
   String get baseUrl => _baseUrl;
-  
+
   @override
   String get authToken => _authToken;
-  
+
   @override
   Future<void> startSync() async {
     // Default implementation -- SyncService handles sync separately
   }
-  
+
   @override
   Future<void> stopSync() async {
     // Default implementation
   }
-  
+
   @override
   Stream<OfflineEvent> get syncEvents => _eventController.stream;
-  
+
   @override
   Future<Uint8List> downloadContent(String itemId) async {
     try {
@@ -752,18 +767,18 @@ class _DefaultSyncProvider implements sync.OfflineSyncProvider {
         _baseUrl,
         _authToken,
       );
-      
+
       final item = await browseService.getItemDetails(itemId);
       if (item == null) {
         throw Exception('Item not found');
       }
-      
+
       final documentService = DocumentServiceFactory.getService(
         _instanceType,
         _baseUrl,
         _authToken,
       );
-      
+
       final content = await documentService.getDocumentContent(item);
       if (content is String) {
         // If content is a file path, read the file
@@ -778,7 +793,7 @@ class _DefaultSyncProvider implements sync.OfflineSyncProvider {
       rethrow;
     }
   }
-  
+
   void dispose() {
     _eventController.close();
   }
@@ -787,13 +802,11 @@ class _DefaultSyncProvider implements sync.OfflineSyncProvider {
 /// Adapter to make OfflineDatabaseService implement OfflineMetadataProvider
 class _DatabaseMetadataAdapter implements OfflineMetadataProvider {
   final OfflineDatabaseService _database;
-  
+
   _DatabaseMetadataAdapter(this._database);
-  
+
   @override
   Future<void> saveItem(OfflineItem item) async {
-    
-
     // Insert the item into the database
     await _database.insertItem(
       BrowseItem(
@@ -810,32 +823,26 @@ class _DatabaseMetadataAdapter implements OfflineMetadataProvider {
       syncStatus: 'pending',
     );
   }
-  
+
   @override
   Future<Map<String, dynamic>?> getMetadata(String itemId) async {
-    
     return await _database.getItem(itemId);
   }
-  
+
   @override
   Future<List<Map<String, dynamic>>> getItemsByParent(String? parentId) async {
-    
-
     final items = await _database.getItemsByParent(parentId);
-
-    
 
     return items;
   }
-  
+
   @override
   Future<void> deleteMetadata(String itemId) async {
     await _database.removeItem(itemId);
   }
-  
+
   @override
   Future<void> clearMetadata() async {
     await _database.clearAllItems();
   }
 }
-

@@ -17,12 +17,12 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 /// Separates business logic from UI
 class BrowseScreenController extends ChangeNotifier {
   final String baseUrl;
-  final String authToken; 
+  final String authToken;
   final String instanceType;
   final AngoraBaseService? angoraBaseService;
   final BuildContext context;
   final GlobalKey<ScaffoldState> scaffoldKey;
-  
+
   // State variables
   bool isLoading = true;
   List<BrowseItem> items = [];
@@ -74,35 +74,35 @@ class BrowseScreenController extends ChangeNotifier {
     _selectedItems.clear();
     _notifyListeners();
   }
-  
+
   // Filter and sort state
   FilterSortOptions _filterSortOptions = const FilterSortOptions();
-  
+
   // Callback for state updates
   final Function()? onStateChanged;
-  
+
   // Cancel token for network requests
   CancelToken? _cancelToken;
-  
+
   // Add a debouncer for smoother UI updates
   final _debouncer = Debouncer<void>(
     Duration(milliseconds: 300),
     initialValue: null,
   );
-  
+
   // Pagination properties
   int _currentPage = 0;
   final int _itemsPerPage = 25;
   bool _hasMoreItems = true;
   bool _isLoadingMore = false;
-  
+
   final OfflineManager _offlineManager;
   final Set<String> _offlineItems = {};
-  
+
   Timer? _debounceTimer;
-  
+
   final Connectivity _connectivity = Connectivity();
-  
+
   BrowseScreenController({
     required this.baseUrl,
     required this.authToken,
@@ -111,69 +111,65 @@ class BrowseScreenController extends ChangeNotifier {
     required this.context,
     required this.scaffoldKey,
     required OfflineManager offlineManager,
-  }) : angoraBaseService = instanceType.toLowerCase() == 'angora' 
-        ? AngoraBaseService(baseUrl)
-        : null,
-        _offlineManager = offlineManager {
-    
+  }) : angoraBaseService =
+           instanceType.toLowerCase() == 'angora'
+               ? AngoraBaseService(baseUrl)
+               : null,
+       _offlineManager = offlineManager {
     // Initialize Angora base service if needed
     if (angoraBaseService != null) {
       angoraBaseService!.setToken(authToken);
       // Set up token refresh callback for Angora
       if (instanceType.toLowerCase() == 'angora') {
-        angoraBaseService!.setTokenRefreshCallback(_createTokenRefreshCallback());
+        angoraBaseService!.setTokenRefreshCallback(
+          _createTokenRefreshCallback(),
+        );
       }
     }
-    
+
     // Check initial connectivity
     _checkConnectivity();
-    
+
     // Set up debouncer listener
     _debouncer.values.listen((_) {
       _notifyListeners();
     });
-    
+
     _initConnectivityListener();
   }
-  
+
   /// Helper method to safely notify listeners
   void _notifyListeners() {
-    
     if (_disposed) {
-      
       return; // Don't notify if disposed
     }
-    
+
     if (onStateChanged != null) {
-      
       onStateChanged!();
-      
     }
-    
-    
+
     notifyListeners();
-    
   }
-  
+
   /// Debounced version of state change notification
   void notifyStateChanged() {
     if (_disposed) return; // Don't notify if disposed
     _debouncer.value = null; // Trigger the debouncer
   }
-  
+
   /// Check initial connectivity state
   Future<void> _checkConnectivity() async {
     try {
       final result = await _connectivity.checkConnectivity();
       // Only consider ConnectivityResult.none as offline
       // ConnectivityResult.other can be VPN connections and should not be treated as offline
-      _isOffline = result == ConnectivityResult.none;
+      _isOffline = result.contains(ConnectivityResult.none);
       _notifyListeners();
     } catch (e) {
       EVLogger.error('Error checking connectivity', e);
     }
   }
-  
+
   /// Creates a token refresh callback for Angora services
   /// This callback will be called when a 401 is detected, and it will update
   /// the token in AuthStateManager and return the new token so the service instance
@@ -181,7 +177,10 @@ class BrowseScreenController extends ChangeNotifier {
   Future<String?> Function() _createTokenRefreshCallback() {
     return () async {
       try {
-        final authStateManager = Provider.of<AuthStateManager>(context, listen: false);
+        final authStateManager = Provider.of<AuthStateManager>(
+          context,
+          listen: false,
+        );
         EVLogger.info('Token refresh callback invoked');
         final refreshed = await authStateManager.refreshToken();
         if (refreshed) {
@@ -190,9 +189,13 @@ class BrowseScreenController extends ChangeNotifier {
             // Update token in the controller's base service
             if (angoraBaseService != null) {
               angoraBaseService!.setToken(newToken);
-              EVLogger.info('Token updated in BrowseScreenController angoraBaseService');
+              EVLogger.info(
+                'Token updated in BrowseScreenController angoraBaseService',
+              );
             }
-            EVLogger.info('Token refresh completed successfully, new token length: ${newToken.length}');
+            EVLogger.info(
+              'Token refresh completed successfully, new token length: ${newToken.length}',
+            );
             return newToken;
           } else {
             EVLogger.warning('Token refresh succeeded but new token is null');
@@ -208,28 +211,31 @@ class BrowseScreenController extends ChangeNotifier {
       }
     };
   }
-  
+
   /// Helper method to get browse service with token refresh callback
   /// Gets the latest token from AuthStateManager to ensure we use refreshed tokens
   BrowseService _getBrowseService() {
     // Get the latest token from AuthStateManager in case it was refreshed
-    final authStateManager = Provider.of<AuthStateManager>(context, listen: false);
+    final authStateManager = Provider.of<AuthStateManager>(
+      context,
+      listen: false,
+    );
     final currentToken = authStateManager.currentToken ?? authToken;
-    
+
     return BrowseServiceFactory.getService(
       instanceType,
       baseUrl,
       currentToken,
-      tokenRefreshCallback: instanceType.toLowerCase() == 'angora' 
-        ? _createTokenRefreshCallback()
-        : null,
+      tokenRefreshCallback:
+          instanceType.toLowerCase() == 'angora'
+              ? _createTokenRefreshCallback()
+              : null,
     );
   }
 
   /// Set offline mode
   void setOfflineMode(bool offline) {
     if (_isOffline != offline) {
-      
       _isOffline = offline;
       if (_isOffline) {
         _hasMoreItems = false; // No pagination in offline mode
@@ -284,18 +290,18 @@ class BrowseScreenController extends ChangeNotifier {
   /// Loads folder contents without changing navigation
   Future<void> loadFolderContents(BrowseItem folder) async {
     if (isLoading) return;
-    
+
     try {
       isLoading = true;
       errorMessage = null;
       _notifyListeners();
-      
+
       // Set current folder
       currentFolder = folder;
-      
+
       // Check both actual connectivity and forced offline mode
-      _isOffline =  await _offlineManager.isOffline();
-      
+      _isOffline = await _offlineManager.isOffline();
+
       // Load folder contents
       if (_isOffline) {
         final offlineItems = await _offlineManager.getOfflineItems(folder.id);
@@ -303,23 +309,22 @@ class BrowseScreenController extends ChangeNotifier {
         _hasMoreItems = false;
       } else {
         final browseService = _getBrowseService();
-        
+
         final result = await browseService.getChildren(
           folder,
           skipCount: 0,
           maxItems: _itemsPerPage,
         );
-        
+
         _allItems = result;
         _hasMoreItems = result.length >= _itemsPerPage;
       }
-      
+
       // Reset pagination
       _currentPage = 0;
-      
+
       // Apply filters and sorting
       _applyFilterAndSort();
-      
     } catch (e) {
       EVLogger.error('FOLDER NAVIGATION: Error loading folder contents', {
         'error': e.toString(),
@@ -334,39 +339,50 @@ class BrowseScreenController extends ChangeNotifier {
   // Add getters for pagination state
   bool get isLoadingMore => _isLoadingMore;
   bool get hasMoreItems => _hasMoreItems;
-  
+
   // Filter and sort getters
   FilterSortOptions get filterSortOptions => _filterSortOptions;
   bool get hasActiveFilters => _filterSortOptions.hasActiveFilters;
-  
+
   /// Sets filter and sort options and applies them to items
   void setFilterSortOptions(FilterSortOptions options) {
     _filterSortOptions = options;
     _applyFilterAndSort();
     _notifyListeners();
   }
-  
+
   /// Applies current filter and sort options to items
   void _applyFilterAndSort() {
     // Determine source items - prefer _allItems, fallback to items if _allItems is empty
     // This handles edge cases where filters are applied before _allItems is populated
     final sourceItems = _allItems.isNotEmpty ? _allItems : items;
-    
+
     if (sourceItems.isEmpty) {
       EVLogger.productionLog('_applyFilterAndSort: No items to filter/sort');
       return;
     }
-    
-    EVLogger.productionLog('_applyFilterAndSort: Applying filters/sort to ${sourceItems.length} items (using ${_allItems.isNotEmpty ? "_allItems" : "items"} as source)');
-    final filteredSorted = FilterSortService.applyFilterAndSort(sourceItems, _filterSortOptions);
-    EVLogger.productionLog('_applyFilterAndSort: Result has ${filteredSorted.length} items');
+
+    EVLogger.productionLog(
+      '_applyFilterAndSort: Applying filters/sort to ${sourceItems.length} items (using ${_allItems.isNotEmpty ? "_allItems" : "items"} as source)',
+    );
+    final filteredSorted = FilterSortService.applyFilterAndSort(
+      sourceItems,
+      _filterSortOptions,
+    );
+    EVLogger.productionLog(
+      '_applyFilterAndSort: Result has ${filteredSorted.length} items',
+    );
     items = filteredSorted;
-    
+
     // If we used items as source and _allItems was empty, update _allItems for future operations
     // But only if we don't have active filters (to avoid storing filtered data as "all items")
-    if (_allItems.isEmpty && !_filterSortOptions.hasActiveFilters && items.isNotEmpty) {
+    if (_allItems.isEmpty &&
+        !_filterSortOptions.hasActiveFilters &&
+        items.isNotEmpty) {
       _allItems = List<BrowseItem>.from(sourceItems);
-      EVLogger.productionLog('_applyFilterAndSort: Synced items to _allItems (${_allItems.length} items)');
+      EVLogger.productionLog(
+        '_applyFilterAndSort: Synced items to _allItems (${_allItems.length} items)',
+      );
     }
   }
 
@@ -375,26 +391,28 @@ class BrowseScreenController extends ChangeNotifier {
     EVLogger.productionLog('=== LOAD DEPARTMENTS START ===');
     EVLogger.productionLog('Instance Type: $instanceType');
     EVLogger.productionLog('Base URL: $baseUrl');
-    EVLogger.productionLog('Auth Token: ${authToken.isNotEmpty ? "Present (${authToken.length} chars)" : "EMPTY"}');
-    
+    EVLogger.productionLog(
+      'Auth Token: ${authToken.isNotEmpty ? "Present (${authToken.length} chars)" : "EMPTY"}',
+    );
+
     isLoading = true;
     errorMessage = null;
     _currentPage = 0;
     _hasMoreItems = !_isOffline;
-    
+
     // Clear navigation stack and current folder when going to home
     navigationStack.clear();
     currentFolder = null;
     items = [];
     _allItems = [];
-    
+
     _notifyListeners();
 
     try {
       // Check both actual connectivity and forced offline mode
       _isOffline = await _offlineManager.isOffline();
       EVLogger.productionLog('Offline mode: $_isOffline');
-      
+
       if (_isOffline) {
         EVLogger.productionLog('Loading offline items...');
         final offlineItems = await _offlineManager.getOfflineItems(null);
@@ -420,12 +438,16 @@ class BrowseScreenController extends ChangeNotifier {
           skipCount: 0,
           maxItems: _itemsPerPage,
         );
-        EVLogger.productionLog('Successfully loaded ${loadedItems.length} items');
+        EVLogger.productionLog(
+          'Successfully loaded ${loadedItems.length} items',
+        );
         _allItems = loadedItems;
         // Angora departments API returns all items in one call; no pagination at root
-        _hasMoreItems = instanceType.toLowerCase() != 'angora' && loadedItems.length >= _itemsPerPage;
+        _hasMoreItems =
+            instanceType.toLowerCase() != 'angora' &&
+            loadedItems.length >= _itemsPerPage;
       }
-      
+
       // Apply filters and sorting
       _applyFilterAndSort();
     } catch (e) {
@@ -442,7 +464,12 @@ class BrowseScreenController extends ChangeNotifier {
 
   /// Loads more departments/sites for pagination
   Future<void> loadMoreDepartments() async {
-    if (!_hasMoreItems || isLoading || _isLoadingMore || currentFolder != null) return;
+    if (!_hasMoreItems ||
+        isLoading ||
+        _isLoadingMore ||
+        currentFolder != null) {
+      return;
+    }
     _isLoadingMore = true;
     _notifyListeners();
     try {
@@ -476,7 +503,6 @@ class BrowseScreenController extends ChangeNotifier {
     }
   }
 
-  
   /// Navigates to a specific folder and loads its contents
   Future<void> navigateToFolder(BrowseItem folder) async {
     EVLogger.productionLog('=== NAVIGATE TO FOLDER START ===');
@@ -484,7 +510,7 @@ class BrowseScreenController extends ChangeNotifier {
     EVLogger.productionLog('Folder Name: ${folder.name}');
     EVLogger.productionLog('Is Department: ${folder.isDepartment}');
     EVLogger.productionLog('Current isLoading: $isLoading');
-    
+
     // Don't navigate if we're already loading (unless it's been loading for too long)
     if (isLoading) {
       EVLogger.productionLog('Controller is already loading, waiting...');
@@ -496,19 +522,21 @@ class BrowseScreenController extends ChangeNotifier {
         isLoading = false;
       }
     }
-    
+
     try {
       isLoading = true;
       errorMessage = null;
       _notifyListeners();
-      
+
       // Check both actual connectivity and forced offline mode
-      _isOffline =  await _offlineManager.isOffline();
+      _isOffline = await _offlineManager.isOffline();
       EVLogger.productionLog('Offline mode: $_isOffline');
-      
+
       // No special handling for departments/sites; just load their children
       if (_isOffline) {
-        EVLogger.productionLog('Loading offline items for folder: ${folder.id}');
+        EVLogger.productionLog(
+          'Loading offline items for folder: ${folder.id}',
+        );
         final offlineItems = await _offlineManager.getOfflineItems(folder.id);
         _allItems = offlineItems;
         _hasMoreItems = false;
@@ -516,22 +544,24 @@ class BrowseScreenController extends ChangeNotifier {
       } else {
         EVLogger.productionLog('Creating browse service...');
         final browseService = _getBrowseService();
-        EVLogger.productionLog('Browse service created, calling getChildren...');
-        
+        EVLogger.productionLog(
+          'Browse service created, calling getChildren...',
+        );
+
         final result = await browseService.getChildren(
           folder,
           skipCount: 0,
           maxItems: _itemsPerPage,
         );
-        
+
         EVLogger.productionLog('Successfully loaded ${result.length} items');
         _allItems = result;
         _hasMoreItems = result.length >= _itemsPerPage;
       }
-      
+
       // Apply filters and sorting
       _applyFilterAndSort();
-      
+
       // Update navigation stack after loading contents
       if (currentFolder != null && currentFolder!.id != 'root') {
         navigationStack.add(currentFolder!);
@@ -539,13 +569,12 @@ class BrowseScreenController extends ChangeNotifier {
         // Clear navigation stack when coming from root
         navigationStack.clear();
       }
-      
+
       // Set current folder
       currentFolder = folder;
-      
+
       // Reset pagination
       _currentPage = 0;
-      
     } catch (e) {
       EVLogger.error('FOLDER NAVIGATION: Error navigating to folder', {
         'error': e.toString(),
@@ -560,16 +589,16 @@ class BrowseScreenController extends ChangeNotifier {
       _notifyListeners();
     }
   }
-  
+
   /// Navigates to a specific point in breadcrumb
-  void navigateToBreadcrumb(int index) {    
+  void navigateToBreadcrumb(int index) {
     final targetFolder = navigationStack[index];
     final newStack = navigationStack.sublist(0, index);
-    
+
     navigationStack = newStack;
     currentFolder = targetFolder;
     _notifyListeners();
-    
+
     loadFolderContents(targetFolder);
   }
 
@@ -579,15 +608,14 @@ class BrowseScreenController extends ChangeNotifier {
     _disposed = true; // Mark as disposed
     // Cancel any ongoing network requests
     _cancelToken?.cancel("Controller disposed");
-    
+
     // No need to dispose debouncer in newer versions of the package
     // If using an older version that requires disposal, uncomment:
     // _debouncer.dispose();
-    
+
     _debounceTimer?.cancel();
     super.dispose();
   }
-
 
   // Add this method to check if an item is available offline
   Future<bool> isItemAvailableOffline(String itemId) async {
@@ -605,7 +633,7 @@ class BrowseScreenController extends ChangeNotifier {
   Future<void> toggleOfflineAvailability(BrowseItem item) async {
     try {
       final isAvailable = await isItemAvailableOffline(item.id);
-      
+
       if (isAvailable) {
         // Remove from offline
         await _offlineManager.removeOffline(item.id);
@@ -615,7 +643,7 @@ class BrowseScreenController extends ChangeNotifier {
         await _offlineManager.keepOffline(item);
         _offlineItems.add(item.id);
       }
-      
+
       // Notify listeners of the change
       onStateChanged?.call();
     } catch (e) {
@@ -624,22 +652,17 @@ class BrowseScreenController extends ChangeNotifier {
     }
   }
 
-
   void _initConnectivityListener() {
     _offlineManager.onConnectivityChanged.listen((result) {
-      // Only consider ConnectivityResult.none as offline
-      // ConnectivityResult.other can be VPN connections and should not be treated as offline
-      final isOffline = result == ConnectivityResult.none;
-      
+      final isOffline = result;
+
       // Debounce connectivity changes to prevent rapid state updates
       _debounceTimer?.cancel();
       _debounceTimer = Timer(const Duration(seconds: 2), () async {
         if (isOffline != _isOffline) {
-          
-          
           _isOffline = isOffline;
           notifyListeners();
-          
+
           // If we're offline, load offline content
           if (_isOffline) {
             await _loadOfflineContent();
@@ -647,19 +670,19 @@ class BrowseScreenController extends ChangeNotifier {
         }
       });
     });
-    
+
     // Initial check
     _checkOfflineState();
   }
-  
+
   Future<void> _checkOfflineState() async {
     final result = await _connectivity.checkConnectivity();
     // Only consider ConnectivityResult.none as offline
     // ConnectivityResult.other can be VPN connections and should not be treated as offline
-    _isOffline = result == ConnectivityResult.none;
-    
+    _isOffline = result.contains(ConnectivityResult.none);
+
     notifyListeners();
-    
+
     if (_isOffline) {
       await _loadOfflineContent();
     }
@@ -672,26 +695,21 @@ class BrowseScreenController extends ChangeNotifier {
   /// Handles back navigation
   /// Returns true if back navigation was handled, false otherwise
   bool handleBackNavigation() {
-    
-    
     // If we have a navigation stack, go back
     if (navigationStack.isNotEmpty) {
       final previousFolder = navigationStack.removeLast();
-      
-      
+
       // Load the previous folder's contents
       loadFolderContents(previousFolder);
       return true;
     }
-    
+
     // If we're not at the root level, go to root
     if (currentFolder != null && currentFolder!.id != 'root') {
-      
       loadDepartments();
       return true;
     }
-    
-    
+
     return false;
   }
 }

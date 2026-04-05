@@ -35,43 +35,10 @@ void main() async {
     }
   }
 
-  await OfflineDatabaseService.instance.database;
-
   final syncService = SyncService();
   final authStateManager = AuthStateManager();
   final uploadService = UploadService();
   final contextMenuService = ContextMenuService();
-
-  try {
-    // Initialize auth state
-    await authStateManager.initialize();
-
-    // Initialize upload service
-    uploadService.initialize();
-    
-    // Initialize context menu service
-    contextMenuService.initialize();
-
-    // If authenticated, initialize sync service and save DMS credentials for Share Extension
-    if (authStateManager.isAuthenticated) {
-      syncService.initialize(
-        instanceType: authStateManager.instanceType!,
-        baseUrl: authStateManager.baseUrl!,
-        authToken: authStateManager.currentToken!,
-      );
-      syncService.startPeriodicSync();
-      
-      // Save DMS credentials to App Groups for Share Extension
-      await _saveDMSCredentialsToAppGroups(
-        baseUrl: authStateManager.baseUrl!,
-        authToken: authStateManager.currentToken!,
-        instanceType: authStateManager.instanceType!,
-        customerHostname: authStateManager.customerHostname ?? '',
-      );
-    }
-  } catch (e) {
-    EVLogger.error('Failed to initialize auth state: $e');
-  }
 
   // Do not request photos/videos/audio at startup: app uses one-time picker access for uploads.
   // Requesting at startup would imply persistent access and violate Play policy for READ_MEDIA_*.
@@ -86,7 +53,11 @@ void main() async {
           create: (_) => authStateManager,
         ),
       ],
-      child: MyApp(syncService: syncService, uploadService: uploadService, contextMenuService: contextMenuService),
+      child: MyApp(
+        syncService: syncService,
+        uploadService: uploadService,
+        contextMenuService: contextMenuService,
+      ),
     ),
   );
 }
@@ -114,15 +85,14 @@ Future<void> _saveDMSCredentialsToAppGroups({
   }
 }
 
-
 class MyApp extends StatefulWidget {
   final SyncService syncService;
   final UploadService uploadService;
   final ContextMenuService contextMenuService;
 
   const MyApp({
-    super.key, 
-    required this.syncService, 
+    super.key,
+    required this.syncService,
     required this.uploadService,
     required this.contextMenuService,
   });
@@ -132,20 +102,87 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
-  static const MethodChannel _channel = MethodChannel(PlatformChannels.androidMain);
-  
+  static const MethodChannel _channel = MethodChannel(
+    PlatformChannels.androidMain,
+  );
+  bool _isBootstrapping = true;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _listenForUploads();
     _setupMethodChannel();
-    // Save credentials after a short delay to ensure auth state is ready
-    Future.delayed(const Duration(seconds: 1), () {
-      _saveDMSCredentialsToSharedPrefs();
+    _bootstrapApp();
+  }
+
+  Future<void> _bootstrapApp() async {
+    final authState = Provider.of<AuthStateManager>(context, listen: false);
+
+    try {
+      await OfflineDatabaseService.instance.database;
+    } catch (e, stackTrace) {
+      EVLogger.error('Failed to initialize offline database', e, stackTrace);
+    }
+
+    try {
+      await authState.initialize();
+    } catch (e, stackTrace) {
+      EVLogger.error('Failed to initialize auth state', e, stackTrace);
+    }
+
+    try {
+      widget.uploadService.initialize();
+    } catch (e, stackTrace) {
+      EVLogger.error('Failed to initialize upload service', e, stackTrace);
+    }
+
+    try {
+      widget.contextMenuService.initialize();
+    } catch (e, stackTrace) {
+      EVLogger.error(
+        'Failed to initialize context menu service',
+        e,
+        stackTrace,
+      );
+    }
+
+    if (authState.isAuthenticated &&
+        authState.instanceType != null &&
+        authState.baseUrl != null &&
+        authState.currentToken != null) {
+      try {
+        widget.syncService.initialize(
+          instanceType: authState.instanceType!,
+          baseUrl: authState.baseUrl!,
+          authToken: authState.currentToken!,
+        );
+        widget.syncService.startPeriodicSync();
+
+        await _saveDMSCredentialsToAppGroups(
+          baseUrl: authState.baseUrl!,
+          authToken: authState.currentToken!,
+          instanceType: authState.instanceType!,
+          customerHostname: authState.customerHostname ?? '',
+        );
+      } catch (e, stackTrace) {
+        EVLogger.error(
+          'Failed to initialize authenticated services',
+          e,
+          stackTrace,
+        );
+      }
+    }
+
+    if (!mounted) return;
+
+    await _saveDMSCredentialsToSharedPrefs();
+
+    setState(() {
+      _isBootstrapping = false;
     });
   }
-  
+
   void _setupMethodChannel() {
     _channel.setMethodCallHandler((call) async {
       switch (call.method) {
@@ -179,7 +216,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.resumed && !_isBootstrapping) {
       widget.uploadService.checkForUploadDataWhenAppForeground();
       _saveDMSCredentialsToSharedPrefs();
     }
@@ -189,25 +226,35 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     widget.uploadService.uploadStream.listen((uploadData) {
       _showUploadNotification(uploadData);
     });
-    
+
     // Listen for context menu uploads
     widget.contextMenuService.uploadStream.listen((filePaths) {
       _openContextMenuUpload(filePaths);
     });
   }
-  
+
   Future<void> _saveDMSCredentialsToSharedPrefs() async {
     if (!Platform.isAndroid) return;
     try {
       final authState = Provider.of<AuthStateManager>(context, listen: false);
-      
-      EVLogger.productionLog('=== SAVING DMS CREDENTIALS TO SHARED PREFERENCES ===');
-      EVLogger.productionLog('Auth state - isAuthenticated: ${authState.isAuthenticated}');
+
+      EVLogger.productionLog(
+        '=== SAVING DMS CREDENTIALS TO SHARED PREFERENCES ===',
+      );
+      EVLogger.productionLog(
+        'Auth state - isAuthenticated: ${authState.isAuthenticated}',
+      );
       EVLogger.productionLog('Auth state - baseUrl: ${authState.baseUrl}');
-      EVLogger.productionLog('Auth state - hasToken: ${authState.currentToken != null}');
-      EVLogger.productionLog('Auth state - instanceType: ${authState.instanceType}');
-      EVLogger.productionLog('Auth state - customerHostname: ${authState.customerHostname}');
-      
+      EVLogger.productionLog(
+        'Auth state - hasToken: ${authState.currentToken != null}',
+      );
+      EVLogger.productionLog(
+        'Auth state - instanceType: ${authState.instanceType}',
+      );
+      EVLogger.productionLog(
+        'Auth state - customerHostname: ${authState.customerHostname}',
+      );
+
       if (authState.isAuthenticated) {
         final credentials = {
           'baseUrl': authState.baseUrl!,
@@ -215,40 +262,43 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           'instanceType': authState.instanceType!,
           'customerHostname': authState.customerHostname ?? '',
         };
-        
+
         EVLogger.productionLog('Saving credentials to SharedPreferences', {
           'baseUrl': credentials['baseUrl'],
           'hasAuthToken': credentials['authToken'] != null,
           'instanceType': credentials['instanceType'],
-          'customerHostname': credentials['customerHostname']
+          'customerHostname': credentials['customerHostname'],
         });
-        
+
         await _channel.invokeMethod('saveDMSCredentials', credentials);
-        
-        EVLogger.productionLog('DMS credentials saved to SharedPreferences for ShareActivity');
+
+        EVLogger.productionLog(
+          'DMS credentials saved to SharedPreferences for ShareActivity',
+        );
       } else {
         EVLogger.productionLog('Not authenticated, skipping credential save');
       }
     } catch (e) {
       EVLogger.error('Failed to save DMS credentials to SharedPreferences', {
-        'error': e.toString()
+        'error': e.toString(),
       });
     }
   }
-  
 
   void _showUploadNotification(UploadData uploadData) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('✅ Uploaded ${uploadData.fileCount} files to ${uploadData.folder}'),
+          content: Text(
+            '✅ Uploaded ${uploadData.fileCount} files to ${uploadData.folder}',
+          ),
           backgroundColor: Colors.green,
           duration: const Duration(seconds: 3),
         ),
       );
     }
   }
-  
+
   void _openContextMenuUpload(List<String> filePaths) {
     // Navigate to context menu upload screen
     final context = navigatorKey.currentContext;
@@ -281,25 +331,40 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           actionsIconTheme: IconThemeData(color: EVColors.appBarForeground),
         ),
       ),
-      routes: {
-        '/share': (context) => const ShareActivityWrapper(),
-      },
-      home: Consumer<AuthStateManager>(
-        builder: (context, authState, _) {
-          if (authState.isAuthenticated && 
-              authState.baseUrl != null && 
-              authState.currentToken != null && 
-              authState.instanceType != null) {
-            return BrowseScreen(
-              baseUrl: authState.baseUrl!,
-              authToken: authState.currentToken!,
-              firstName: authState.firstName ?? 'User',
-              instanceType: authState.instanceType!,
-              customerHostname: authState.customerHostname ?? '',
-            );
-          }
-          return const LoginScreen();
-        },
+      routes: {'/share': (context) => const ShareActivityWrapper()},
+      home:
+          _isBootstrapping
+              ? const _StartupScreen()
+              : Consumer<AuthStateManager>(
+                builder: (context, authState, _) {
+                  if (authState.isAuthenticated &&
+                      authState.baseUrl != null &&
+                      authState.currentToken != null &&
+                      authState.instanceType != null) {
+                    return BrowseScreen(
+                      baseUrl: authState.baseUrl!,
+                      authToken: authState.currentToken!,
+                      firstName: authState.firstName ?? 'User',
+                      instanceType: authState.instanceType!,
+                      customerHostname: authState.customerHostname ?? '',
+                    );
+                  }
+                  return const LoginScreen();
+                },
+              ),
+    );
+  }
+}
+
+class _StartupScreen extends StatelessWidget {
+  const _StartupScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: EVColors.screenBackground,
+      body: Center(
+        child: CircularProgressIndicator(color: EVColors.buttonBackground),
       ),
     );
   }

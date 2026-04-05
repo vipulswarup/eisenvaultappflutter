@@ -64,9 +64,13 @@ class SyncService {
   }
 
   void _initConnectivityListener() {
-    _connectivitySubscription = _connectivity.onConnectivityChanged.listen((results) {
+    _connectivitySubscription = _connectivity.onConnectivityChanged.listen((
+      results,
+    ) {
       if (!results.contains(ConnectivityResult.none)) {
-        _notifyProgress('Internet connection restored, syncing offline content...');
+        _notifyProgress(
+          'Internet connection restored, syncing offline content...',
+        );
         Future.delayed(const Duration(seconds: 2), () {
           startSync();
         });
@@ -89,7 +93,7 @@ class SyncService {
 
     try {
       final connectivityResult = await _connectivity.checkConnectivity();
-      if (connectivityResult == ConnectivityResult.none) {
+      if (connectivityResult.contains(ConnectivityResult.none)) {
         _notifyError('Cannot sync: device is offline');
         _isSyncing = false;
         return;
@@ -162,12 +166,16 @@ class SyncService {
     // --- Pass 2: Check folders for new content and deletions ---
     _notifyProgress('Checking offline folders for changes...');
 
-    final offlineFolderIds = allItems
-        .where((item) => item['type'] == 'folder' || item['is_department'] == 1)
-        .map((item) => item['id'] as String)
-        .toSet();
+    final offlineFolderIds =
+        allItems
+            .where(
+              (item) => item['type'] == 'folder' || item['is_department'] == 1,
+            )
+            .map((item) => item['id'] as String)
+            .toSet();
 
-    final existingOfflineIds = allItems.map((item) => item['id'] as String).toSet();
+    final existingOfflineIds =
+        allItems.map((item) => item['id'] as String).toSet();
 
     for (final folderId in offlineFolderIds) {
       if (_cancelled) return;
@@ -184,15 +192,21 @@ class SyncService {
         final serverChildren = await _getAllChildren(browseService, folderItem);
 
         // Existing offline children for this folder
-        final existingOfflineChildren = allItems
-            .where((item) => item['parent_id'] == folderId)
-            .map((item) => item['id'] as String)
-            .toSet();
+        final existingOfflineChildren =
+            allItems
+                .where((item) => item['parent_id'] == folderId)
+                .map((item) => item['id'] as String)
+                .toSet();
 
         // Download new files
-        final newFiles = serverChildren
-            .where((child) => child.type == 'file' && !existingOfflineChildren.contains(child.id))
-            .toList();
+        final newFiles =
+            serverChildren
+                .where(
+                  (child) =>
+                      child.type == 'file' &&
+                      !existingOfflineChildren.contains(child.id),
+                )
+                .toList();
 
         for (final newFile in newFiles) {
           try {
@@ -208,11 +222,14 @@ class SyncService {
         }
 
         // Download new folders
-        final newFolders = serverChildren
-            .where((child) =>
-                (child.type == 'folder' || child.isDepartment) &&
-                !existingOfflineIds.contains(child.id))
-            .toList();
+        final newFolders =
+            serverChildren
+                .where(
+                  (child) =>
+                      (child.type == 'folder' || child.isDepartment) &&
+                      !existingOfflineIds.contains(child.id),
+                )
+                .toList();
 
         for (final newFolder in newFolders) {
           try {
@@ -296,7 +313,9 @@ class SyncService {
         final DateTime localDate = DateTime.parse(currentModifiedDate);
 
         if (serverDate.isAfter(localDate)) {
-          final content = await documentService.getDocumentContent(latestMetadata);
+          final content = await documentService.getDocumentContent(
+            latestMetadata,
+          );
           await _fileService.storeFile(itemId, content);
           await _database.updateItemFilePath(itemId, filePath);
           _notifyProgress('Updated document: ${latestMetadata.name}');
@@ -356,7 +375,10 @@ class SyncService {
         try {
           final parentItem = await browseService.getItemDetails(parentId);
           if (parentItem != null) {
-            final parentChildren = await _getAllChildren(browseService, parentItem);
+            final parentChildren = await _getAllChildren(
+              browseService,
+              parentItem,
+            );
             if (parentChildren.any((child) => child.id == folderId)) {
               return false; // Folder found in parent's children
             }
@@ -392,7 +414,9 @@ class SyncService {
       );
       if (otherFolder.isNotEmpty) {
         try {
-          final probeResult = await browseService.getItemDetails(otherFolder['id']);
+          final probeResult = await browseService.getItemDetails(
+            otherFolder['id'],
+          );
           if (probeResult == null) {
             // API might be down -- don't delete
             return false;
@@ -446,11 +470,13 @@ class SyncService {
         }
       }
 
-      EVLogger.info('Cleaned up deleted folder and ${itemsToRemove.length - 1} descendants', {
-        'folderId': folderId,
-        'totalItemsRemoved': itemsToRemove.length,
-      });
-      _notifyProgress('Cleaned up deleted folder and ${itemsToRemove.length - 1} items');
+      EVLogger.info(
+        'Cleaned up deleted folder and ${itemsToRemove.length - 1} descendants',
+        {'folderId': folderId, 'totalItemsRemoved': itemsToRemove.length},
+      );
+      _notifyProgress(
+        'Cleaned up deleted folder and ${itemsToRemove.length - 1} items',
+      );
     } catch (e) {
       EVLogger.error('Error cleaning up deleted folder', {
         'folderId': folderId,
@@ -517,7 +543,7 @@ class SyncService {
     _periodicSyncTimer?.cancel();
     _periodicSyncTimer = Timer.periodic(interval, (_) async {
       final connectivityResult = await _connectivity.checkConnectivity();
-      if (connectivityResult != ConnectivityResult.none) {
+      if (!connectivityResult.contains(ConnectivityResult.none)) {
         await startSync();
       }
     });
