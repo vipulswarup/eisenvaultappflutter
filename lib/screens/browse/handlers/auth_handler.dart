@@ -1,3 +1,4 @@
+import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/screens/login_screen.dart';
 import 'package:eisenvaultappflutter/screens/browse/browse_screen.dart';
 import 'package:eisenvaultappflutter/services/auth/auth_state_manager.dart';
@@ -81,7 +82,7 @@ class AuthHandler {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error during logout: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: EVColors.errorRed,
           ),
         );
       }

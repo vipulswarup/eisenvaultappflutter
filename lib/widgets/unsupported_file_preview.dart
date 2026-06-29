@@ -1,3 +1,4 @@
+import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:open_file/open_file.dart';
@@ -25,7 +26,7 @@ class UnsupportedFilePreview extends StatelessWidget {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Error opening file: ${result.message}'),
-              backgroundColor: Colors.red,
+              backgroundColor: EVColors.errorRed,
             ),
           );
         }
@@ -35,7 +36,7 @@ class UnsupportedFilePreview extends StatelessWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error opening file: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: EVColors.errorRed,
           ),
         );
       }
@@ -50,7 +51,7 @@ class UnsupportedFilePreview extends StatelessWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error sharing file: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: EVColors.errorRed,
           ),
         );
       }

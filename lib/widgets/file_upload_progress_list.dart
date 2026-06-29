@@ -1,3 +1,4 @@
+import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:flutter/material.dart';
 import 'package:eisenvaultappflutter/models/upload/batch_upload_models.dart';
 
@@ -67,23 +68,23 @@ class FileUploadProgressItem extends StatelessWidget {
     switch (progress.status) {
       case FileUploadStatus.waiting:
         statusIcon = Icons.hourglass_empty;
-        statusColor = Colors.grey;
+        statusColor = EVColors.iconGrey;
         break;
       case FileUploadStatus.inProgress:
         statusIcon = Icons.cloud_upload;
-        statusColor = Colors.blue;
+        statusColor = EVColors.infoBlue;
         break;
       case FileUploadStatus.success:
         statusIcon = Icons.check_circle;
-        statusColor = Colors.green;
+        statusColor = EVColors.successGreen;
         break;
       case FileUploadStatus.failed:
         statusIcon = Icons.error;
-        statusColor = Colors.red;
+        statusColor = EVColors.errorRed;
         break;
       default:
         statusIcon = Icons.help;
-        statusColor = Colors.grey;
+        statusColor = EVColors.iconGrey;
     }
     
     
@@ -118,7 +119,7 @@ class FileUploadProgressItem extends StatelessWidget {
               const SizedBox(height: 4),
               LinearProgressIndicator(
                 value: progress.percentComplete / 100,
-                backgroundColor: Colors.grey[200],
+                backgroundColor: EVColors.shimmerBackground,
                 valueColor: AlwaysStoppedAnimation<Color>(statusColor),
               ),
               const SizedBox(height: 4),
@@ -141,7 +142,7 @@ class FileUploadProgressItem extends StatelessWidget {
                   padding: const EdgeInsets.only(top: 4.0),
                   child: Text(
                     'File ID: ${progress.fileId}',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 10),
+                    style: TextStyle(color: EVColors.textGrey, fontSize: 10),
                   ),
                 ),
             ],

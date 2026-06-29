@@ -292,7 +292,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           content: Text(
             '✅ Uploaded ${uploadData.fileCount} files to ${uploadData.folder}',
           ),
-          backgroundColor: Colors.green,
+          backgroundColor: EVColors.successGreen,
           duration: const Duration(seconds: 3),
         ),
       );
@@ -317,11 +317,20 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       navigatorKey: navigatorKey,
       title: 'EisenVault',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: EVColors.palettePrimary,
+          brightness: Brightness.light,
+          primary: EVColors.palettePrimary,
+          surface: EVColors.paletteSurface,
+        ),
         scaffoldBackgroundColor: EVColors.screenBackground,
         appBarTheme: AppBarTheme(
           backgroundColor: EVColors.appBarBackground,
           foregroundColor: EVColors.appBarForeground,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          scrolledUnderElevation: 1,
+          shadowColor: EVColors.shadowBlack,
           iconTheme: IconThemeData(color: EVColors.appBarForeground),
           titleTextStyle: TextStyle(
             color: EVColors.appBarForeground,
@@ -330,6 +339,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           ),
           actionsIconTheme: IconThemeData(color: EVColors.appBarForeground),
         ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: EVColors.buttonBackground,
+            foregroundColor: EVColors.buttonForeground,
+          ),
+        ),
+        dividerColor: EVColors.listItemDivider,
       ),
       routes: {'/share': (context) => const ShareActivityWrapper()},
       home:

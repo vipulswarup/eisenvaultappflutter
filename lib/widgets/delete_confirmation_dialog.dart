@@ -1,3 +1,4 @@
+import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:flutter/material.dart';
 
 class DeleteConfirmationDialog extends StatelessWidget {
@@ -37,7 +38,7 @@ class DeleteConfirmationDialog extends StatelessWidget {
         ),
         TextButton(
           onPressed: isLoading ? null : () => onConfirm(),
-          child: Text('Delete', style: TextStyle(color: Colors.red)),
+          child: Text('Delete', style: TextStyle(color: EVColors.errorRed)),
         ),
       ],
     );

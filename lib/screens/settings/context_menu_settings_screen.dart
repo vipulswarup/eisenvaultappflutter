@@ -51,7 +51,7 @@ class _ContextMenuSettingsScreenState extends State<ContextMenuSettingsScreen> {
                 ? 'Context menu integration enabled' 
                 : 'Context menu integration disabled'
             ),
-            backgroundColor: enabled ? Colors.green : Colors.orange,
+            backgroundColor: enabled ? EVColors.successGreen : EVColors.warningOrange,
           ),
         );
       }

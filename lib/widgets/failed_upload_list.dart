@@ -1,3 +1,4 @@
+import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:flutter/material.dart';
 import 'package:eisenvaultappflutter/models/upload/batch_upload_models.dart';
 
@@ -40,7 +41,7 @@ class FailedUploadList extends StatelessWidget {
               'Failed Files (${failedFiles.length}):',
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
-                color: Colors.red,
+                color: EVColors.errorRed,
               ),
             ),
             ElevatedButton.icon(
@@ -48,7 +49,7 @@ class FailedUploadList extends StatelessWidget {
               icon: const Icon(Icons.refresh),
               label: const Text('Retry All'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange,
+                backgroundColor: EVColors.warningOrange,
               ),
             ),
           ],
@@ -60,9 +61,9 @@ class FailedUploadList extends StatelessWidget {
             itemBuilder: (context, index) {
               final file = failedFiles[index];
               return Card(
-                color: Colors.red[50],
+                color: EVColors.statusErrorBackground,
                 child: ExpansionTile(
-                  leading: const Icon(Icons.error_outline, color: Colors.red),
+                  leading: const Icon(Icons.error_outline, color: EVColors.errorRed),
                   title: Text(file.name),
                   subtitle: const Text('Failed to upload'),
                   children: [
@@ -78,7 +79,7 @@ class FailedUploadList extends StatelessWidget {
                           const SizedBox(height: 4),
                           Text(
                             file.errorMessage ?? 'Unknown error',
-                            style: const TextStyle(color: Colors.red),
+                            style: const TextStyle(color: EVColors.errorRed),
                           ),
                           const SizedBox(height: 8),
                           // Show file ID for debugging purposes
@@ -87,7 +88,7 @@ class FailedUploadList extends StatelessWidget {
                               padding: const EdgeInsets.only(bottom: 8.0),
                               child: Text(
                                 'File ID: ${file.id}',
-                                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                                style: TextStyle(color: EVColors.textGrey, fontSize: 12),
                               ),
                             ),
                           Align(
@@ -97,7 +98,7 @@ class FailedUploadList extends StatelessWidget {
                               icon: const Icon(Icons.refresh),
                               label: const Text('Retry'),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.orange,
+                                backgroundColor: EVColors.warningOrange,
                               ),
                             ),
                           ),

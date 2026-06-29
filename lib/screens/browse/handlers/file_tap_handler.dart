@@ -1,3 +1,4 @@
+import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/screens/generic_file_preview_screen.dart';
 import 'package:eisenvaultappflutter/screens/image_viewer_screen.dart';
@@ -84,7 +85,7 @@ class FileTapHandler {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error loading file: ${e.toString()}'),
-            backgroundColor: Colors.red,
+            backgroundColor: EVColors.errorRed,
           ),
         );
       }

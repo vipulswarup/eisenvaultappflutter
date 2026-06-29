@@ -89,7 +89,7 @@ class _UploadProgressItem extends StatelessWidget {
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: Colors.grey.withOpacity(0.2),
+            color: EVColors.progressTrack,
           ),
         ),
       ),
@@ -122,9 +122,9 @@ class _UploadProgressItem extends StatelessWidget {
                   borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(
                     value: progress.progress,
-                    backgroundColor: Colors.grey.withOpacity(0.2),
+                    backgroundColor: EVColors.progressTrack,
                     valueColor: AlwaysStoppedAnimation<Color>(
-                      progress.isComplete ? Colors.green : EVColors.infoBlue,
+                      progress.isComplete ? EVColors.successGreen : EVColors.infoBlue,
                     ),
                   ),
                 ),
@@ -133,7 +133,7 @@ class _UploadProgressItem extends StatelessWidget {
               Text(
                 '${(progress.progress * 100).toInt()}%',
                 style: TextStyle(
-                  color: progress.isComplete ? Colors.green : EVColors.infoBlue,
+                  color: progress.isComplete ? EVColors.successGreen : EVColors.infoBlue,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -145,7 +145,7 @@ class _UploadProgressItem extends StatelessWidget {
               child: Text(
                 progress.error!,
                 style: const TextStyle(
-                  color: Colors.red,
+                  color: EVColors.errorRed,
                   fontSize: 12,
                 ),
               ),

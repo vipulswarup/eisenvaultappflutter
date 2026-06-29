@@ -1,3 +1,4 @@
+import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:flutter/material.dart';
 
 class EmptySearchResults extends StatelessWidget {
@@ -19,7 +20,7 @@ class EmptySearchResults extends StatelessWidget {
           const Icon(
             Icons.search_off,
             size: 64,
-            color: Colors.grey,
+            color: EVColors.iconGrey,
           ),
           const SizedBox(height: 16),
           Text(
@@ -35,7 +36,7 @@ class EmptySearchResults extends StatelessWidget {
             'Try different keywords or check your spelling',
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey,
+              color: EVColors.textSecondary,
             ),
             textAlign: TextAlign.center,
           ),

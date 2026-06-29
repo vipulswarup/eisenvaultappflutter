@@ -59,7 +59,7 @@ class BrowseItemTile extends StatelessWidget {
                 child: const Icon(
                   Icons.star,
                   size: 14,
-                  color: Colors.amber,
+                  color: EVColors.iconAmber,
                 ),
               ),
             ),
@@ -120,7 +120,7 @@ class BrowseItemTile extends StatelessWidget {
                 children: [
                   Icon(
                     isFavorite ? Icons.star : Icons.star_border,
-                    color: isFavorite ? Colors.amber : EVColors.iconTeal,
+                    color: isFavorite ? EVColors.iconAmber : EVColors.iconTeal,
                   ),
                   const SizedBox(width: 10),
                   Text(isFavorite ? 'Remove from Favourites' : 'Add to Favourites'),

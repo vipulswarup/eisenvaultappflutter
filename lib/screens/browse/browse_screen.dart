@@ -492,7 +492,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
           ListTile(
             leading: Icon(
               isFavorite ? Icons.star : Icons.star_border,
-              color: isFavorite ? Colors.amber : EVColors.iconTeal,
+              color: isFavorite ? EVColors.iconAmber : EVColors.iconTeal,
             ),
             title: Text(isFavorite ? 'Remove from Favourites' : 'Add to Favourites'),
             onTap: () async {

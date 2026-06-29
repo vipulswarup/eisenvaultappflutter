@@ -1,3 +1,4 @@
+import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:flutter/material.dart';
 import '../../../models/browse_item.dart';
 import '../../../services/delete/delete_service.dart';
@@ -40,7 +41,7 @@ class BatchDeleteHandler {
       if (systemFolders.isNotEmpty) {
         _showMessage(
           'System folders cannot be deleted: ${systemFolders.map((item) => item.name).join(', ')}',
-          Colors.orange,
+          EVColors.warningOrange,
         );
       }
       
@@ -62,7 +63,7 @@ class BatchDeleteHandler {
         // Show error if user doesn't have permission
         _showMessage(
           'You don\'t have permission to delete some of these items',
-          Colors.orange,
+          EVColors.warningOrange,
         );
       }
     } catch (e) {
@@ -70,7 +71,7 @@ class BatchDeleteHandler {
       EVLogger.error('Error in batch delete', {'error': e.toString()});
       _showMessage(
         'Error processing delete: ${e.toString()}',
-        Colors.red,
+        EVColors.errorRed,
       );
     }
   }
@@ -122,7 +123,7 @@ class BatchDeleteHandler {
             onPressed: () => Navigator.of(context).pop(false),
           ),
           TextButton(
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: EVColors.errorRed),
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text('Delete'),
           ),
@@ -179,7 +180,7 @@ class BatchDeleteHandler {
       if (context.mounted) {
         _showMessage(
           'Successfully deleted ${itemsToDelete.length} items',
-          Colors.green,
+          EVColors.successGreen,
         );
       }
       
@@ -198,7 +199,7 @@ class BatchDeleteHandler {
       if (context.mounted) {
         _showMessage(
           'Error deleting items: ${e.toString()}',
-          Colors.red,
+          EVColors.errorRed,
         );
       }
     }

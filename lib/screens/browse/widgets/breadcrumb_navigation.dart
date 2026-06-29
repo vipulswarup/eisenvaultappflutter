@@ -1,3 +1,4 @@
+import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:flutter/material.dart';
 
@@ -18,10 +19,6 @@ class BreadcrumbNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const breadcrumbText = Colors.black87;
-    const breadcrumbSeparator = Colors.grey;
-    const breadcrumbCurrentText = Colors.blue;
-
     // Check if the current folder is the same as the last item in the navigation stack
     final bool isDuplicateFolder = currentFolder != null &&
         navigationStack.isNotEmpty &&
@@ -37,7 +34,7 @@ class BreadcrumbNavigation extends StatelessWidget {
             child: const Text(
               'Departments',
               style: TextStyle(
-                color: breadcrumbText,
+                color: EVColors.breadcrumbText,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -48,7 +45,7 @@ class BreadcrumbNavigation extends StatelessWidget {
               child: Icon(
                 Icons.chevron_right,
                 size: 16,
-                color: breadcrumbSeparator,
+                color: EVColors.breadcrumbSeparator,
               ),
             ),
             InkWell(
@@ -56,7 +53,7 @@ class BreadcrumbNavigation extends StatelessWidget {
               child: Text(
                 navigationStack[i].name,
                 style: const TextStyle(
-                  color: breadcrumbText,
+                  color: EVColors.breadcrumbText,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -69,13 +66,13 @@ class BreadcrumbNavigation extends StatelessWidget {
               child: Icon(
                 Icons.chevron_right,
                 size: 16,
-                color: breadcrumbSeparator,
+                color: EVColors.breadcrumbSeparator,
               ),
             ),
             Text(
               currentFolder?.name ?? '',
               style: const TextStyle(
-                color: breadcrumbCurrentText,
+                color: EVColors.breadcrumbCurrentText,
                 fontWeight: FontWeight.bold,
               ),
             ),

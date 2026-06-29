@@ -36,18 +36,18 @@ class FailedUploadList extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
+                color: EVColors.statusError.withOpacity(0.1),
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.error_outline, color: Colors.red),
+                  const Icon(Icons.error_outline, color: EVColors.errorRed),
                   const SizedBox(width: 8),
                   Text(
                     'Failed Uploads (${failedUploads.length})',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: Colors.red,
+                      color: EVColors.errorRed,
                     ),
                   ),
                 ],
@@ -92,7 +92,7 @@ class _FailedUploadItem extends StatelessWidget {
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: Colors.grey.withOpacity(0.2),
+            color: EVColors.progressTrack,
           ),
         ),
       ),
@@ -119,7 +119,7 @@ class _FailedUploadItem extends StatelessWidget {
                 icon: const Icon(Icons.close, size: 20),
                 onPressed: onRemove,
                 tooltip: 'Remove from list',
-                color: Colors.red,
+                color: EVColors.errorRed,
               ),
             ],
           ),
@@ -129,7 +129,7 @@ class _FailedUploadItem extends StatelessWidget {
               child: Text(
                 failedUpload.error!,
                 style: const TextStyle(
-                  color: Colors.red,
+                  color: EVColors.errorRed,
                   fontSize: 12,
                 ),
               ),

@@ -120,7 +120,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
         SnackBar(
           content: Text('Error selecting files: $e'),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.red,
+          backgroundColor: EVColors.errorRed,
         )
       );
     }
@@ -190,7 +190,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
           SnackBar(
             content: Text('${result.successCount} files uploaded successfully'),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.green,
+            backgroundColor: EVColors.successGreen,
           )
         );
       } else if (result.isFullyFailed) {
@@ -204,7 +204,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
           SnackBar(
             content: Text('Failed to upload ${result.failureCount} files. See details below.'),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.red,
+            backgroundColor: EVColors.errorRed,
           )
         );
       } else {
@@ -218,7 +218,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
           SnackBar(
             content: Text('Uploaded ${result.successCount} files, ${result.failureCount} failed. See details below.'),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.orange,
+            backgroundColor: EVColors.warningOrange,
           )
         );
       }
@@ -230,7 +230,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
         SnackBar(
           content: Text('Error during upload process: $e'),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.red,
+          backgroundColor: EVColors.errorRed,
         )
       );
     } finally {

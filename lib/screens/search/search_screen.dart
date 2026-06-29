@@ -111,14 +111,14 @@ class _SearchScreenState extends State<SearchScreen> {
             Icon(
               Icons.search,
               size: 64,
-              color: Colors.grey,
+              color: EVColors.iconGrey,
             ),
             SizedBox(height: 16),
             Text(
               'Search for documents, folders, or departments',
               style: TextStyle(
                 fontSize: 16,
-                color: Colors.grey,
+                color: EVColors.textSecondary,
               ),
               textAlign: TextAlign.center,
             ),

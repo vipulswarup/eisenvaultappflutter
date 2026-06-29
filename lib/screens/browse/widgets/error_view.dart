@@ -1,3 +1,4 @@
+import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:flutter/material.dart';
 
 /// Widget displayed when an error occurs
@@ -19,7 +20,7 @@ class ErrorView extends StatelessWidget {
         children: [
           Text(
             errorMessage,
-            style: const TextStyle(color: Colors.red),
+            style: const TextStyle(color: EVColors.statusError),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),

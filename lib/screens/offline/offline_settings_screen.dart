@@ -88,7 +88,7 @@ class _OfflineSettingsScreenState extends State<OfflineSettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Sync failed: $error'),
-            backgroundColor: Colors.red,
+            backgroundColor: EVColors.errorRed,
           ),
         );
       }
@@ -126,7 +126,7 @@ class _OfflineSettingsScreenState extends State<OfflineSettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to start sync: ${e.toString()}'),
-            backgroundColor: Colors.red,
+            backgroundColor: EVColors.errorRed,
           ),
         );
       }

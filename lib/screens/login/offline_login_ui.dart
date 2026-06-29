@@ -67,7 +67,7 @@ class _OfflineLoginUIState extends State<OfflineLoginUI> {
                   child: Text(
                     'Unable to access offline content. Please check your connection and try again.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey[600]),
+                    style: TextStyle(color: EVColors.textGrey),
                   ),
                 ),
                 const SizedBox(height: 15),
@@ -108,7 +108,7 @@ class _OfflineLoginUIState extends State<OfflineLoginUI> {
                         child: Text(
                           'No offline content available. You need to mark content for offline access when online.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey[600]),
+                          style: TextStyle(color: EVColors.textGrey),
                         ),
                       ),
                     const SizedBox(height: 15),
@@ -121,7 +121,7 @@ class _OfflineLoginUIState extends State<OfflineLoginUI> {
                       TextButton(
                         onPressed: () => _debugOfflineDatabase(context),
                         child: const Text('Debug Offline Database', 
-                          style: TextStyle(color: Colors.grey),
+                          style: TextStyle(color: EVColors.textSecondary),
                         ),
                       ),
                   ],
@@ -144,7 +144,7 @@ class _OfflineLoginUIState extends State<OfflineLoginUI> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('No offline content available.'),
-              backgroundColor: Colors.orange,
+              backgroundColor: EVColors.warningOrange,
             ),
           );
         }
@@ -159,7 +159,7 @@ class _OfflineLoginUIState extends State<OfflineLoginUI> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Cannot access offline content without previously logging in.'),
-              backgroundColor: Colors.red,
+              backgroundColor: EVColors.errorRed,
             ),
           );
         }
@@ -176,7 +176,7 @@ class _OfflineLoginUIState extends State<OfflineLoginUI> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error accessing offline content: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: EVColors.errorRed,
           ),
         );
       }
@@ -191,7 +191,7 @@ class _OfflineLoginUIState extends State<OfflineLoginUI> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Database contents dumped to logs. Check your console.'),
-            backgroundColor: Colors.blue,
+            backgroundColor: EVColors.infoBlue,
           ),
         );
       }
@@ -200,7 +200,7 @@ class _OfflineLoginUIState extends State<OfflineLoginUI> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error debugging database: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: EVColors.errorRed,
           ),
         );
       }
@@ -237,7 +237,7 @@ class _OfflineLoginUIState extends State<OfflineLoginUI> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error logging in offline: ${e.toString()}'),
-            backgroundColor: Colors.red,
+            backgroundColor: EVColors.errorRed,
           ),
         );
       }

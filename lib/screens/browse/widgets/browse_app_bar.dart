@@ -32,6 +32,14 @@ class BrowseAppBar extends StatelessWidget implements PreferredSizeWidget {
     return AppBar(
       backgroundColor: EVColors.appBarBackground,
       foregroundColor: EVColors.appBarForeground,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      scrolledUnderElevation: 1,
+      shadowColor: EVColors.shadowBlack,
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(1),
+        child: Container(color: EVColors.appBarBorder, height: 1),
+      ),
       iconTheme: const IconThemeData(color: EVColors.appBarForeground),
       titleTextStyle: const TextStyle(
         color: EVColors.appBarForeground,
@@ -68,7 +76,7 @@ class BrowseAppBar extends StatelessWidget implements PreferredSizeWidget {
               child: const Text(
                 'Offline',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: EVColors.buttonForeground,
                   fontSize: 12,
                 ),
               ),
@@ -93,7 +101,7 @@ class BrowseAppBar extends StatelessWidget implements PreferredSizeWidget {
                       width: 8,
                       height: 8,
                       decoration: const BoxDecoration(
-                        color: Colors.red,
+                        color: EVColors.errorRed,
                         shape: BoxShape.circle,
                       ),
                     ),

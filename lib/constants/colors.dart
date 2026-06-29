@@ -1,135 +1,206 @@
 import 'package:flutter/material.dart';
 
+/// EisenVault ONE web-aligned color theme.
+/// Base palette values are defined once; semantic names alias them for UI usage.
 class EVColors {
-  
+  // Brand palette (from EisenVault ONE web)
+  static const paletteBrand = Color(0xFFE74C3C); // logo "ONE", brand accent
+  static const palettePrimary = Color(0xFF17A2B8); // primary action buttons (teal)
+  static const palettePrimaryDark = Color(0xFF138496);
+  static const paletteLink = Color(0xFF00A3C4); // breadcrumbs, links, usernames
+  static const paletteBackground = Color(0xFFF4F7F9); // main content area
+  static const paletteSurface = Color(0xFFFFFFFF); // cards, header, table rows
+  static const paletteSidebar = Color(0xFF2D2F36); // navigation sidebar
+  static const paletteTextDark = Color(0xFF212529);
 
-  // General Purpose Colors
-  static const errorRed = Color(0xFFD9534F);
-  static const warningOrange = Color(0xFFF0AD4E);
-  static const successGreen = Color(0xFF5CB85C);
-  static const infoBlue = Color(0xFF5BC0DE);
+  // Legacy aliases (semantic names used across the app)
+  static const paletteButton = palettePrimary;
+  static const paletteAccent = palettePrimary;
 
-  // Custom Palette
-  static const paletteBackground = Color(0xFFF4EAD2); // #f4ead2
-  static const paletteButton = Color(0xFFB24A3B); // #b24a3b
-  static const paletteTextDark = Color(0xFF222222); // #222222
-  static const paletteAccent = Color(0xFF74B7A0); // #74b7a0
+  // Neutrals
+  static const neutralWhite = Color(0xFFFFFFFF);
+  static const neutralBlack = Color(0xFF000000);
+  static const neutralGreyDivider = Color(0xFFE9ECEF);
+  static const neutralGreyShimmer = Color(0xFFE9ECEF);
+  static const neutralGreyScroll = Color(0xFFF0F0F0);
+  static const neutralGreyHeader = Color(0xFFF8F9FA);
+  static const neutralGrey400 = Color(0xFFADB5BD);
+  static const neutralGrey500 = Color(0xFF9E9E9E);
+  static const neutralGrey600 = Color(0xFF6C757D);
+  static const neutralGreyMid = Color(0xFF6C757D);
+  static const neutralGreyDisabled = Color(0xFFCED4DA);
+  static const sidebarTextInactive = Color(0xFFA0AEC0);
+  static const shadowBlack = Color(0x0D000000);
+  static const overlayBlack = Color(0x4D000000); // 30% black
 
-  // Card & List Backgrounds
-  static const cardBackground = paletteBackground;
-  static const cardShadow = Color(0x0D000000); // 5% black
+  // Status / feedback (Bootstrap-aligned, matching web dashboard)
+  static const statusRed = Color(0xFFE74C3C);
+  static const statusRedDark = Color(0xFFC0392B);
+  static const statusRedBackground = Color(0xFFF8D7DA);
+  static const statusGreen = Color(0xFF28A745);
+  static const statusGreenDark = Color(0xFF1E7E34);
+  static const statusGreenBackground = Color(0xFFD4EDDA);
+  static const statusOrange = Color(0xFFF39C12);
+  static const statusOrangeBackground = Color(0xFFFFF3CD);
+  static const statusOrangeLight = Color(0xFFFFF3CD);
+  static const statusOrangeDark = Color(0xFF856404);
+  static const statusBlue = Color(0xFF3498DB);
+  static const statusBlueDark = Color(0xFF2980B9);
+  static const statusBlueBackground = Color(0xFFD1ECF1);
+  static const statusBlueHighlight = Color(0x3317A2B8); // 20% palettePrimary
 
-  // Icon Colors
-  static const iconGrey = Color(0xFFBDBDBD); // grey[400]
-  static const iconGreyLight = Color(0xFF9E9E9E); // grey[500]
-  static const iconAmber = Color(0xFFFFC107); // amber
-  static const iconTeal = Color(0xFF009688); // teal
+  // Accent / icon tints (dashboard metric cards)
+  static const accentAmber = Color(0xFFF39C12);
+  static const accentAmberDark = Color(0xFFE67E22);
+  static const accentTeal = Color(0xFF1ABC9C);
+  static const accentBlue = Color(0xFF3498DB);
+  static const accentPurple = Color(0xFF9B59B6);
+  static const tintBlue = Color(0xFFE3F2FD);
+  static const tintAmber = Color(0xFFFFF8E1);
+  static const tintTeal = Color(0xFFE8F8F5);
+  static const tintGreen = Color(0xFFD4EDDA);
+  static const tintPurple = Color(0xFFF3E5F5);
+  static const tintPrimaryDisabled = Color(0xFFA0CFD8);
+
+  // Form
+  static const formBorder = Color(0xFFCED4DA);
+
+  // General purpose (semantic aliases)
+  static const errorRed = statusRed;
+  static const warningOrange = statusOrange;
+  static const successGreen = statusGreen;
+  static const infoBlue = statusBlue;
+
+  // Card & list backgrounds
+  static const cardBackground = paletteSurface;
+  static const cardShadow = shadowBlack;
+
+  // Icon colors
+  static const iconGrey = neutralGrey400;
+  static const iconGreyLight = neutralGrey500;
+  static const iconAmber = accentAmber;
+  static const iconTeal = accentTeal;
 
   // Text colors
   static const textDefault = paletteTextDark;
-  static const textSecondary = Color(0xFFAAAAAA);
-  static const textGrey = Color(0xFF757575); // grey[600]
-  static const textLightGrey = Color(0xFF9E9E9E); // grey[500]
+  static const textSecondary = neutralGrey600;
+  static const textGrey = neutralGrey600;
+  static const textLightGrey = neutralGrey500;
 
-  // Highlight for search
-  static const searchHighlightBackground = Color(0x330056A6); // 20% primaryBlue
-  static const searchHighlightText = Color(0xFF0056A6);
+  // Search highlight
+  static const searchHighlightBackground = statusBlueHighlight;
+  static const searchHighlightText = palettePrimaryDark;
 
-  // Sort Option
-  static const sortOptionBackground = paletteBackground;
-  static const sortOptionShadow = Color(0x0D000000); // 5% black
+  // Sort option
+  static const sortOptionBackground = paletteSurface;
+  static const sortOptionShadow = shadowBlack;
   static const sortOptionText = paletteTextDark;
-  static const sortOptionIcon = Color(0xFF0056A6);
+  static const sortOptionIcon = palettePrimary;
 
-  // Browse Navigation
+  // Browse navigation
   static const browseNavBackground = paletteBackground;
-  static const browseNavChevron = Color(0xFFBDBDBD); // grey[400]
-  static const browseNavText = paletteButton;
+  static const browseNavChevron = neutralGrey400;
+  static const browseNavText = paletteLink;
   static const browseNavCurrentText = paletteTextDark;
-  static const browseNavSeparator = Color(0xFFAAAAAA);
+  static const browseNavSeparator = neutralGreyMid;
 
-  // Search Result Item Icons
-  static const departmentIconBackground = Color(0xFFE3F2FD); // blue[50]
-  static const departmentIconForeground = Color(0xFF1976D2); // blue[700]
-  static const folderIconBackground = Color(0xFFFFF8E1); // amber[50]
-  static const folderIconForeground = Color(0xFFFFA000); // amber[700]
-  static const documentIconBackground = Color(0xFFE0F2F1); // teal[50]
-  static const documentIconForeground = Color(0xFF009688); // teal[500]
+  // Search result item icons
+  static const departmentIconBackground = tintBlue;
+  static const departmentIconForeground = accentBlue;
+  static const folderIconBackground = tintAmber;
+  static const folderIconForeground = accentAmberDark;
+  static const documentIconBackground = tintTeal;
+  static const documentIconForeground = accentTeal;
 
-  // Screen & Background Colors
+  // Screen & background
   static const screenBackground = paletteBackground;
 
-  // TextField Colors
-  static const textFieldPrefixIcon = paletteButton;
-  static const textFieldFill = Color(0xFFFFFFFF);
-  static const textFieldBorder = Color(0xFF8CB3E8);
-  static const textFieldErrorBorder = Color(0xFFD9534F);
+  // TextField
+  static const textFieldPrefixIcon = palettePrimary;
+  static const textFieldFill = paletteSurface;
+  static const textFieldBorder = formBorder;
+  static const textFieldErrorBorder = statusRed;
   static const textFieldLabel = paletteTextDark;
-  static const textFieldHint = Color(0xFFAAAAAA);
+  static const textFieldHint = neutralGrey500;
 
-  // Button Colors
-  static const buttonBackground = paletteButton;
-  static const buttonForeground = Color(0xFFFFFFFF);
-  static const buttonDisabledBackground = Color(0xFFDEB6A2); // lighter brown
-  static const buttonDisabledForeground = Color(0xFFCCCCCC);
-  static const buttonBorder = paletteButton;
-  static const buttonDisabledBorder = Color(0xFFDEB6A2);
+  // Button
+  static const buttonBackground = palettePrimary;
+  static const buttonForeground = neutralWhite;
+  static const buttonDisabledBackground = tintPrimaryDisabled;
+  static const buttonDisabledForeground = neutralGreyDisabled;
+  static const buttonBorder = palettePrimary;
+  static const buttonDisabledBorder = tintPrimaryDisabled;
 
-  // Error Button Colors
-  static const buttonErrorBackground = Color(0xFFD9534F);
-  static const buttonErrorForeground = Color(0xFFFFFFFF);
-  static const buttonErrorBorder = Color(0xFFB52B27);
+  // Error button
+  static const buttonErrorBackground = statusRed;
+  static const buttonErrorForeground = neutralWhite;
+  static const buttonErrorBorder = statusRedDark;
 
-  // Alert Message Colors
-  static const alertSuccess = Color(0xFF5CB85C);
-  static const alertFailure = Color(0xFFD9534F);
+  // Alert messages
+  static const alertSuccess = statusGreen;
+  static const alertFailure = statusRed;
 
-  // Status Colors
-  static const statusError = Color(0xFFD9534F);
-  static const statusErrorBackground = Color(0xFFF2DEDE);
-  static const statusWarning = Color(0xFFF0AD4E);
-  static const statusWarningBackground = Color(0xFFFCF8E3);
-  static const statusSuccess = Color(0xFF5CB85C);
-  static const statusSuccessBackground = Color(0xFFDFF0D8);
-  static const statusInfo = Color(0xFF5BC0DE);
-  static const statusInfoBackground = Color(0xFFD9EDF7);
+  // Status (semantic aliases)
+  static const statusError = statusRed;
+  static const statusErrorBackground = statusRedBackground;
+  static const statusWarning = statusOrange;
+  static const statusWarningBackground = statusOrangeBackground;
+  static const statusSuccess = statusGreen;
+  static const statusSuccessBackground = statusGreenBackground;
+  static const statusInfo = statusBlue;
+  static const statusInfoBackground = statusBlueBackground;
 
-  // Offline Mode Colors
-  static const offlineIndicator = Color(0xFFF0AD4E);
-  static const offlineBackground = Color(0xFFFFF3CD);
-  static const offlineText = Color(0xFF856404);
+  // Offline mode
+  static const offlineIndicator = statusOrange;
+  static const offlineBackground = statusOrangeLight;
+  static const offlineText = statusOrangeDark;
 
-  // Online Mode Colors
-  static const onlineIndicator = Color(0xFF5CB85C);
-  static const onlineBackground = Color(0xFFDFF0D8);
-  static const onlineText = Color(0xFF3C763D);
+  // Online mode
+  static const onlineIndicator = statusGreen;
+  static const onlineBackground = statusGreenBackground;
+  static const onlineText = statusGreenDark;
 
-  // RadioListTile Colors
-  static const radioActive = paletteButton;
-  static const radioInactive = Color(0xFFAAAAAA);
+  // RadioListTile
+  static const radioActive = palettePrimary;
+  static const radioInactive = neutralGreyMid;
 
-  // AppBar Colors
-  static const appBarBackground = paletteButton;
-  static const appBarForeground = Color(0xFFFFFFFF);
+  // AppBar (white header, matching web top bar)
+  static const appBarBackground = paletteSurface;
+  static const appBarForeground = paletteTextDark;
+  static const appBarForegroundMuted = neutralGrey600;
+  static const appBarBorder = neutralGreyDivider;
 
-  // Upload Button Colors
-  static const uploadButtonBackground = Color(0xFFF4EAD2);
-  static const uploadButtonForeground = paletteButton;
+  // Sidebar / drawer (dark navigation, matching web sidebar)
+  static const sidebarBackground = paletteSidebar;
+  static const sidebarForeground = neutralWhite;
+  static const sidebarForegroundMuted = sidebarTextInactive;
 
-  // List Item Colors
-  static const listItemBackground = paletteBackground;
-  static const listItemDivider = Color(0xFFEFEFEF);
+  // Colored section headers (dialogs, panels)
+  static const dialogHeaderBackground = palettePrimary;
+  static const dialogHeaderForeground = neutralWhite;
 
-  // Breadcrumb Navigation Colors
+  // Upload button
+  static const uploadButtonBackground = paletteSurface;
+  static const uploadButtonForeground = palettePrimary;
+
+  // List item
+  static const listItemBackground = paletteSurface;
+  static const listItemDivider = neutralGreyDivider;
+
+  // Breadcrumb navigation
   static const breadcrumbText = paletteTextDark;
-  static const breadcrumbCurrentText = paletteButton;
-  static const breadcrumbSeparator = Color(0xFFAAAAAA);
+  static const breadcrumbCurrentText = paletteLink;
+  static const breadcrumbSeparator = neutralGreyMid;
 
-  // Sharing Screen Colors
-  static const sharingContainerBackground = Color(0xFFFFFFFF);
-  static const sharingHeaderBackground = Color(0xFFF8F9FA);
-  static const sharingFolderItemBackground = Color(0xFFFFFFFF);
-  static const sharingFolderItemSelectedBackground = Color(0xFFE8F5E8);
-  static const sharingFolderItemSelectedBorder = Color(0xFF74B7A0);
-  static const sharingScrollIndicatorBackground = Color(0xFFF0F0F0);
+  // Sharing screen
+  static const sharingContainerBackground = paletteSurface;
+  static const sharingHeaderBackground = neutralGreyHeader;
+  static const sharingFolderItemBackground = paletteSurface;
+  static const sharingFolderItemSelectedBackground = tintGreen;
+  static const sharingFolderItemSelectedBorder = accentTeal;
+  static const sharingScrollIndicatorBackground = neutralGreyScroll;
+
+  // Progress / overlay
+  static const progressTrack = Color(0x336C757D); // 20% neutralGrey600
+  static const shimmerBackground = neutralGreyShimmer;
 }

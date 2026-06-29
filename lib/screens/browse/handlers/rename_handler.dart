@@ -70,7 +70,7 @@ class RenameHandler {
       SnackBar(
         content: Text(message),
         behavior: SnackBarBehavior.floating,
-        backgroundColor: Colors.red,
+        backgroundColor: EVColors.errorRed,
       ),
     );
   }
@@ -83,7 +83,7 @@ class RenameHandler {
       SnackBar(
         content: Text(message),
         behavior: SnackBarBehavior.floating,
-        backgroundColor: Colors.green,
+        backgroundColor: EVColors.successGreen,
       ),
     );
   }

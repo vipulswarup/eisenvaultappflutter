@@ -1,3 +1,4 @@
+import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:flutter/material.dart';
 
 /// Widget displayed when a folder is empty
@@ -15,13 +16,13 @@ class EmptyFolderView extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.folder_open, size: 64, color: Colors.grey),
+          const Icon(Icons.folder_open, size: 64, color: EVColors.iconGrey),
           const SizedBox(height: 16),
-          Text(
+          const Text(
             'This folder is empty',
             style: TextStyle(
               fontSize: 18,
-              color: Colors.grey[600],
+              color: EVColors.textGrey,
             ),
           ),
           if (onUpload != null) ...[

@@ -46,7 +46,7 @@ class _FilterSortDialogState extends State<FilterSortDialog> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: EVColors.appBarBackground,
+                color: EVColors.dialogHeaderBackground,
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(16),
                   topRight: Radius.circular(16),
@@ -56,21 +56,21 @@ class _FilterSortDialogState extends State<FilterSortDialog> {
                 children: [
                   const Icon(
                     Icons.filter_list,
-                    color: Colors.white,
+                    color: EVColors.dialogHeaderForeground,
                   ),
                   const SizedBox(width: 12),
                   const Expanded(
                     child: Text(
                       'Filter & Sort',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: EVColors.dialogHeaderForeground,
                         fontSize: 20,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white),
+                    icon: const Icon(Icons.close, color: EVColors.dialogHeaderForeground),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],

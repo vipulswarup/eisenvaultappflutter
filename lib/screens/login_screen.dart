@@ -72,7 +72,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('You are offline. Switching to offline mode.'),
-            backgroundColor: Colors.orange,
+            backgroundColor: EVColors.warningOrange,
           ),
         );
       }

@@ -58,7 +58,7 @@ class DeleteConfirmationDialog extends StatelessWidget {
                         dense: true,
                         leading: Icon(
                           item.type == 'folder' ? Icons.folder : Icons.insert_drive_file,
-                          color: item.type == 'folder' ? Colors.amber : Colors.teal,
+                          color: item.type == 'folder' ? EVColors.folderIconForeground : EVColors.documentIconForeground,
                         ),
                         title: Text(
                           item.name,
@@ -85,8 +85,8 @@ class DeleteConfirmationDialog extends StatelessWidget {
                       Navigator.of(context).pop();
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
+                      backgroundColor: EVColors.errorRed,
+                      foregroundColor: EVColors.buttonForeground,
                     ),
                     child: const Text('DELETE'),
                   ),

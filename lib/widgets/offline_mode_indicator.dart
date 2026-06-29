@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:eisenvaultappflutter/services/offline/sync_service.dart';
@@ -93,13 +94,13 @@ class _OfflineModeIndicatorState extends State<OfflineModeIndicator> {
   Widget _buildOfflineBanner() {
     return Container(
       width: double.infinity,
-      color: Colors.orange,
+      color: EVColors.offlineIndicator,
       padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
       child: Row(
         children: [
           const Icon(
             Icons.wifi_off,
-            color: Colors.white,
+            color: EVColors.buttonForeground,
             size: 18,
           ),
           const SizedBox(width: 8),
@@ -107,7 +108,7 @@ class _OfflineModeIndicatorState extends State<OfflineModeIndicator> {
             child: Text(
               'You are offline. Some features may be limited.',
               style: TextStyle(
-                color: Colors.white,
+                color: EVColors.buttonForeground,
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
               ),
@@ -121,7 +122,7 @@ class _OfflineModeIndicatorState extends State<OfflineModeIndicator> {
               padding: const EdgeInsets.symmetric(horizontal: 8),
               minimumSize: const Size(0, 0),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              foregroundColor: Colors.white,
+              foregroundColor: EVColors.buttonForeground,
             ),
             child: const Text(
               'INFO',

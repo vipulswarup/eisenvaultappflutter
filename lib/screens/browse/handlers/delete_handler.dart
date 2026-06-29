@@ -1,3 +1,4 @@
+import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:flutter/material.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/services/delete/delete_service.dart';
@@ -72,7 +73,7 @@ class DeleteHandler {
       SnackBar(
         content: Text(message),
         behavior: SnackBarBehavior.floating,
-        backgroundColor: Colors.red,
+        backgroundColor: EVColors.errorRed,
       ),
     );
   }
@@ -85,7 +86,7 @@ class DeleteHandler {
       SnackBar(
         content: Text(message),
         behavior: SnackBarBehavior.floating,
-        backgroundColor: Colors.green,
+        backgroundColor: EVColors.successGreen,
       ),
     );
   }

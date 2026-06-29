@@ -21,7 +21,7 @@ class DownloadProgressIndicator extends StatelessWidget {
             // Semi-transparent background
             Positioned.fill(
               child: Container(
-                color: Colors.black.withOpacity(0.3),
+                color: EVColors.overlayBlack,
               ),
             ),
             // Centered card

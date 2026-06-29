@@ -442,7 +442,7 @@ class LoginHandler {
             content: Text(
               'Cannot access offline content without logging in first',
             ),
-            backgroundColor: Colors.red,
+            backgroundColor: EVColors.errorRed,
           ),
         );
         return;
@@ -471,7 +471,7 @@ class LoginHandler {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error accessing offline content: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: EVColors.errorRed,
           ),
         );
       }

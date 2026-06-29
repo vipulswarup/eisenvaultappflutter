@@ -169,7 +169,7 @@ class _ContextMenuUploadScreenState extends State<ContextMenuUploadScreen> {
                     : _uploadFiles,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: EVColors.paletteButton,
-                  foregroundColor: Colors.white,
+                  foregroundColor: EVColors.buttonForeground,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
                 child: Text(isUploading ? 'Uploading...' : 'Upload Files'),
@@ -221,7 +221,7 @@ class _ContextMenuUploadScreenState extends State<ContextMenuUploadScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Files uploaded successfully!'),
-            backgroundColor: Colors.green,
+            backgroundColor: EVColors.successGreen,
           ),
         );
         

@@ -55,10 +55,10 @@ class TextPreviewScreen extends StatelessWidget {
                 h3: Theme.of(context).textTheme.headlineSmall,
                 code: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   fontFamily: 'monospace',
-                  backgroundColor: Colors.grey[200],
+                  backgroundColor: EVColors.shimmerBackground,
                 ),
                 codeblockDecoration: BoxDecoration(
-                  color: Colors.grey[200],
+                  color: EVColors.shimmerBackground,
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
@@ -87,7 +87,7 @@ class TextPreviewScreen extends StatelessWidget {
                   ),
                   'code': Style(
                     fontFamily: 'monospace',
-                    backgroundColor: Colors.grey[200],
+                    backgroundColor: EVColors.shimmerBackground,
                   ),
                 },
               ),

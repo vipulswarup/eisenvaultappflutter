@@ -174,7 +174,7 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
             children: [
               DrawerHeader(
                 decoration: const BoxDecoration(
-                  color: EVColors.appBarBackground,
+                  color: EVColors.sidebarBackground,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -182,7 +182,7 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
                     const Text(
                       'EisenVault',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: EVColors.sidebarForeground,
                         fontSize: 24,
                       ),
                     ),
@@ -190,7 +190,7 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
                     Text(
                       'Welcome, $displayFirstName!',
                       style: const TextStyle(
-                        color: Colors.white,
+                        color: EVColors.sidebarForeground,
                         fontSize: 16,
                       ),
                     ),
@@ -198,7 +198,7 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
                     Text(
                       'Server: ${_cleanServerUrl(displayBaseUrl)}',
                       style: const TextStyle(
-                        color: Colors.white70,
+                        color: EVColors.sidebarForegroundMuted,
                         fontSize: 12,
                       ),
                     ),

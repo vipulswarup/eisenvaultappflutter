@@ -1,3 +1,4 @@
+import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
@@ -83,7 +84,7 @@ class BatchOfflineHandler {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${selectedItems.length} item(s) made available offline'),
-          backgroundColor: Colors.green,
+          backgroundColor: EVColors.successGreen,
         ),
       );
 
@@ -99,7 +100,7 @@ class BatchOfflineHandler {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: ${e.toString()}'),
-          backgroundColor: Colors.red,
+          backgroundColor: EVColors.errorRed,
         ),
       );
     }

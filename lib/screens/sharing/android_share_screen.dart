@@ -296,7 +296,7 @@ class _AndroidShareScreenState extends State<AndroidShareScreen> {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: EVColors.paletteButton,
-              foregroundColor: Colors.white,
+              foregroundColor: EVColors.buttonForeground,
             ),
             child: const Text('Create'),
           ),
@@ -426,7 +426,7 @@ class _AndroidShareScreenState extends State<AndroidShareScreen> {
       appBar: AppBar(
         title: const Text('Share to EisenVault'),
         backgroundColor: EVColors.paletteButton,
-        foregroundColor: Colors.white,
+        foregroundColor: EVColors.buttonForeground,
         elevation: 0,
       ),
       body: isLoading
@@ -478,7 +478,7 @@ class _AndroidShareScreenState extends State<AndroidShareScreen> {
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: EVColors.paletteButton,
-                foregroundColor: Colors.white,
+                foregroundColor: EVColors.buttonForeground,
                 padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
               ),
               child: const Text('Close'),
@@ -976,7 +976,7 @@ class _AndroidShareScreenState extends State<AndroidShareScreen> {
                   onPressed: (selectedFolder != null && !isUploading) ? _uploadFiles : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: (selectedFolder != null && !isUploading) ? EVColors.paletteButton : EVColors.paletteButton.withOpacity(0.5),
-                    foregroundColor: Colors.white,
+                    foregroundColor: EVColors.buttonForeground,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   child: isUploading
@@ -988,7 +988,7 @@ class _AndroidShareScreenState extends State<AndroidShareScreen> {
                               height: 16,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                valueColor: AlwaysStoppedAnimation<Color>(EVColors.buttonForeground),
                               ),
                             ),
                             const SizedBox(width: 8),
