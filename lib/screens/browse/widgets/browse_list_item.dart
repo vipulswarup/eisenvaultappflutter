@@ -40,9 +40,7 @@ class BrowseListItem extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
       ),
       subtitle: Text(
-        item.modifiedDate != null
-            ? 'Modified: ${_formatDate(item.modifiedDate!)}'
-            : item.description ?? '',
+        item.listSubtitle,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
@@ -139,15 +137,6 @@ class BrowseListItem extends StatelessWidget {
       case FileType.other:
       case FileType.unknown:
         return Icons.insert_drive_file;
-    }
-  }
-
-  String _formatDate(String dateString) {
-    try {
-      final date = DateTime.parse(dateString);
-      return '${date.day}/${date.month}/${date.year}';
-    } catch (e) {
-      return dateString;
     }
   }
 } 

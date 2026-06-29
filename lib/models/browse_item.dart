@@ -56,4 +56,31 @@
       
       return false;
     }
+
+    /// Placeholder subtitle when no modified date or description is available.
+    String get subtitleFallback {
+      if (isDepartment) return 'Department';
+      if (type == 'folder') return 'Folder';
+      return 'Document';
+    }
+
+    /// Subtitle for list tiles: modified date, description, or type fallback.
+    String get listSubtitle {
+      if (modifiedDate != null && modifiedDate!.isNotEmpty) {
+        return 'Modified: ${_formatModifiedDate(modifiedDate!)}';
+      }
+      if (description != null && description!.isNotEmpty) {
+        return description!;
+      }
+      return subtitleFallback;
+    }
+
+    String _formatModifiedDate(String dateString) {
+      try {
+        final date = DateTime.parse(dateString);
+        return '${date.day}/${date.month}/${date.year}';
+      } catch (_) {
+        return dateString;
+      }
+    }
   }

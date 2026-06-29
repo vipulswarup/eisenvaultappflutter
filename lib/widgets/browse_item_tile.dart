@@ -72,9 +72,7 @@ class BrowseItemTile extends StatelessWidget {
         ),
       ),
       subtitle: Text(
-        item.modifiedDate != null
-            ? 'Modified: ${_formatDate(item.modifiedDate!)}'
-            : item.description ?? '',
+        item.listSubtitle,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(color: EVColors.textGrey),
@@ -242,15 +240,6 @@ class BrowseItemTile extends StatelessWidget {
         return Icons.video_file;
       default:
         return Icons.insert_drive_file;
-    }
-  }
-
-  String _formatDate(String dateString) {
-    try {
-      final date = DateTime.parse(dateString);
-      return '${date.day}/${date.month}/${date.year}';
-    } catch (_) {
-      return dateString;
     }
   }
 }
