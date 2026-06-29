@@ -1,38 +1,37 @@
-import 'dart:convert';
-import 'dart:typed_data';
-
 import 'package:eisenvaultappflutter/models/browse_item.dart';
-import 'package:eisenvaultappflutter/utils/logger.dart';
-import 'package:http/http.dart' as http;
 import 'package:eisenvaultappflutter/services/api/angora/angora_document_service.dart';
 import 'package:eisenvaultappflutter/services/api/angora_base_service.dart';
+import 'package:eisenvaultappflutter/services/api/classic_base_service.dart';
+import 'package:eisenvaultappflutter/utils/http_utils.dart';
+import 'package:eisenvaultappflutter/utils/logger.dart';
 
 abstract class DocumentService {
   Future<dynamic> getDocumentContent(BrowseItem document);
-
-  Future<Uint8List?> getDocumentPreview(BrowseItem document);
 }
 
 class AlfrescoDocumentService implements DocumentService {
-  final String baseUrl;
-  final String authToken;
+  final ClassicBaseService _baseService;
 
-  AlfrescoDocumentService(this.baseUrl, this.authToken);
-
-  Map<String, String> get _authHeaders => {
-        'Authorization': ' $authToken',
-      };
+  AlfrescoDocumentService(String baseUrl, String authToken)
+      : _baseService = ClassicBaseService(baseUrl) {
+    _baseService.setToken(authToken);
+  }
 
   @override
   Future<dynamic> getDocumentContent(BrowseItem document) async {
     try {
       final nodeId = document.id;
-      final contentUrl =
-          '$baseUrl/api/-default-/public/alfresco/versions/1/nodes/$nodeId/content';
+      final contentUrl = _baseService.buildUrl(
+        'api/-default-/public/alfresco/versions/1/nodes/$nodeId/content',
+      );
 
-      final response = await http.get(
+      final response = await getWithTimeout(
         Uri.parse(contentUrl),
-        headers: _authHeaders,
+        headers: {
+          ..._baseService.createHeaders(),
+          'Accept': 'application/octet-stream, */*',
+        },
+        timeout: downloadRequestTimeout,
       );
 
       if (response.statusCode != 200) {
@@ -46,54 +45,6 @@ class AlfrescoDocumentService implements DocumentService {
     } catch (e) {
       EVLogger.error('Error getting document content', e);
       throw Exception('Error getting document content: ${e.toString()}');
-    }
-  }
-
-  @override
-  Future<Uint8List?> getDocumentPreview(BrowseItem document) async {
-    try {
-      final nodeId = document.id;
-      final renditionUrl =
-          '$baseUrl/api/-default-/public/alfresco/versions/1/nodes/$nodeId/renditions/pdf/content';
-      final createUrl =
-          '$baseUrl/api/-default-/public/alfresco/versions/1/nodes/$nodeId/renditions';
-
-      Future<http.Response> fetchPdf() {
-        return http.get(Uri.parse(renditionUrl), headers: _authHeaders);
-      }
-
-      var response = await fetchPdf();
-      if (response.statusCode == 404) {
-        await http.post(
-          Uri.parse(createUrl),
-          headers: {
-            ..._authHeaders,
-            'Content-Type': 'application/json',
-          },
-          body: jsonEncode({'id': 'pdf'}),
-        );
-
-        for (var attempt = 0; attempt < 5; attempt++) {
-          await Future<void>.delayed(const Duration(seconds: 1));
-          response = await fetchPdf();
-          if (response.statusCode == 200) {
-            break;
-          }
-        }
-      }
-
-      if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
-        return response.bodyBytes;
-      }
-
-      EVLogger.debug('Alfresco PDF preview unavailable', {
-        'nodeId': nodeId,
-        'statusCode': response.statusCode,
-      });
-      return null;
-    } catch (e) {
-      EVLogger.error('Error getting Alfresco document preview', e);
-      return null;
     }
   }
 }
@@ -111,16 +62,6 @@ class AngoraDocumentServiceAdapter implements DocumentService {
     } catch (e) {
       EVLogger.error('Error getting Angora document content', e);
       throw Exception('Error getting document content: ${e.toString()}');
-    }
-  }
-
-  @override
-  Future<Uint8List?> getDocumentPreview(BrowseItem document) async {
-    try {
-      return await _angoraService.downloadDocumentPreview(document.id);
-    } catch (e) {
-      EVLogger.error('Error getting Angora document preview', e);
-      return null;
     }
   }
 }

@@ -2,27 +2,27 @@ import Flutter
 import UIKit
 
 @main
-@objc class AppDelegate: FlutterAppDelegate {
+@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    GeneratedPluginRegistrant.register(with: self)
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
 
-    // Set up method channel for upload handling
-    let controller = window?.rootViewController as! FlutterViewController
+  func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
+    GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+
     let uploadChannel = FlutterMethodChannel(
       name: "uploadChannel",
-      binaryMessenger: controller.binaryMessenger
+      binaryMessenger: engineBridge.applicationRegistrar.messenger()
     )
 
     uploadChannel.setMethodCallHandler { (call, result) in
       switch call.method {
       case "getUploadData":
-        // Return any upload data from Share Extension
         result(self.getUploadDataFromAppGroups())
       case "saveDMSCredentials":
-        // Save DMS credentials to App Groups for Share Extension
         if let args = call.arguments as? [String: Any] {
           self.saveDMSCredentialsToAppGroups(args: args)
           result(nil)
@@ -33,8 +33,6 @@ import UIKit
         result(FlutterMethodNotImplemented)
       }
     }
-
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
   private func getUploadDataFromAppGroups() -> [String: Any]? {
@@ -50,7 +48,6 @@ import UIKit
 
     if uploadData != nil {
       print("🔍 DEBUG: Upload data found in App Groups")
-      // Clear the data after reading
       userDefaults.removeObject(forKey: "UploadData")
       userDefaults.synchronize()
     } else {
@@ -68,7 +65,6 @@ import UIKit
       return
     }
 
-    // Save DMS credentials
     if let baseUrl = args["baseUrl"] as? String {
       userDefaults.set(baseUrl, forKey: "DMSBaseUrl")
       print("🔍 DEBUG: Saved DMSBaseUrl: \(baseUrl)")
@@ -87,13 +83,12 @@ import UIKit
     }
 
     userDefaults.synchronize()
-    
-    // Verify what was saved
+
     let savedBaseUrl = userDefaults.string(forKey: "DMSBaseUrl")
     let savedAuthToken = userDefaults.string(forKey: "DMSAuthToken")
     let savedInstanceType = userDefaults.string(forKey: "DMSInstanceType")
     let savedCustomerHostname = userDefaults.string(forKey: "DMSCustomerHostname")
-    
+
     print("🔍 DEBUG: Verification - DMSBaseUrl: \(savedBaseUrl ?? "nil")")
     print("🔍 DEBUG: Verification - DMSAuthToken: \(savedAuthToken != nil ? "Present (\(savedAuthToken!.count) chars)" : "nil")")
     print("🔍 DEBUG: Verification - DMSInstanceType: \(savedInstanceType ?? "nil")")

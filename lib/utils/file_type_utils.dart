@@ -247,7 +247,6 @@ class FileTypeUtils {
         return true;
       default:
         return usesMicrosoftViewer(fileName) ||
-            usesServerPdfPreview(fileName) ||
             usesAppleInAppFileView(fileName);
     }
   }
@@ -289,9 +288,9 @@ class FileTypeUtils {
     }
   }
 
-  /// Legacy Office and OpenDocument formats that need a server-generated PDF preview.
-  static bool usesServerPdfPreview(String fileName) {
-    if (usesAppleInAppFileView(fileName)) {
+  /// Legacy Office / OpenDocument formats with no in-app viewer on this platform.
+  static bool requiresExternalOfficeApp(String fileName) {
+    if (usesAppleInAppFileView(fileName) || usesMicrosoftViewer(fileName)) {
       return false;
     }
 

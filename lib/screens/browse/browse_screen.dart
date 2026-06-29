@@ -224,6 +224,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
       instanceType: widget.instanceType,
       baseUrl: widget.baseUrl,
       authToken: widget.authToken,
+      offlineManager: _offlineManager!,
       angoraBaseService: _controller!.angoraBaseService,
     );
 

@@ -145,7 +145,8 @@ class _GenericFilePreviewScreenState extends State<GenericFilePreviewScreen> {
   }
 
   Widget _buildExternalAppPrompt(BuildContext context) {
-    final usesServerPreview = FileTypeUtils.usesServerPdfPreview(widget.title);
+    final requiresExternalApp =
+        FileTypeUtils.requiresExternalOfficeApp(widget.title);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -159,8 +160,8 @@ class _GenericFilePreviewScreenState extends State<GenericFilePreviewScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              usesServerPreview
-                  ? 'In-app preview is not available for this legacy Office format. Open it in an external application instead.'
+              requiresExternalApp
+                  ? 'In-app preview is not available for this file on this device. Open it in an external application instead.'
                   : 'This file type is best viewed in an external application.',
               style: Theme.of(context).textTheme.bodyLarge,
               textAlign: TextAlign.center,

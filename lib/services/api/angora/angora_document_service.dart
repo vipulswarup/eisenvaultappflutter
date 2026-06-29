@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:http/http.dart' as http;
 import '../angora_base_service.dart';
+import '../../../utils/http_utils.dart';
 import '../../../utils/logger.dart';
 
 
@@ -44,68 +44,6 @@ class AngoraDocumentService {
     }
     return link;
   }
-
-  Future<Uint8List?> downloadDocumentPreview(String documentId) async {
-    try {
-      final url = _baseService.buildUrl('files/$documentId');
-      final headers = _fileRequestHeaders();
-      final response = await http.get(Uri.parse(url), headers: headers);
-
-      if (response.statusCode != 200) {
-        EVLogger.debug('Angora preview metadata request failed', {
-          'documentId': documentId,
-          'statusCode': response.statusCode,
-        });
-        return null;
-      }
-
-      final data = json.decode(response.body);
-      final fileData = data['data'];
-      if (fileData == null) {
-        return null;
-      }
-
-      final previewable = fileData['previewable'] == true;
-      final previewLink =
-          fileData['preview_link'] ?? fileData['previewLink'];
-      if (!previewable ||
-          previewLink == null ||
-          previewLink.toString().isEmpty) {
-        EVLogger.debug('Angora document is not previewable', {
-          'documentId': documentId,
-        });
-        return null;
-      }
-
-      var effectiveUrl = _resolveDownloadUrl(previewLink.toString());
-      if (kIsWeb) {
-        effectiveUrl =
-            '$_corsProxyUrl${Uri.encodeComponent(effectiveUrl)}';
-      }
-
-      var previewResponse = await http.get(Uri.parse(effectiveUrl));
-      if (previewResponse.statusCode != 200) {
-        previewResponse = await http.get(
-          Uri.parse(effectiveUrl),
-          headers: headers,
-        );
-      }
-
-      if (previewResponse.statusCode == 200 &&
-          previewResponse.bodyBytes.isNotEmpty) {
-        return previewResponse.bodyBytes;
-      }
-
-      EVLogger.debug('Angora preview download failed', {
-        'documentId': documentId,
-        'statusCode': previewResponse.statusCode,
-      });
-      return null;
-    } catch (error) {
-      EVLogger.error('Failed to download Angora document preview', error);
-      return null;
-    }
-  }
   
   Future<String> getDocumentDownloadLink(String documentId) async {
     try {
@@ -117,8 +55,8 @@ class AngoraDocumentService {
         'documentId': documentId,
       });
       
-      final response = await http.get(Uri.parse(url), headers: headers);
-      
+      final response = await getWithTimeout(Uri.parse(url), headers: headers);
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         // Check for both snake_case and camelCase field names
@@ -153,7 +91,18 @@ class AngoraDocumentService {
   
   Future<Uint8List> downloadDocument(String documentId) async {
     try {
-      // Try to get download link first
+      if (!kIsWeb) {
+        try {
+          return await _downloadFromStream(documentId);
+        } catch (e) {
+          EVLogger.debug(
+            'Stream download failed, trying download link',
+            {'error': e.toString()},
+          );
+        }
+      }
+
+      // Web: try signed download link first (CORS proxy), then stream.
       String? downloadLink;
       try {
         downloadLink = await getDocumentDownloadLink(documentId);
@@ -161,7 +110,6 @@ class AngoraDocumentService {
         EVLogger.debug('Could not get download link, falling back to download-stream endpoint', {
           'error': e.toString(),
         });
-        // Fall back to download-stream endpoint
         return await _downloadFromStream(documentId);
       }
       
@@ -185,8 +133,11 @@ class AngoraDocumentService {
         'effectiveUrl': downloadUrl.substring(0, downloadUrl.length > 100 ? 100 : downloadUrl.length),
       });
       
-      final response = await http.get(Uri.parse(downloadUrl));
-      
+      final response = await getWithTimeout(
+        Uri.parse(downloadUrl),
+        timeout: downloadRequestTimeout,
+      );
+
       if (response.statusCode != 200) {
         EVLogger.error('Download from link failed, falling back to download-stream', {
           'statusCode': response.statusCode,
@@ -228,8 +179,12 @@ class AngoraDocumentService {
         'headers': headers,
       });
       
-      final response = await http.get(Uri.parse(url), headers: headers);
-      
+      final response = await getWithTimeout(
+        Uri.parse(url),
+        headers: headers,
+        timeout: downloadRequestTimeout,
+      );
+
       if (response.statusCode != 200) {
         EVLogger.error('Download-stream failed', {
           'statusCode': response.statusCode,

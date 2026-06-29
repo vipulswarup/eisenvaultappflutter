@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/services/browse/browse_service.dart';
 import 'package:eisenvaultappflutter/services/api/classic_base_service.dart';
+import 'package:eisenvaultappflutter/utils/http_utils.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
-import 'package:http/http.dart' as http;
 
 /// Implementation of BrowseService for Classic/Alfresco repositories
 class ClassicBrowseService implements BrowseService {
@@ -42,7 +42,7 @@ class ClassicBrowseService implements BrowseService {
         _baseService.buildUrl('api/-default-/public/alfresco/versions/1/nodes/$nodeId/children?include=path,properties,allowableOperations&skipCount=$skipCount&maxItems=$maxItems')
       );
 
-      final response = await http.get(
+      final response = await getWithTimeout(
         url,
         headers: _baseService.createHeaders(),
       );
@@ -90,15 +90,9 @@ class ClassicBrowseService implements BrowseService {
       EVLogger.productionLog('Headers: ${_baseService.createHeaders()}');
       EVLogger.productionLog('Skip Count: $skipCount, Max Items: $maxItems');
 
-      final response = await http.get(
+      final response = await getWithTimeout(
         url,
         headers: _baseService.createHeaders(),
-      ).timeout(
-        const Duration(seconds: 30),
-        onTimeout: () {
-          EVLogger.error('Request timeout after 30 seconds');
-          throw Exception('Request timeout: Unable to connect to server within 30 seconds');
-        },
       );
 
       EVLogger.productionLog('Response Status Code: ${response.statusCode}');
@@ -162,7 +156,7 @@ class ClassicBrowseService implements BrowseService {
       final url = Uri.parse(
         _baseService.buildUrl('api/-default-/public/alfresco/versions/1/sites/$siteId/containers?skipCount=$skipCount&maxItems=$maxItems')
       );
-      final response = await http.get(
+      final response = await getWithTimeout(
         url,
         headers: _baseService.createHeaders(),
       );
@@ -178,48 +172,55 @@ class ClassicBrowseService implements BrowseService {
         EVLogger.error('Invalid response format for site containers');
         throw Exception('Invalid response format for site containers');
       }
-      final containers = <BrowseItem>[];
-      for (final entry in data['list']['entries']) {
-        final container = entry['entry'];
-        // Fetch permissions for this container
-        List<String>? allowableOperations;
-        try {
-          final permUrl = Uri.parse(
-            _baseService.buildUrl('api/-default-/public/alfresco/versions/1/nodes/${container['id']}?include=allowableOperations')
-          );
-          final permResponse = await http.get(
-            permUrl,
-            headers: _baseService.createHeaders(),
-          );
-          if (permResponse.statusCode == 200) {
-            final permData = json.decode(permResponse.body);
-            if (permData['entry'] != null && permData['entry']['allowableOperations'] != null) {
-              allowableOperations = List<String>.from(permData['entry']['allowableOperations']);
-            }
-          }
-        } catch (e) {
-          EVLogger.error('Failed to fetch permissions for container', {
-            'containerId': container['id'],
-            'error': e.toString(),
-          });
-        }
-        containers.add(BrowseItem(
-          id: container['id'],
-          name: container['folderId'] ?? container['id'],
-          type: 'folder',
-          description: container['title'] ?? '',
-          isDepartment: false,
-          modifiedDate: container['modifiedAt'],
-          modifiedBy: container['modifiedByUser']?['displayName'],
-          allowableOperations: allowableOperations,
-        ));
-      }
+      final entries = data['list']['entries'] as List;
+      final containers = await Future.wait(
+        entries.map((entry) => _mapSiteContainer(entry['entry'])),
+      );
       
       return containers;
     } catch (e) {
       EVLogger.error('Failed to get site containers', e);
       throw Exception('Failed to get site containers: ${e.toString()}');
     }
+  }
+
+  Future<BrowseItem> _mapSiteContainer(Map<String, dynamic> container) async {
+    List<String>? allowableOperations;
+    try {
+      final permUrl = Uri.parse(
+        _baseService.buildUrl(
+          'api/-default-/public/alfresco/versions/1/nodes/${container['id']}?include=allowableOperations',
+        ),
+      );
+      final permResponse = await getWithTimeout(
+        permUrl,
+        headers: _baseService.createHeaders(),
+      );
+      if (permResponse.statusCode == 200) {
+        final permData = json.decode(permResponse.body);
+        if (permData['entry'] != null &&
+            permData['entry']['allowableOperations'] != null) {
+          allowableOperations = List<String>.from(
+            permData['entry']['allowableOperations'],
+          );
+        }
+      }
+    } catch (e) {
+      EVLogger.error('Failed to fetch permissions for container', {
+        'containerId': container['id'],
+        'error': e.toString(),
+      });
+    }
+    return BrowseItem(
+      id: container['id'],
+      name: container['folderId'] ?? container['id'],
+      type: 'folder',
+      description: container['title'] ?? '',
+      isDepartment: false,
+      modifiedDate: container['modifiedAt'],
+      modifiedBy: container['modifiedByUser']?['displayName'],
+      allowableOperations: allowableOperations,
+    );
   }
 
   /// Maps an Alfresco API response item to a BrowseItem object
@@ -255,7 +256,7 @@ class ClassicBrowseService implements BrowseService {
         _baseService.buildUrl('api/-default-/public/alfresco/versions/1/nodes/$itemId?include=allowableOperations')
       );
 
-      final response = await http.get(
+      final response = await getWithTimeout(
         url,
         headers: _baseService.createHeaders(),
       );
@@ -300,7 +301,7 @@ class ClassicBrowseService implements BrowseService {
       
       
       
-      final response = await http.get(
+      final response = await getWithTimeout(
         url,
         headers: headers,
       );
@@ -372,7 +373,7 @@ class ClassicBrowseService implements BrowseService {
       headers['Accept'] = '*/*';
       
       // First check if we can access the content
-      final response = await http.head(
+      final response = await headWithTimeout(
         url,
         headers: headers,
       );
@@ -383,7 +384,7 @@ class ClassicBrowseService implements BrowseService {
           _baseService.buildUrl('api/-default-/public/alfresco/versions/1/nodes/$itemId')
         );
         
-        final metadataResponse = await http.get(
+        final metadataResponse = await getWithTimeout(
           metadataUrl,
           headers: {'Accept': 'application/json', ...headers},
         );

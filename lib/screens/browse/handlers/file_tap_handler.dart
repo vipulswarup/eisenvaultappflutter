@@ -19,21 +19,17 @@ class FileTapHandler {
   final String baseUrl;
   final String authToken;
   final AngoraBaseService? angoraBaseService;
-  late OfflineManager _offlineManager;
-  
+  final OfflineManager _offlineManager;
+  bool _isLoadingOverlayShown = false;
+
   FileTapHandler({
     required this.context,
     required this.instanceType,
     required this.baseUrl,
     required this.authToken,
+    required OfflineManager offlineManager,
     this.angoraBaseService,
-  }) {
-    _initOfflineManager();
-  }
-  
-  Future<void> _initOfflineManager() async {
-    _offlineManager = await OfflineManager.createDefault();
-  }
+  }) : _offlineManager = offlineManager;
   
   /// Gets the file type based on file extension
   FileType getFileType(String fileName) {
@@ -43,64 +39,34 @@ class FileTapHandler {
   /// Handles tapping on a file
   /// Routes to the appropriate viewer based on file type
   Future<void> handleFileTap(BrowseItem document) async {
+    _showLoadingOverlay();
     try {
-      // Show loading indicator
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Loading file...'),
-          duration: Duration(seconds: 1),
-        ),
-      );
-      
       final fileType = getFileType(document.name);
       final isOffline = await _offlineManager.isItemOffline(document.id);
-
-      if (FileTypeUtils.usesServerPdfPreview(document.name) && !isOffline) {
-        final documentService = DocumentServiceFactory.getService(
-          instanceType,
-          baseUrl,
-          authToken,
-          angoraBaseService: angoraBaseService,
-        );
-        final previewBytes = await documentService.getDocumentPreview(document);
-        if (previewBytes != null && previewBytes.isNotEmpty) {
-          if (!context.mounted) return;
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => PdfViewerScreen(
-                title: document.name,
-                pdfContent: previewBytes,
-              ),
-            ),
-          );
-          return;
-        }
-      }
 
       // First check if file is available offline
       if (isOffline) {
         final offlineContent = await _offlineManager.getFileContent(document.id);
         if (offlineContent != null) {
           if (!context.mounted) return;
+          _hideLoadingOverlay();
           _openAppropriateViewer(document.name, fileType, offlineContent);
           return;
         }
       }
-      
-      // If not available offline or offline content is null, fetch from server
+
       final documentService = DocumentServiceFactory.getService(
         instanceType,
         baseUrl,
         authToken,
-        angoraBaseService: angoraBaseService
+        angoraBaseService: angoraBaseService,
       );
-      
-      // Get the document content
+
       final fileContent = await documentService.getDocumentContent(document);
-      
+
       if (!context.mounted) return;
-      
-      // Route to the appropriate viewer based on file type
+
+      _hideLoadingOverlay();
       _openAppropriateViewer(document.name, fileType, fileContent);
     } catch (e) {
       EVLogger.error('Error handling file tap', e);
@@ -112,7 +78,47 @@ class FileTapHandler {
           ),
         );
       }
+    } finally {
+      _hideLoadingOverlay();
     }
+  }
+
+  void _showLoadingOverlay() {
+    if (!context.mounted || _isLoadingOverlayShown) return;
+    _isLoadingOverlayShown = true;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      useRootNavigator: true,
+      builder: (dialogContext) => PopScope(
+        canPop: false,
+        child: Center(
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2.5),
+                  ),
+                  SizedBox(width: 16),
+                  Text('Loading file...'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    ).whenComplete(() => _isLoadingOverlayShown = false);
+  }
+
+  void _hideLoadingOverlay() {
+    if (!context.mounted || !_isLoadingOverlayShown) return;
+    _isLoadingOverlayShown = false;
+    Navigator.of(context, rootNavigator: true).pop();
   }
   
   /// Opens the appropriate viewer based on file type

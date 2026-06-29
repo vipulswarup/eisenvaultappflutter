@@ -103,6 +103,21 @@ class BrowseScreenController extends ChangeNotifier {
 
   final Connectivity _connectivity = Connectivity();
 
+  bool? _cachedOfflineResult;
+  DateTime? _offlineCheckTime;
+
+  Future<bool> _resolveOfflineState() async {
+    final now = DateTime.now();
+    if (_cachedOfflineResult != null &&
+        _offlineCheckTime != null &&
+        now.difference(_offlineCheckTime!) < const Duration(seconds: 5)) {
+      return _cachedOfflineResult!;
+    }
+    _cachedOfflineResult = await _offlineManager.isOffline();
+    _offlineCheckTime = now;
+    return _cachedOfflineResult!;
+  }
+
   BrowseScreenController({
     required this.baseUrl,
     required this.authToken,
@@ -300,7 +315,7 @@ class BrowseScreenController extends ChangeNotifier {
       currentFolder = folder;
 
       // Check both actual connectivity and forced offline mode
-      _isOffline = await _offlineManager.isOffline();
+      _isOffline = await _resolveOfflineState();
 
       // Load folder contents
       if (_isOffline) {
@@ -410,7 +425,7 @@ class BrowseScreenController extends ChangeNotifier {
 
     try {
       // Check both actual connectivity and forced offline mode
-      _isOffline = await _offlineManager.isOffline();
+      _isOffline = await _resolveOfflineState();
       EVLogger.productionLog('Offline mode: $_isOffline');
 
       if (_isOffline) {
@@ -529,7 +544,7 @@ class BrowseScreenController extends ChangeNotifier {
       _notifyListeners();
 
       // Check both actual connectivity and forced offline mode
-      _isOffline = await _offlineManager.isOffline();
+      _isOffline = await _resolveOfflineState();
       EVLogger.productionLog('Offline mode: $_isOffline');
 
       // No special handling for departments/sites; just load their children

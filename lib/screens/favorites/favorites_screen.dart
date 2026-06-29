@@ -4,6 +4,7 @@ import 'package:eisenvaultappflutter/screens/browse/browse_screen.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/file_tap_handler.dart';
 import 'package:eisenvaultappflutter/services/api/angora_base_service.dart';
 import 'package:eisenvaultappflutter/services/favorites/favorites_service.dart';
+import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/services/auth/auth_state_manager.dart';
 import 'package:eisenvaultappflutter/widgets/browse_item_tile.dart';
 import 'package:flutter/material.dart';
@@ -53,12 +54,16 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       angoraBaseService = AngoraBaseService(widget.baseUrl);
       angoraBaseService.setToken(widget.authToken);
     }
-    
+
+    final offlineManager =
+        await OfflineManager.createDefault(requireCredentials: false);
+
     _fileTapHandler = FileTapHandler(
       context: context,
       instanceType: widget.instanceType,
       baseUrl: widget.baseUrl,
       authToken: widget.authToken,
+      offlineManager: offlineManager,
       angoraBaseService: angoraBaseService,
     );
     
