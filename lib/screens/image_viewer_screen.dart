@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
+import 'package:eisenvaultappflutter/utils/share_utils.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -31,10 +32,12 @@ class ImageViewerScreen extends StatelessWidget {
               // TODO: Implement zoom functionality
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.share),
-            tooltip: 'Share file',
-            onPressed: () => _shareFile(context),
+          Builder(
+            builder: (buttonContext) => IconButton(
+              icon: const Icon(Icons.share),
+              tooltip: 'Share file',
+              onPressed: () => _shareFile(buttonContext),
+            ),
           ),
         ],
       ),
@@ -95,20 +98,29 @@ class ImageViewerScreen extends StatelessWidget {
       }
       
       if (imageContent is String) {
-        await Share.shareXFiles([XFile(imageContent as String)], text: 'Sharing file: $title');
+        await ShareUtils.shareXFiles(
+          context,
+          files: [XFile(imageContent as String)],
+          text: 'Sharing file: $title',
+        );
       } else {
-        // If we have bytes instead of a file path, save to temp file first
         final bytes = imageContent as Uint8List;
         final tempDir = await getTemporaryDirectory();
         final file = File('${tempDir.path}/$title');
         await file.writeAsBytes(bytes);
-        await Share.shareXFiles([XFile(file.path)], text: 'Sharing file: $title');
+        await ShareUtils.shareXFiles(
+          context,
+          files: [XFile(file.path)],
+          text: 'Sharing file: $title',
+        );
       }
     } catch (e) {
       EVLogger.error('Error sharing image file', e);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error sharing file: ${e.toString()}')),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error sharing file: ${e.toString()}')),
+        );
+      }
     }
   }
 }

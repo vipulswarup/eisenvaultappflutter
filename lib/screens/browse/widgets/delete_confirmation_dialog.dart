@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
+import 'package:eisenvaultappflutter/widgets/file_type_icon.dart';
 
 /// A dialog that confirms deletion of items
 class DeleteConfirmationDialog extends StatelessWidget {
@@ -56,9 +57,10 @@ class DeleteConfirmationDialog extends StatelessWidget {
                       final item = items[index];
                       return ListTile(
                         dense: true,
-                        leading: Icon(
-                          item.type == 'folder' ? Icons.folder : Icons.insert_drive_file,
-                          color: item.type == 'folder' ? EVColors.folderIconForeground : EVColors.documentIconForeground,
+                        leading: FileTypeIcon.forItem(
+                          item,
+                          containerSize: 32,
+                          iconSize: 20,
                         ),
                         title: Text(
                           item.name,

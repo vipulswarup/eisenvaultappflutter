@@ -14,23 +14,103 @@ class AngoraDocumentService {
   static const _corsProxyUrl = 'https://api.allorigins.win/raw?url=';
   
   AngoraDocumentService(this._baseService);
+
+  Map<String, String> _fileRequestHeaders() {
+    final baseUri = Uri.parse(_baseService.baseUrl);
+    final referer =
+        '${baseUri.scheme}://${baseUri.host}${baseUri.port != 80 && baseUri.port != 443 ? ':${baseUri.port}' : ''}/nodes';
+    final customerHostname = baseUri.host;
+
+    return {
+      ..._baseService.createHeaders(serviceName: _serviceName),
+      'Accept': 'application/json, text/plain, */*',
+      'Accept-Language': 'en',
+      'x-portal': 'mobile',
+      'x-customer-hostname': customerHostname,
+      'referer': referer,
+    };
+  }
+
+  String _resolveDownloadUrl(String link) {
+    final uri = Uri.parse(link);
+    if (uri.host.isEmpty) {
+      final baseUri = Uri.parse(_baseService.baseUrl);
+      return Uri(
+        scheme: baseUri.scheme,
+        host: baseUri.host,
+        port: baseUri.port,
+        path: link.startsWith('/') ? link : '/$link',
+      ).toString();
+    }
+    return link;
+  }
+
+  Future<Uint8List?> downloadDocumentPreview(String documentId) async {
+    try {
+      final url = _baseService.buildUrl('files/$documentId');
+      final headers = _fileRequestHeaders();
+      final response = await http.get(Uri.parse(url), headers: headers);
+
+      if (response.statusCode != 200) {
+        EVLogger.debug('Angora preview metadata request failed', {
+          'documentId': documentId,
+          'statusCode': response.statusCode,
+        });
+        return null;
+      }
+
+      final data = json.decode(response.body);
+      final fileData = data['data'];
+      if (fileData == null) {
+        return null;
+      }
+
+      final previewable = fileData['previewable'] == true;
+      final previewLink =
+          fileData['preview_link'] ?? fileData['previewLink'];
+      if (!previewable ||
+          previewLink == null ||
+          previewLink.toString().isEmpty) {
+        EVLogger.debug('Angora document is not previewable', {
+          'documentId': documentId,
+        });
+        return null;
+      }
+
+      var effectiveUrl = _resolveDownloadUrl(previewLink.toString());
+      if (kIsWeb) {
+        effectiveUrl =
+            '$_corsProxyUrl${Uri.encodeComponent(effectiveUrl)}';
+      }
+
+      var previewResponse = await http.get(Uri.parse(effectiveUrl));
+      if (previewResponse.statusCode != 200) {
+        previewResponse = await http.get(
+          Uri.parse(effectiveUrl),
+          headers: headers,
+        );
+      }
+
+      if (previewResponse.statusCode == 200 &&
+          previewResponse.bodyBytes.isNotEmpty) {
+        return previewResponse.bodyBytes;
+      }
+
+      EVLogger.debug('Angora preview download failed', {
+        'documentId': documentId,
+        'statusCode': previewResponse.statusCode,
+      });
+      return null;
+    } catch (error) {
+      EVLogger.error('Failed to download Angora document preview', error);
+      return null;
+    }
+  }
   
   Future<String> getDocumentDownloadLink(String documentId) async {
     try {
       final url = _baseService.buildUrl('files/$documentId/download');
-      // Build referer and customer hostname from base URL
-      final baseUri = Uri.parse(_baseService.baseUrl);
-      final referer = '${baseUri.scheme}://${baseUri.host}${baseUri.port != 80 && baseUri.port != 443 ? ':${baseUri.port}' : ''}/nodes';
-      final customerHostname = baseUri.host;
-      
-      final headers = {
-        ..._baseService.createHeaders(serviceName: _serviceName),
-        'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'en',
-        'x-portal': 'mobile',
-        'x-customer-hostname': customerHostname,
-        'referer': referer,
-      };
+      final headers = _fileRequestHeaders();
       
       EVLogger.debug('Requesting download link', {
         'url': url,
@@ -85,46 +165,27 @@ class AngoraDocumentService {
         return await _downloadFromStream(documentId);
       }
       
-      // Validate and normalize the download link
       String effectiveUrl;
       try {
-        final uri = Uri.parse(downloadLink);
-        
-        // If the URI doesn't have a host, it's a relative path - combine with base URL
-        if (uri.host.isEmpty) {
-          final baseUri = Uri.parse(_baseService.baseUrl);
-          effectiveUrl = Uri(
-            scheme: baseUri.scheme,
-            host: baseUri.host,
-            port: baseUri.port,
-            path: downloadLink.startsWith('/') ? downloadLink : '/$downloadLink',
-          ).toString();
-          EVLogger.debug('Converted relative download link to absolute', {
-            'original': downloadLink,
-            'effective': effectiveUrl,
-          });
-        } else {
-          effectiveUrl = downloadLink;
-        }
+        effectiveUrl = _resolveDownloadUrl(downloadLink);
       } catch (e) {
         EVLogger.error('Invalid download link format, falling back to download-stream', {
           'downloadLink': downloadLink,
           'error': e.toString(),
         });
-        // Fall back to download-stream endpoint
         return await _downloadFromStream(documentId);
       }
-      
-      // For web, use CORS proxy
+
+      var downloadUrl = effectiveUrl;
       if (kIsWeb) {
-        effectiveUrl = '$_corsProxyUrl${Uri.encodeComponent(effectiveUrl)}';
+        downloadUrl = '$_corsProxyUrl${Uri.encodeComponent(effectiveUrl)}';
       }
       
       EVLogger.debug('Downloading document from link', {
-        'effectiveUrl': effectiveUrl.substring(0, effectiveUrl.length > 100 ? 100 : effectiveUrl.length),
+        'effectiveUrl': downloadUrl.substring(0, downloadUrl.length > 100 ? 100 : downloadUrl.length),
       });
       
-      final response = await http.get(Uri.parse(effectiveUrl));
+      final response = await http.get(Uri.parse(downloadUrl));
       
       if (response.statusCode != 200) {
         EVLogger.error('Download from link failed, falling back to download-stream', {

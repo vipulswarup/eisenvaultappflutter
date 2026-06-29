@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as path;
+import 'package:eisenvaultappflutter/utils/share_utils.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:open_file/open_file.dart';
 import 'package:csv/csv.dart';
@@ -92,10 +93,11 @@ class _SpreadsheetPreviewState extends State<SpreadsheetPreview> {
     }
   }
 
-  Future<void> _shareFile() async {
+  Future<void> _shareFile(BuildContext context) async {
     try {
-      await Share.shareXFiles(
-        [XFile(widget.filePath)],
+      await ShareUtils.shareXFiles(
+        context,
+        files: [XFile(widget.filePath)],
         text: 'Sharing ${path.basename(widget.filePath)}',
       );
     } catch (e) {
@@ -184,10 +186,12 @@ class _SpreadsheetPreviewState extends State<SpreadsheetPreview> {
       appBar: AppBar(
         title: Text(path.basename(widget.filePath)),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.share),
-            onPressed: _shareFile,
-            tooltip: 'Share',
+          Builder(
+            builder: (buttonContext) => IconButton(
+              icon: const Icon(Icons.share),
+              onPressed: () => _shareFile(buttonContext),
+              tooltip: 'Share',
+            ),
           ),
           IconButton(
             icon: const Icon(Icons.open_in_new),

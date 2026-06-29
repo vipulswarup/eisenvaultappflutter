@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
+import 'package:eisenvaultappflutter/utils/share_utils.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
@@ -59,10 +60,12 @@ class _SvgPreviewScreenState extends State<SvgPreviewScreen> {
         backgroundColor: EVColors.appBarBackground,
         foregroundColor: EVColors.appBarForeground,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.share),
-            tooltip: 'Share file',
-            onPressed: () => _shareFile(context),
+          Builder(
+            builder: (buttonContext) => IconButton(
+              icon: const Icon(Icons.share),
+              tooltip: 'Share file',
+              onPressed: () => _shareFile(buttonContext),
+            ),
           ),
         ],
       ),
@@ -108,20 +111,22 @@ class _SvgPreviewScreenState extends State<SvgPreviewScreen> {
   Future<void> _shareFile(BuildContext context) async {
     try {
       if (widget.fileContent is String) {
-        await Share.share(widget.fileContent);
+        await ShareUtils.share(context, text: widget.fileContent as String);
       } else if (widget.fileContent is List<int>) {
         final tempDir = await getTemporaryDirectory();
         final file = File('${tempDir.path}/${widget.title}');
         await file.writeAsBytes(widget.fileContent);
-        await Share.shareXFiles([XFile(file.path)]);
+        await ShareUtils.shareXFiles(context, files: [XFile(file.path)]);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error sharing file: ${e.toString()}'),
-          backgroundColor: EVColors.statusError,
-        ),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error sharing file: ${e.toString()}'),
+            backgroundColor: EVColors.statusError,
+          ),
+        );
+      }
     }
   }
 } 

@@ -1,8 +1,10 @@
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:flutter/material.dart';
+import 'package:eisenvaultappflutter/utils/share_utils.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:open_file/open_file.dart';
-import '../utils/file_type_utils.dart';
+import 'package:eisenvaultappflutter/utils/file_type_utils.dart';
+import 'package:eisenvaultappflutter/widgets/file_type_icon.dart';
 
 class UnsupportedFilePreview extends StatelessWidget {
   final String fileName;
@@ -45,7 +47,11 @@ class UnsupportedFilePreview extends StatelessWidget {
 
   Future<void> _shareFile(BuildContext context) async {
     try {
-      await Share.shareXFiles([XFile(filePath)], text: 'Sharing $fileName');
+      await ShareUtils.shareXFiles(
+        context,
+        files: [XFile(filePath)],
+        text: 'Sharing $fileName',
+      );
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -68,10 +74,10 @@ class UnsupportedFilePreview extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              FileTypeUtils.getFileTypeIcon(fileType),
-              size: 64,
-              color: theme.colorScheme.primary,
+            FileTypeIcon(
+              fileName: fileName,
+              showBackground: false,
+              iconSize: 64,
             ),
             const SizedBox(height: 16),
             Text(

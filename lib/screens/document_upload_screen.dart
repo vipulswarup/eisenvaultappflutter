@@ -10,6 +10,7 @@ import '../services/upload/upload_service_factory.dart';
 
 import '../utils/logger.dart';
 import '../widgets/failed_upload_list.dart';
+import '../widgets/file_type_icon.dart';
 
 class DocumentUploadScreen extends StatefulWidget {
   final String repositoryType;
@@ -335,7 +336,11 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                     final file = _selectedFiles[index];
                     return Card(
                       child: ListTile(
-                        leading: const Icon(Icons.insert_drive_file),
+                        leading: FileTypeIcon(
+                          fileName: file.name,
+                          showBackground: false,
+                          iconSize: 24,
+                        ),
                         title: Text(file.name),
                         subtitle: Text(kIsWeb ? 'Selected file (Web)' : 'Selected file'),
                         trailing: IconButton(

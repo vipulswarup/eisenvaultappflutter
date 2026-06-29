@@ -1,5 +1,6 @@
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
+import 'package:eisenvaultappflutter/widgets/file_type_icon.dart';
 import 'package:flutter/material.dart';
 
 class BrowseItemTile extends StatelessWidget {
@@ -169,77 +170,6 @@ class BrowseItemTile extends StatelessWidget {
   }
 
   Widget _buildLeadingIcon() {
-    if (item.isDepartment) {
-      return Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: EVColors.paletteAccent.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: const Icon(
-          Icons.business,
-          color: EVColors.paletteAccent,
-          size: 24,
-        ),
-      );
-    } else if (item.type == 'folder') {
-      return Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: EVColors.folderIconBackground,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: const Icon(
-          Icons.folder,
-          color: EVColors.folderIconForeground,
-          size: 24,
-        ),
-      );
-    } else {
-      final iconData = _getDocumentIcon(item.name);
-      return Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: EVColors.documentIconBackground,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(
-          iconData,
-          color: EVColors.documentIconForeground,
-          size: 24,
-        ),
-      );
-    }
-  }
-
-  IconData _getDocumentIcon(String fileName) {
-    final extension = fileName.split('.').last.toLowerCase();
-    switch (extension) {
-      case 'pdf':
-        return Icons.picture_as_pdf;
-      case 'doc':
-      case 'docx':
-        return Icons.description;
-      case 'xls':
-      case 'xlsx':
-        return Icons.table_chart;
-      case 'ppt':
-      case 'pptx':
-        return Icons.slideshow;
-      case 'jpg':
-      case 'jpeg':
-      case 'png':
-      case 'gif':
-        return Icons.image;
-      case 'mp4':
-      case 'avi':
-      case 'mov':
-        return Icons.video_file;
-      default:
-        return Icons.insert_drive_file;
-    }
+    return FileTypeIcon.forItem(item);
   }
 }

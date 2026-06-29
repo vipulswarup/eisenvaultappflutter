@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
+import 'package:eisenvaultappflutter/widgets/file_type_icon.dart';
 
 class ContextMenuUploadScreen extends StatefulWidget {
   final List<String> filePaths;
@@ -110,7 +111,11 @@ class _ContextMenuUploadScreenState extends State<ContextMenuUploadScreen> {
                     final filePath = validFilePaths[index];
                     final fileName = filePath.split('/').last;
                     return ListTile(
-                      leading: const Icon(Icons.insert_drive_file),
+                      leading: FileTypeIcon(
+                        fileName: fileName,
+                        showBackground: false,
+                        iconSize: 24,
+                      ),
                       title: Text(fileName),
                       subtitle: Text(filePath),
                       dense: true,

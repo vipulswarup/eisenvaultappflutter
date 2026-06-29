@@ -53,9 +53,32 @@ class FileTapHandler {
       );
       
       final fileType = getFileType(document.name);
-      
+      final isOffline = await _offlineManager.isItemOffline(document.id);
+
+      if (FileTypeUtils.usesServerPdfPreview(document.name) && !isOffline) {
+        final documentService = DocumentServiceFactory.getService(
+          instanceType,
+          baseUrl,
+          authToken,
+          angoraBaseService: angoraBaseService,
+        );
+        final previewBytes = await documentService.getDocumentPreview(document);
+        if (previewBytes != null && previewBytes.isNotEmpty) {
+          if (!context.mounted) return;
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => PdfViewerScreen(
+                title: document.name,
+                pdfContent: previewBytes,
+              ),
+            ),
+          );
+          return;
+        }
+      }
+
       // First check if file is available offline
-      if (await _offlineManager.isItemOffline(document.id)) {
+      if (isOffline) {
         final offlineContent = await _offlineManager.getFileContent(document.id);
         if (offlineContent != null) {
           if (!context.mounted) return;
@@ -211,6 +234,10 @@ _openGenericPreview(fileName, fileType, fileContent);
             return 'text/csv';
           case 'tsv':
             return 'text/tab-separated-values';
+          case 'xls':
+            return 'application/vnd.ms-excel';
+          case 'xlsx':
+            return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
           default:
             return 'application/octet-stream';
         }

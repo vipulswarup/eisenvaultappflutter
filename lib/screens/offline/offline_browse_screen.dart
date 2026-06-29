@@ -15,6 +15,7 @@ import 'package:eisenvaultappflutter/screens/pdf_viewer_screen.dart';
 import 'package:eisenvaultappflutter/screens/image_viewer_screen.dart';
 import 'package:eisenvaultappflutter/screens/generic_file_preview_screen.dart';
 import 'package:eisenvaultappflutter/utils/file_type_utils.dart';
+import 'package:eisenvaultappflutter/widgets/file_type_icon.dart';
 import 'package:eisenvaultappflutter/screens/browse/handlers/auth_handler.dart';
 
 /// OfflineBrowseScreen is a dedicated screen that shows only the offline content.
@@ -495,82 +496,7 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
 
   /// Builds the icon for a BrowseItem based on its type.
   Widget _buildItemIcon(BrowseItem item) {
-    if (item.isDepartment) {
-      // Department/Site icon
-      return Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: EVColors.paletteAccent.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: const Icon(
-          Icons.business,
-          color: EVColors.paletteAccent,
-          size: 24,
-        ),
-      );
-    } else if (item.type == 'folder') {
-      // Folder icon
-      return Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: EVColors.folderIconBackground,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: const Icon(
-          Icons.folder,
-          color: EVColors.folderIconForeground,
-          size: 24,
-        ),
-      );
-    } else {
-      // Document icon - determine icon based on file extension
-      final iconData = _getDocumentIcon(item.name);
-      return Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: EVColors.documentIconBackground,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(
-          iconData,
-          color: EVColors.documentIconForeground,
-          size: 24,
-        ),
-      );
-    }
-  }
-
-  /// Returns an icon for a file based on its extension.
-  IconData _getDocumentIcon(String fileName) {
-    final extension = fileName.split('.').last.toLowerCase();
-    switch (extension) {
-      case 'pdf':
-        return Icons.picture_as_pdf;
-      case 'doc':
-      case 'docx':
-        return Icons.description;
-      case 'xls':
-      case 'xlsx':
-        return Icons.table_chart;
-      case 'ppt':
-      case 'pptx':
-        return Icons.slideshow;
-      case 'jpg':
-      case 'jpeg':
-      case 'png':
-      case 'gif':
-        return Icons.image;
-      case 'mp4':
-      case 'avi':
-      case 'mov':
-        return Icons.video_file;
-      default:
-        return Icons.insert_drive_file;
-    }
+    return FileTypeIcon.forItem(item);
   }
 
   /// Formats a date string as DD/MM/YYYY.

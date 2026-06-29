@@ -1,0 +1,39 @@
+name: microsoft_viewer
+description: "A Flutter based package for viewing Microsoft Office documents like docx, pptx, xlsx."
+version: 0.0.8
+homepage: "https://karmalaya.in"
+
+environment:
+  sdk: ^3.8.1
+  flutter: ">=1.17.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  xml: ^6.5.0
+  archive: ^4.0.7
+  path_provider: ^2.1.5
+  flutter_widget_from_html: ^0.17.0
+  collection: ^1.19.1
+  flutter_isolate: ^2.1.0
+  intl: ^0.20.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/ka_logo.png
+
+platforms:
+  android:
+  ios:
+  windows:
+  web:
+  linux:
+  macos:
+
+

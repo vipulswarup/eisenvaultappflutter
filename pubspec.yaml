@@ -64,12 +64,16 @@ dependencies:
   flutter_svg: ^2.1.0
   package_info_plus: ^9.0.0
   archive: ^4.0.7
+  xml: ^6.5.0
 
   # File Preview Dependencies
   flutter_markdown: ^0.6.18
   flutter_html: ^3.0.0-beta.2
   csv: ^7.1.0
   image_picker: ^1.2.1
+  microsoft_viewer:
+    path: packages/microsoft_viewer
+  in_app_file_view: ^1.1.1
   
   # Document Scanning
   # Temporarily removed due to 16KB page size compliance issue with Google ML Kit
@@ -89,6 +93,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/eisenvault_logo.png
+    - assets/icons/file-types/
 
 flutter_launcher_icons:
   android: true

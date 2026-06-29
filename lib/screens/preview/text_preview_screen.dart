@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
+import 'package:eisenvaultappflutter/utils/share_utils.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
@@ -27,10 +28,12 @@ class TextPreviewScreen extends StatelessWidget {
         backgroundColor: EVColors.appBarBackground,
         foregroundColor: EVColors.appBarForeground,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.share),
-            tooltip: 'Share file',
-            onPressed: () => _shareFile(context),
+          Builder(
+            builder: (buttonContext) => IconButton(
+              icon: const Icon(Icons.share),
+              tooltip: 'Share file',
+              onPressed: () => _shareFile(buttonContext),
+            ),
           ),
         ],
       ),
@@ -126,20 +129,22 @@ class TextPreviewScreen extends StatelessWidget {
   Future<void> _shareFile(BuildContext context) async {
     try {
       if (fileContent is String) {
-        await Share.share(fileContent);
+        await ShareUtils.share(context, text: fileContent as String);
       } else if (fileContent is List<int>) {
         final tempDir = await getTemporaryDirectory();
         final file = File('${tempDir.path}/$title');
         await file.writeAsBytes(fileContent);
-        await Share.shareXFiles([XFile(file.path)]);
+        await ShareUtils.shareXFiles(context, files: [XFile(file.path)]);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error sharing file: ${e.toString()}'),
-          backgroundColor: EVColors.statusError,
-        ),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error sharing file: ${e.toString()}'),
+            backgroundColor: EVColors.statusError,
+          ),
+        );
+      }
     }
   }
 } 

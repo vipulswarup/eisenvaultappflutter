@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 enum FileType {
   pdf,
@@ -16,6 +16,108 @@ enum FileType {
 }
 
 class FileTypeUtils {
+  static const String _iconBase = 'assets/icons/file-types';
+  static const String folderIconAsset = '$_iconBase/folder.png';
+  static const String departmentIconAsset = '$_iconBase/box.png';
+  static const String genericFileIconAsset = '$_iconBase/page.png';
+
+  static String getFileIconAsset(String fileName) {
+    final extension = _extension(fileName);
+
+    switch (extension) {
+      case 'pdf':
+        return '$_iconBase/page_white_acrobat.png';
+      case 'doc':
+      case 'docx':
+      case 'rtf':
+        return '$_iconBase/page_word.png';
+      case 'odt':
+        return '$_iconBase/page_white_office.png';
+      case 'ppt':
+      case 'pptx':
+        return '$_iconBase/page_white_powerpoint.png';
+      case 'odp':
+        return '$_iconBase/page_white_powerpoint.png';
+      case 'xls':
+      case 'xlsx':
+      case 'csv':
+      case 'tsv':
+        return '$_iconBase/page_excel.png';
+      case 'ods':
+        return '$_iconBase/page_excel.png';
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+      case 'gif':
+      case 'bmp':
+      case 'webp':
+      case 'tif':
+      case 'tiff':
+      case 'psd':
+      case 'cdr':
+      case 'dcm':
+        return '$_iconBase/image.png';
+      case 'svg':
+      case 'ai':
+        return '$_iconBase/page_white_vector.png';
+      case 'mp4':
+      case 'mov':
+      case 'avi':
+      case 'wmv':
+      case 'flv':
+      case 'mkv':
+      case 'mpeg':
+      case '3gp':
+      case 'ogv':
+      case 'webm':
+      case 'ogm':
+      case 'm3u8':
+        return '$_iconBase/film.png';
+      case 'mp3':
+      case 'wav':
+      case 'ogg':
+      case 'm4a':
+      case 'flac':
+        return '$_iconBase/cd.png';
+      case 'zip':
+      case 'rar':
+      case '7z':
+      case '7zip':
+        return '$_iconBase/page_white_compressed.png';
+      case 'txt':
+      case 'md':
+      case 'html':
+      case 'json':
+        return '$_iconBase/page_white_text.png';
+      case 'xml':
+      case 'css':
+      case 'js':
+      case 'ts':
+      case 'dart':
+      case 'py':
+      case 'java':
+      case 'c':
+      case 'cpp':
+      case 'h':
+      case 'hpp':
+      case 'php':
+        return '$_iconBase/page_white_code.png';
+      case 'dwg':
+      case 'dxf':
+        return '$_iconBase/page_gear.png';
+      default:
+        return genericFileIconAsset;
+    }
+  }
+
+  static String _extension(String fileName) {
+    final parts = fileName.toLowerCase().split('.');
+    if (parts.length < 2) {
+      return '';
+    }
+    return parts.last;
+  }
+
   static FileType getFileType(String fileName) {
     final extension = fileName.toLowerCase().split('.').last;
     
@@ -104,34 +206,6 @@ class FileTypeUtils {
     }
   }
 
-  static IconData getFileTypeIcon(FileType fileType) {
-    switch (fileType) {
-      case FileType.pdf:
-        return Icons.picture_as_pdf;
-      case FileType.image:
-        return Icons.image;
-      case FileType.officeDocument:
-        return Icons.description;
-      case FileType.openDocument:
-        return Icons.description_outlined;
-      case FileType.text:
-        return Icons.text_snippet;
-      case FileType.spreadsheet:
-        return Icons.table_chart;
-      case FileType.cad:
-        return Icons.architecture;
-      case FileType.vector:
-        return Icons.brush;
-      case FileType.video:
-        return Icons.video_file;
-      case FileType.audio:
-        return Icons.audio_file;
-      case FileType.other:
-      case FileType.unknown:
-        return Icons.insert_drive_file;
-    }
-  }
-
   static String getFileTypeName(FileType fileType) {
     switch (fileType) {
       case FileType.pdf:
@@ -163,7 +237,6 @@ class FileTypeUtils {
 
   static bool isPreviewSupported(String fileName) {
     final fileType = getFileType(fileName);
-    // Only return true for types with in-app preview support
     switch (fileType) {
       case FileType.pdf:
       case FileType.image:
@@ -171,6 +244,65 @@ class FileTypeUtils {
       case FileType.vector:
       case FileType.video:
       case FileType.audio:
+        return true;
+      default:
+        return usesMicrosoftViewer(fileName) ||
+            usesServerPdfPreview(fileName) ||
+            usesAppleInAppFileView(fileName);
+    }
+  }
+
+  /// iOS native WKWebView preview for Office files via in_app_file_view.
+  /// macOS keeps microsoft_viewer / server PDF because the plugin is iOS-only.
+  static bool usesAppleInAppFileView(String fileName) {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) {
+      return false;
+    }
+
+    final extension = fileName.toLowerCase().split('.').last;
+    switch (extension) {
+      case 'doc':
+      case 'docx':
+      case 'xls':
+      case 'xlsx':
+      case 'ppt':
+      case 'pptx':
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  /// In-app preview for modern Office Open XML formats (.docx, .xlsx, .pptx).
+  static bool usesMicrosoftViewer(String fileName) {
+    if (usesAppleInAppFileView(fileName)) {
+      return false;
+    }
+    final extension = fileName.toLowerCase().split('.').last;
+    switch (extension) {
+      case 'docx':
+      case 'xlsx':
+      case 'pptx':
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  /// Legacy Office and OpenDocument formats that need a server-generated PDF preview.
+  static bool usesServerPdfPreview(String fileName) {
+    if (usesAppleInAppFileView(fileName)) {
+      return false;
+    }
+
+    final extension = fileName.toLowerCase().split('.').last;
+    switch (extension) {
+      case 'doc':
+      case 'xls':
+      case 'ppt':
+      case 'odt':
+      case 'ods':
+      case 'odp':
         return true;
       default:
         return false;

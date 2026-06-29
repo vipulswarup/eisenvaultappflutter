@@ -6,6 +6,7 @@ import 'package:eisenvaultappflutter/services/sharing/android_share_service.dart
 import 'package:eisenvaultappflutter/services/browse/browse_service_factory.dart';
 import 'package:eisenvaultappflutter/models/browse_item.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
+import 'package:eisenvaultappflutter/widgets/file_type_icon.dart';
 import 'package:http/http.dart' as http;
 
 class AndroidShareScreen extends StatefulWidget {
@@ -542,10 +543,10 @@ class _AndroidShareScreenState extends State<AndroidShareScreen> {
                     padding: const EdgeInsets.only(bottom: 4),
                     child: Row(
                       children: [
-                        Icon(
-                          _getFileIcon(file),
-                          size: 16,
-                          color: EVColors.paletteButton,
+                        FileTypeIcon(
+                          fileName: fileNames[file] ?? file.split('/').last,
+                          showBackground: false,
+                          iconSize: 16,
                         ),
                         const SizedBox(width: 8),
                         Expanded(
@@ -612,10 +613,10 @@ class _AndroidShareScreenState extends State<AndroidShareScreen> {
             ),
             child: Row(
               children: [
-                Icon(
-                  Icons.folder,
-                  color: EVColors.paletteButton,
-                  size: 24,
+                FileTypeIcon(
+                  isFolder: true,
+                  showBackground: false,
+                  iconSize: 24,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -675,10 +676,10 @@ class _AndroidShareScreenState extends State<AndroidShareScreen> {
             ),
             child: Row(
               children: [
-                Icon(
-                  Icons.folder_outlined,
-                  size: 16,
-                  color: EVColors.paletteButton,
+                FileTypeIcon(
+                  isFolder: true,
+                  showBackground: false,
+                  iconSize: 16,
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -793,10 +794,10 @@ class _AndroidShareScreenState extends State<AndroidShareScreen> {
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(
-                                    Icons.folder_open,
-                                    size: 48,
-                                    color: EVColors.paletteButton.withOpacity(0.5),
+                                  FileTypeIcon(
+                                    isFolder: true,
+                                    showBackground: false,
+                                    iconSize: 48,
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
@@ -828,11 +829,17 @@ class _AndroidShareScreenState extends State<AndroidShareScreen> {
                                   ),
                                   child: ListTile(
                                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                                    leading: Icon(
-                                      isSelected ? Icons.check_circle : Icons.folder,
-                                      color: isSelected ? EVColors.paletteAccent : EVColors.paletteButton,
-                                      size: 24,
-                                    ),
+                                    leading: isSelected
+                                        ? Icon(
+                                            Icons.check_circle,
+                                            color: EVColors.paletteAccent,
+                                            size: 24,
+                                          )
+                                        : FileTypeIcon.forItem(
+                                            folder,
+                                            containerSize: 32,
+                                            iconSize: 20,
+                                          ),
                                     title: Text(
                                       folder.name,
                                       style: TextStyle(
@@ -1003,27 +1010,6 @@ class _AndroidShareScreenState extends State<AndroidShareScreen> {
         ],
       ),
     );
-  }
-
-  IconData _getFileIcon(String filePath) {
-    final extension = filePath.split('.').last.toLowerCase();
-    switch (extension) {
-      case 'pdf':
-        return Icons.picture_as_pdf;
-      case 'jpg':
-      case 'jpeg':
-      case 'png':
-      case 'gif':
-        return Icons.image;
-      case 'doc':
-      case 'docx':
-        return Icons.description;
-      case 'xls':
-      case 'xlsx':
-        return Icons.table_chart;
-      default:
-        return Icons.insert_drive_file;
-    }
   }
 
 
