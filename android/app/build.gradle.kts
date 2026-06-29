@@ -32,8 +32,8 @@ android {
         applicationId = "com.eisenvault"
         minSdk = 24 // Android 7.0 (Nougat)
         targetSdk = 35 // Android 15
-        versionCode = 132
-        versionName = "1.3.2"
+        versionCode = 133
+        versionName = "1.3.3"
         externalNativeBuild {
             cmake {
                 arguments("-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON")
