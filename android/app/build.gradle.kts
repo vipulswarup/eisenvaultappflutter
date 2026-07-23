@@ -31,7 +31,7 @@ android {
     defaultConfig {
         applicationId = "com.eisenvault"
         minSdk = 24 // Android 7.0 (Nougat)
-        targetSdk = 35 // Android 15
+        targetSdk = 36 // Android 16
         versionCode = 133
         versionName = "1.3.3"
         externalNativeBuild {
