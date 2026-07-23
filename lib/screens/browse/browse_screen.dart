@@ -16,10 +16,15 @@ import 'package:eisenvaultappflutter/screens/browse/widgets/browse_list.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/browse_navigation.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/download_progress_indicator.dart';
 import 'package:eisenvaultappflutter/screens/browse/widgets/filter_sort_dialog.dart';
+import 'package:eisenvaultappflutter/screens/signing/signing_webview_screen.dart';
 import 'package:eisenvaultappflutter/services/filter_sort/filter_sort_service.dart';
 import 'package:eisenvaultappflutter/services/favorites/favorites_service.dart';
 import 'package:eisenvaultappflutter/services/delete/delete_service.dart';
 import 'package:eisenvaultappflutter/services/rename/rename_service.dart';
+import 'package:eisenvaultappflutter/services/signing/ess_signing_service.dart';
+import 'package:eisenvaultappflutter/services/signing/signing_callback_detector.dart';
+import 'package:eisenvaultappflutter/services/signing/signing_eligibility.dart';
+import 'package:eisenvaultappflutter/services/signing/signing_service.dart';
 import 'package:eisenvaultappflutter/services/offline/download_manager.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/services/auth/auth_state_manager.dart';
@@ -66,25 +71,42 @@ class _BrowseScreenState extends State<BrowseScreen> {
 
   OfflineManager? _offlineManager;
   FavoritesService? _favoritesService;
+  bool _isSigningProgressShown = false;
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  
+
   Future<bool> _isItemFavorite(String itemId) async {
     if (_favoritesService == null) {
-      final authStateManager = Provider.of<AuthStateManager>(context, listen: false);
+      final authStateManager = Provider.of<AuthStateManager>(
+        context,
+        listen: false,
+      );
       final username = authStateManager.username ?? '';
-      final accountId = FavoritesService.generateAccountId(username, widget.baseUrl);
-      _favoritesService = await FavoritesService.getInstance(accountId: accountId);
+      final accountId = FavoritesService.generateAccountId(
+        username,
+        widget.baseUrl,
+      );
+      _favoritesService = await FavoritesService.getInstance(
+        accountId: accountId,
+      );
     }
     return await _favoritesService!.isFavorite(itemId);
   }
-  
+
   Future<void> _toggleFavorite(BrowseItem item) async {
     if (_favoritesService == null) {
-      final authStateManager = Provider.of<AuthStateManager>(context, listen: false);
+      final authStateManager = Provider.of<AuthStateManager>(
+        context,
+        listen: false,
+      );
       final username = authStateManager.username ?? '';
-      final accountId = FavoritesService.generateAccountId(username, widget.baseUrl);
-      _favoritesService = await FavoritesService.getInstance(accountId: accountId);
+      final accountId = FavoritesService.generateAccountId(
+        username,
+        widget.baseUrl,
+      );
+      _favoritesService = await FavoritesService.getInstance(
+        accountId: accountId,
+      );
     }
     final isFavorite = await _favoritesService!.isFavorite(item.id);
     if (isFavorite) {
@@ -123,12 +145,9 @@ class _BrowseScreenState extends State<BrowseScreen> {
       await _controller!.loadFolderContents(_controller!.currentFolder!);
       _logCurrentFolderState(); // Log after refresh
     } else {
-      
       await _controller!.loadDepartments();
-      
     }
   }
-
 
   @override
   void initState() {
@@ -139,20 +158,32 @@ class _BrowseScreenState extends State<BrowseScreen> {
   Future<void> _initializeComponents() async {
     EVLogger.productionLog('=== BROWSE SCREEN - INITIALIZING COMPONENTS ===');
     EVLogger.productionLog('Base URL: ${widget.baseUrl}');
-    EVLogger.productionLog('Auth Token: ${widget.authToken.isNotEmpty ? "Present (${widget.authToken.length} chars)" : "EMPTY"}');
+    EVLogger.productionLog(
+      'Auth Token: ${widget.authToken.isNotEmpty ? "Present (${widget.authToken.length} chars)" : "EMPTY"}',
+    );
     EVLogger.productionLog('Instance Type: ${widget.instanceType}');
     EVLogger.productionLog('Customer Hostname: ${widget.customerHostname}');
-    
-    _offlineManager = await OfflineManager.createDefault(requireCredentials: false);
-    
+
     // Initialize favorites service with account-specific ID
-    final authStateManager = Provider.of<AuthStateManager>(context, listen: false);
+    final authStateManager = Provider.of<AuthStateManager>(
+      context,
+      listen: false,
+    );
+    _offlineManager = await OfflineManager.createDefault(
+      requireCredentials: false,
+    );
+
     final username = authStateManager.username ?? '';
-    final accountId = FavoritesService.generateAccountId(username, widget.baseUrl);
-    _favoritesService = await FavoritesService.getInstance(accountId: accountId);
-    
+    final accountId = FavoritesService.generateAccountId(
+      username,
+      widget.baseUrl,
+    );
+    _favoritesService = await FavoritesService.getInstance(
+      accountId: accountId,
+    );
+
     EVLogger.productionLog('Offline manager created');
-    
+
     if (!mounted) return;
 
     _controller = BrowseScreenController(
@@ -262,7 +293,9 @@ class _BrowseScreenState extends State<BrowseScreen> {
         await Future.delayed(const Duration(milliseconds: 300));
         if (mounted && _controller != null) {
           try {
-            EVLogger.productionLog('Navigating to initial folder: ${widget.initialFolder!.name} (${widget.initialFolder!.id})');
+            EVLogger.productionLog(
+              'Navigating to initial folder: ${widget.initialFolder!.name} (${widget.initialFolder!.id})',
+            );
             await _controller!.navigateToFolder(widget.initialFolder!);
           } catch (e) {
             EVLogger.error('Error navigating to initial folder', e);
@@ -286,14 +319,14 @@ class _BrowseScreenState extends State<BrowseScreen> {
 
   Future<void> _showFilterSortDialog() async {
     if (_controller == null) return;
-    
+
     final result = await showDialog<FilterSortOptions>(
       context: context,
-      builder: (context) => FilterSortDialog(
-        initialOptions: _controller!.filterSortOptions,
-      ),
+      builder:
+          (context) =>
+              FilterSortDialog(initialOptions: _controller!.filterSortOptions),
     );
-    
+
     if (result != null && mounted) {
       _controller?.setFilterSortOptions(result);
       setState(() {});
@@ -303,11 +336,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
   @override
   Widget build(BuildContext context) {
     if (_controller == null) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
@@ -317,7 +346,9 @@ class _BrowseScreenState extends State<BrowseScreen> {
         onDrawerOpen: () => _scaffoldKey.currentState?.openDrawer(),
         onSearchTap: () => _searchHandler.navigateToSearch(),
         onLogoutTap: () => _authHandler.showLogoutConfirmation(),
-        showBackButton: _controller?.currentFolder != null && _controller?.currentFolder?.id != 'root',
+        showBackButton:
+            _controller?.currentFolder != null &&
+            _controller?.currentFolder?.id != 'root',
         onBackPressed: _controller?.handleBackNavigation,
         isOfflineMode: _controller?.isOffline ?? false,
         isInSelectionMode: _controller?.isInSelectionMode ?? false,
@@ -325,17 +356,18 @@ class _BrowseScreenState extends State<BrowseScreen> {
         onFilterSortTap: _showFilterSortDialog,
         hasActiveFilters: _controller?.hasActiveFilters ?? false,
       ),
-      drawer: _offlineManager == null 
-        ? null 
-        : BrowseDrawer(
-            firstName: widget.firstName,
-            baseUrl: widget.baseUrl,
-            authToken: widget.authToken,
-            instanceType: widget.instanceType,
-            customerHostname: widget.customerHostname,
-            onLogoutTap: () => _authHandler.showLogoutConfirmation(),
-            offlineManager: _offlineManager!,
-          ),
+      drawer:
+          _offlineManager == null
+              ? null
+              : BrowseDrawer(
+                firstName: widget.firstName,
+                baseUrl: widget.baseUrl,
+                authToken: widget.authToken,
+                instanceType: widget.instanceType,
+                customerHostname: widget.customerHostname,
+                onLogoutTap: () => _authHandler.showLogoutConfirmation(),
+                offlineManager: _offlineManager!,
+              ),
       body: Stack(
         children: [
           // Main content
@@ -345,10 +377,17 @@ class _BrowseScreenState extends State<BrowseScreen> {
                 Container(
                   width: double.infinity,
                   color: EVColors.offlineBackground,
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 8,
+                    horizontal: 16,
+                  ),
                   child: Row(
                     children: [
-                      const Icon(Icons.offline_pin, color: EVColors.offlineIndicator, size: 20),
+                      const Icon(
+                        Icons.offline_pin,
+                        color: EVColors.offlineIndicator,
+                        size: 20,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -374,75 +413,84 @@ class _BrowseScreenState extends State<BrowseScreen> {
                 currentFolder: _controller?.currentFolder,
               ),
               Expanded(
-                child: _controller == null
-                    ? const Center(child: CircularProgressIndicator())
-                    : _controller!.isLoading
+                child:
+                    _controller == null
+                        ? const Center(child: CircularProgressIndicator())
+                        : _controller!.isLoading
                         ? const Center(child: CircularProgressIndicator())
                         : _controller!.items.isEmpty
-                            ? Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Icon(
-                                      Icons.folder_off,
-                                      color: EVColors.textFieldHint,
-                                      size: 48,
+                        ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.folder_off,
+                                color: EVColors.textFieldHint,
+                                size: 48,
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'No content available in this folder',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: EVColors.textFieldHint),
+                              ),
+                              if (_controller!.errorMessage != null) ...[
+                                const SizedBox(height: 16),
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 32,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: EVColors.statusError.withOpacity(
+                                      0.1,
                                     ),
-                                    const SizedBox(height: 16),
-                                    const Text(
-                                      'No content available in this folder',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(color: EVColors.textFieldHint),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: EVColors.statusError.withOpacity(
+                                        0.3,
+                                      ),
                                     ),
-                                    if (_controller!.errorMessage != null) ...[
-                                      const SizedBox(height: 16),
-                                      Container(
-                                        padding: const EdgeInsets.all(16),
-                                        margin: const EdgeInsets.symmetric(horizontal: 32),
-                                        decoration: BoxDecoration(
-                                          color: EVColors.statusError.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(8),
-                                          border: Border.all(color: EVColors.statusError.withOpacity(0.3)),
-                                        ),
-                                        child: Column(
-                                          children: [
-                                            const Icon(
-                                              Icons.error_outline,
-                                              color: EVColors.statusError,
-                                              size: 24,
-                                            ),
-                                            const SizedBox(height: 8),
-                                            Text(
-                                              'Error: ${_controller!.errorMessage}',
-                                              textAlign: TextAlign.center,
-                                              style: const TextStyle(
-                                                color: EVColors.statusError,
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                          ],
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      const Icon(
+                                        Icons.error_outline,
+                                        color: EVColors.statusError,
+                                        size: 24,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Error: ${_controller!.errorMessage}',
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          color: EVColors.statusError,
+                                          fontSize: 12,
                                         ),
                                       ),
                                     ],
-                                  ],
+                                  ),
                                 ),
-                              )
-                            : BrowseList(
-                                items: _controller!.items,
-                                isLoading: _controller!.isLoading,
-                                errorMessage: _controller!.errorMessage,
-                                onItemTap: _handleItemTap,
-                                onItemLongPress: _handleItemLongPress,
-                                isOffline: _controller!.isOffline,
-                                isInSelectionMode: _controller!.isInSelectionMode,
-                                selectedItems: _controller!.selectedItems,
-                                onItemSelectionChanged: (itemId, selected) {
-                                  _controller!.toggleItemSelection(itemId);
-                                },
-                                onLoadMore: _controller!.loadMoreItems,
-                                isLoadingMore: _controller!.isLoadingMore,
-                                hasMoreItems: _controller!.hasMoreItems,
-                              ),
+                              ],
+                            ],
+                          ),
+                        )
+                        : BrowseList(
+                          items: _controller!.items,
+                          isLoading: _controller!.isLoading,
+                          errorMessage: _controller!.errorMessage,
+                          onItemTap: _handleItemTap,
+                          onItemLongPress: _handleItemLongPress,
+                          isOffline: _controller!.isOffline,
+                          isInSelectionMode: _controller!.isInSelectionMode,
+                          selectedItems: _controller!.selectedItems,
+                          onItemSelectionChanged: (itemId, selected) {
+                            _controller!.toggleItemSelection(itemId);
+                          },
+                          onLoadMore: _controller!.loadMoreItems,
+                          isLoadingMore: _controller!.isLoadingMore,
+                          hasMoreItems: _controller!.hasMoreItems,
+                        ),
               ),
             ],
           ),
@@ -453,8 +501,14 @@ class _BrowseScreenState extends State<BrowseScreen> {
       floatingActionButton: ActionButtonBuilder.buildFloatingActionButton(
         isInSelectionMode: _controller?.isInSelectionMode ?? false,
         hasSelectedItems: _controller?.selectedItemCount != 0,
-        isInFolder: _controller?.currentFolder != null && !_controller!.currentFolder!.isDepartment,
-        hasWritePermission: _controller?.currentFolder?.allowableOperations?.contains('create') ?? false,
+        isInFolder:
+            _controller?.currentFolder != null &&
+            !_controller!.currentFolder!.isDepartment,
+        hasWritePermission:
+            _controller?.currentFolder?.allowableOperations?.contains(
+              'create',
+            ) ??
+            false,
         onBatchDelete: () => _batchDeleteHandler.handleBatchDelete(),
         onCreateFolder: _handleCreateFolder,
         onTakePicture: _handleTakePicture,
@@ -484,65 +538,284 @@ class _BrowseScreenState extends State<BrowseScreen> {
 
     final bool isOffline = await _offlineManager!.isItemOffline(item.id);
     final bool isFavorite = await _isItemFavorite(item.id);
-    
+    if (!mounted) return;
+    final bool canSign = SigningEligibility.isEligible(
+      item: item,
+      instanceType: widget.instanceType,
+      isOnline: !(_controller?.isOffline ?? true),
+    );
+
     showModalBottomSheet(
       context: context,
-      builder: (sheetContext) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            leading: Icon(
-              isFavorite ? Icons.star : Icons.star_border,
-              color: isFavorite ? EVColors.iconAmber : EVColors.iconTeal,
-            ),
-            title: Text(isFavorite ? 'Remove from Favourites' : 'Add to Favourites'),
-            onTap: () async {
-              Navigator.pop(sheetContext);
-              await _toggleFavorite(item);
-            },
+      builder:
+          (sheetContext) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Icon(
+                  isFavorite ? Icons.star : Icons.star_border,
+                  color: isFavorite ? EVColors.iconAmber : EVColors.iconTeal,
+                ),
+                title: Text(
+                  isFavorite ? 'Remove from Favourites' : 'Add to Favourites',
+                ),
+                onTap: () async {
+                  Navigator.pop(sheetContext);
+                  await _toggleFavorite(item);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.offline_pin),
+                title: Text(isOffline ? 'Remove from Offline' : 'Keep Offline'),
+                onTap: () async {
+                  Navigator.pop(sheetContext);
+                  if (isOffline) {
+                    await _removeFromOffline(item);
+                  } else {
+                    await _keepOffline(item);
+                  }
+                },
+              ),
+              if (item.type != 'folder' && !item.isDepartment)
+                ListTile(
+                  leading: const Icon(Icons.download),
+                  title: const Text('Download'),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _fileTapHandler.handleFileTap(item);
+                  },
+                ),
+              if (canSign)
+                ListTile(
+                  leading: const Icon(Icons.draw),
+                  title: const Text('ESign with OpenSign'),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _handleSignWithOpenSign(item);
+                  },
+                ),
+              if (item.allowableOperations?.contains('update') == true &&
+                  !item.isSystemFolder)
+                ListTile(
+                  leading: const Icon(Icons.edit),
+                  title: const Text('Rename'),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _renameHandler.showRenameDialog(item);
+                  },
+                ),
+              if (item.canDelete && !item.isSystemFolder)
+                ListTile(
+                  leading: const Icon(Icons.delete),
+                  title: const Text('Delete'),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _deleteHandler.showDeleteConfirmation(item);
+                  },
+                ),
+            ],
           ),
-          ListTile(
-            leading: const Icon(Icons.offline_pin),
-            title: Text(isOffline ? 'Remove from Offline' : 'Keep Offline'),
-            onTap: () async {
-              Navigator.pop(sheetContext);
-              if (isOffline) {
-                await _removeFromOffline(item);
-              } else {
-                await _keepOffline(context, item);
-              }
-            },
+    );
+  }
+
+  Future<void> _handleSignWithOpenSign(BrowseItem item) async {
+    final authStateManager = Provider.of<AuthStateManager>(
+      context,
+      listen: false,
+    );
+    final essBaseUrl = authStateManager.currentAccount?.essBaseUrl;
+    final alfrescoTicket = authStateManager.currentAccount?.alfrescoTicket;
+
+    if (essBaseUrl == null || essBaseUrl.trim().isEmpty) {
+      _showSnackBar(
+        'OpenSign signing is not configured for this account.',
+        isError: true,
+      );
+      return;
+    }
+
+    if (alfrescoTicket == null || alfrescoTicket.trim().isEmpty) {
+      _showSnackBar(
+        'Sign in to this Classic account again to enable mobile signing.',
+        isError: true,
+      );
+      return;
+    }
+
+    final signingService = EssSigningService(
+      baseUrl: essBaseUrl.trim(),
+      alfrescoTicket: alfrescoTicket,
+    );
+    _showBlockingProgress('Preparing signing session...');
+
+    try {
+      final session = await signingService.startSigning(
+        document: item,
+        repositoryBaseUrl: widget.baseUrl,
+        returnUrl: SigningCallbackDetector.defaultReturnUrl,
+      );
+
+      if (!mounted) return;
+      _hideBlockingProgress();
+
+      final result = await Navigator.of(context).push<SigningWebViewResult>(
+        MaterialPageRoute(
+          builder:
+              (context) => SigningWebViewScreen(
+                signingUrl: session.signingUrl,
+                sessionId: session.sessionId,
+                signingService: signingService,
+              ),
+        ),
+      );
+
+      if (!mounted || result == null) return;
+      if (result == SigningWebViewResult.cancelled) {
+        _showSnackBar('Signing cancelled.');
+        return;
+      }
+      if (result == SigningWebViewResult.failed) {
+        _showSnackBar('Signing could not be completed.', isError: true);
+        return;
+      }
+
+      await _pollSigningStatus(
+        signingService: signingService,
+        sessionId: session.sessionId,
+      );
+    } catch (e) {
+      if (mounted) {
+        _hideBlockingProgress();
+        _showSnackBar(_safeSigningError(e), isError: true);
+      }
+    }
+  }
+
+  Future<void> _pollSigningStatus({
+    required SigningService signingService,
+    required String sessionId,
+  }) async {
+    _showBlockingProgress('Checking signed document...');
+
+    try {
+      for (var attempt = 0; attempt < 12; attempt++) {
+        final status = await signingService.getStatus(sessionId);
+        if (!mounted) return;
+
+        if (status.isComplete) {
+          _hideBlockingProgress();
+          _showSnackBar('Document signed and checked in as a new version.');
+          await _refreshCurrentFolder();
+          return;
+        }
+        if (status.isPendingImport) {
+          if (attempt < 2) {
+            await Future<void>.delayed(const Duration(seconds: 2));
+            continue;
+          }
+          _hideBlockingProgress();
+          _showSnackBar(
+            'Signing is complete. The signed document is being checked in and will appear shortly.',
+          );
+          await _refreshCurrentFolder();
+          return;
+        }
+        if (status.isCancelled) {
+          _hideBlockingProgress();
+          _showSnackBar('Signing cancelled.');
+          return;
+        }
+        if (status.isFailure) {
+          _hideBlockingProgress();
+          _showSnackBar(
+            status.message?.isNotEmpty == true
+                ? status.message!
+                : 'Signing could not be completed.',
+            isError: true,
+          );
+          return;
+        }
+
+        await Future<void>.delayed(const Duration(seconds: 2));
+      }
+
+      if (!mounted) return;
+      _hideBlockingProgress();
+      _showSnackBar(
+        'Signing is complete. The signed document is being checked in and will appear shortly.',
+      );
+      await _refreshCurrentFolder();
+    } catch (e) {
+      if (mounted) {
+        _hideBlockingProgress();
+        _showSnackBar(_safeSigningError(e), isError: true);
+      }
+    }
+  }
+
+  void _showBlockingProgress(String message) {
+    if (!mounted || _isSigningProgressShown) return;
+    _isSigningProgressShown = true;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      useRootNavigator: true,
+      builder:
+          (dialogContext) => PopScope(
+            canPop: false,
+            child: Center(
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 20,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2.5),
+                      ),
+                      const SizedBox(width: 16),
+                      Text(message),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
-          if (item.type == 'file')
-            ListTile(
-              leading: const Icon(Icons.download),
-              title: const Text('Download'),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                _fileTapHandler.handleFileTap(item);
-              },
-            ),
-          if (item.allowableOperations?.contains('update') == true && !item.isSystemFolder)
-            ListTile(
-              leading: const Icon(Icons.edit),
-              title: const Text('Rename'),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                _renameHandler.showRenameDialog(item);
-              },
-            ),
-          if (item.canDelete && !item.isSystemFolder)
-            ListTile(
-              leading: const Icon(Icons.delete),
-              title: const Text('Delete'),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                _deleteHandler.showDeleteConfirmation(item);
-              },
-            ),
-        ],
+    ).whenComplete(() => _isSigningProgressShown = false);
+  }
+
+  void _hideBlockingProgress() {
+    if (!mounted || !_isSigningProgressShown) return;
+    _isSigningProgressShown = false;
+    final navigator = Navigator.of(context, rootNavigator: true);
+    if (navigator.canPop()) {
+      navigator.pop();
+    }
+  }
+
+  void _showSnackBar(String message, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? EVColors.errorRed : null,
       ),
     );
+  }
+
+  String _safeSigningError(Object error) {
+    final message = error.toString().replaceFirst('Exception: ', '');
+    if (message.contains('http://') ||
+        message.contains('https://') ||
+        message.toLowerCase().contains('authorization')) {
+      return 'Signing could not be completed.';
+    }
+    return message.isEmpty ? 'Signing could not be completed.' : message;
   }
 
   Future<void> _removeFromOffline(BrowseItem item) async {
@@ -580,33 +853,22 @@ class _BrowseScreenState extends State<BrowseScreen> {
     }
   }
 
-  Future<void> _keepOffline(BuildContext context, BrowseItem item) async {
+  Future<void> _keepOffline(BrowseItem item) async {
     try {
-      final downloadManager = Provider.of<DownloadManager>(context, listen: false);
+      final downloadManager = Provider.of<DownloadManager>(
+        context,
+        listen: false,
+      );
       await _offlineManager!.keepOffline(
         item,
         downloadManager: downloadManager,
         onError: (message) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(message),
-                backgroundColor: EVColors.errorRed,
-              ),
-            );
-          }
+          _showSnackBar(message, isError: true);
         },
       );
     } catch (e) {
       EVLogger.error('Error keeping item offline', e);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: EVColors.errorRed,
-          ),
-        );
-      }
+      _showSnackBar('Error: ${e.toString()}', isError: true);
     }
   }
 
@@ -648,7 +910,9 @@ class _BrowseScreenState extends State<BrowseScreen> {
     if (!(Platform.isAndroid || Platform.isIOS)) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Document scanning is temporarily disabled. Please use the camera or gallery options instead.'),
+        content: Text(
+          'Document scanning is temporarily disabled. Please use the camera or gallery options instead.',
+        ),
         backgroundColor: EVColors.statusWarning,
       ),
     );

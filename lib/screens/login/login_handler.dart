@@ -202,6 +202,8 @@ class LoginHandler {
       }
 
       final tokenString = token.toString();
+      final alfrescoTicket = loginResult['alfrescoTicket']?.toString();
+      final discoveredEssBaseUrl = loginResult['essBaseUrl']?.toString();
       EVLogger.productionLog(
         'Login successful, token length: ${tokenString.length}',
       );
@@ -236,7 +238,16 @@ class LoginHandler {
         instanceType: detectedInstanceType,
         baseUrl: baseUrl,
         customerHostname: customerHostname,
-        password: password, // Store password for Angora token refresh
+        password:
+            detectedInstanceType.toLowerCase() == 'angora' ? password : null,
+        essBaseUrl:
+            detectedInstanceType.toLowerCase() == 'classic'
+                ? discoveredEssBaseUrl
+                : null,
+        alfrescoTicket:
+            detectedInstanceType.toLowerCase() == 'classic'
+                ? alfrescoTicket
+                : null,
       );
 
       // Save credentials to SharedPreferences for ShareActivity

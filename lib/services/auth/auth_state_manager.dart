@@ -13,18 +13,18 @@ import 'package:eisenvaultappflutter/utils/logger.dart';
 /// Supports multiple accounts with account switching
 class AuthStateManager extends ChangeNotifier {
   static final AuthStateManager _instance = AuthStateManager._internal();
-  
+
   factory AuthStateManager() => _instance;
-  
+
   AuthStateManager._internal();
-  
+
   final PersistentAuthService _persistentAuth = PersistentAuthService();
   final MultiAccountAuthService _multiAccountAuth = MultiAccountAuthService();
-  
+
   bool _isAuthenticated = false;
   Account? _currentAccount;
   List<Account> _allAccounts = [];
-  
+
   // Getters
   bool get isAuthenticated => _isAuthenticated;
   String? get currentToken => _currentAccount?.token;
@@ -33,19 +33,21 @@ class AuthStateManager extends ChangeNotifier {
   String? get username => _currentAccount?.username;
   String? get firstName => _currentAccount?.firstName;
   String? get customerHostname => _currentAccount?.customerHostname;
+  String? get essBaseUrl => _currentAccount?.essBaseUrl;
+  String? get alfrescoTicket => _currentAccount?.alfrescoTicket;
   Account? get currentAccount => _currentAccount;
   List<Account> get allAccounts => List.unmodifiable(_allAccounts);
-  
+
   /// Initialize the auth state manager
   /// This should be called when the app starts
   Future<void> initialize() async {
     try {
       // Load all accounts
       _allAccounts = await _multiAccountAuth.getAllAccounts();
-      
+
       // Try to get active account
       final activeAccount = await _multiAccountAuth.getActiveAccount();
-      
+
       if (activeAccount != null) {
         _currentAccount = activeAccount;
         _isAuthenticated = true;
@@ -62,21 +64,21 @@ class AuthStateManager extends ChangeNotifier {
           await _migrateOldAccount(credentials);
         }
       }
-      
+
       notifyListeners();
     } catch (e) {
       EVLogger.error('Failed to initialize auth state', e);
       _clearState();
     }
   }
-  
+
   /// Migrate old single-account storage to multi-account
   Future<void> _migrateOldAccount(Map<String, String?> credentials) async {
     try {
       if (credentials['username'] == null || credentials['baseUrl'] == null) {
         return;
       }
-      
+
       final account = Account.fromCredentials(
         username: credentials['username']!,
         firstName: credentials['firstName'] ?? credentials['username']!,
@@ -86,22 +88,24 @@ class AuthStateManager extends ChangeNotifier {
         token: credentials['token'] ?? '',
         password: credentials['password'],
         tokenExpiry: credentials['tokenExpiry'],
+        essBaseUrl: credentials['essBaseUrl'],
+        alfrescoTicket: credentials['alfrescoTicket'],
       );
-      
+
       await _multiAccountAuth.addOrUpdateAccount(account);
       await _multiAccountAuth.setActiveAccount(account.id);
-      
+
       _allAccounts = await _multiAccountAuth.getAllAccounts();
       _currentAccount = account;
       _isAuthenticated = true;
-      
+
       // Clear old storage
       await _persistentAuth.clearCredentials();
     } catch (e) {
       EVLogger.error('Failed to migrate old account', e);
     }
   }
-  
+
   /// Handle successful login
   /// Adds or updates the account and sets it as active
   Future<void> handleSuccessfulLogin({
@@ -113,8 +117,18 @@ class AuthStateManager extends ChangeNotifier {
     required String customerHostname,
     String? tokenExpiry,
     String? password,
+    String? essBaseUrl,
+    String? alfrescoTicket,
   }) async {
     try {
+      Account? existingAccount;
+      for (final candidate in _allAccounts) {
+        if (candidate.username == username && candidate.baseUrl == baseUrl) {
+          existingAccount = candidate;
+          break;
+        }
+      }
+
       // Create account from credentials
       final account = Account.fromCredentials(
         username: username,
@@ -125,21 +139,23 @@ class AuthStateManager extends ChangeNotifier {
         token: token,
         password: password,
         tokenExpiry: tokenExpiry,
+        essBaseUrl: existingAccount?.essBaseUrl ?? essBaseUrl,
+        alfrescoTicket: alfrescoTicket,
       );
-      
+
       // Add or update account
       await _multiAccountAuth.addOrUpdateAccount(account);
-      
+
       // Set as active account
       await _multiAccountAuth.setActiveAccount(account.id);
-      
+
       // Reload accounts and update state
       _allAccounts = await _multiAccountAuth.getAllAccounts();
       _currentAccount = account;
       _isAuthenticated = true;
-      
+
       notifyListeners();
-      
+
       // Update Share Extension credentials after notifying listeners
       await _updateShareExtensionCredentials(account);
     } catch (e) {
@@ -147,7 +163,7 @@ class AuthStateManager extends ChangeNotifier {
       rethrow;
     }
   }
-  
+
   /// Switch to a different account
   Future<bool> switchAccount(String accountId) async {
     try {
@@ -156,12 +172,12 @@ class AuthStateManager extends ChangeNotifier {
         _allAccounts = await _multiAccountAuth.getAllAccounts();
         _currentAccount = await _multiAccountAuth.getActiveAccount();
         _isAuthenticated = _currentAccount != null;
-        
+
         // Update Share Extension credentials for the new active account
         if (_currentAccount != null) {
           await _updateShareExtensionCredentials(_currentAccount!);
         }
-        
+
         notifyListeners();
       }
       return success;
@@ -170,13 +186,38 @@ class AuthStateManager extends ChangeNotifier {
       return false;
     }
   }
-  
+
+  Future<bool> updateEssBaseUrl(String? essBaseUrl) async {
+    final account = _currentAccount;
+    if (account == null) return false;
+
+    try {
+      final normalizedUrl =
+          essBaseUrl == null || essBaseUrl.trim().isEmpty
+              ? null
+              : essBaseUrl.trim().replaceFirst(RegExp(r'/+$'), '');
+      final updatedAccount = account.withEssBaseUrl(normalizedUrl);
+      final success = await _multiAccountAuth.addOrUpdateAccount(
+        updatedAccount,
+      );
+      if (!success) return false;
+
+      _allAccounts = await _multiAccountAuth.getAllAccounts();
+      _currentAccount = await _multiAccountAuth.getActiveAccount();
+      notifyListeners();
+      return true;
+    } catch (error) {
+      EVLogger.error('Failed to update ESS base URL', error);
+      return false;
+    }
+  }
+
   /// Update Share Extension credentials (iOS App Groups)
   Future<void> _updateShareExtensionCredentials(Account account) async {
     try {
       // Import platform check
       if (kIsWeb) return;
-      
+
       // Only update on iOS
       if (Platform.isIOS) {
         const MethodChannel channel = MethodChannel(PlatformChannels.iosUpload);
@@ -186,26 +227,28 @@ class AuthStateManager extends ChangeNotifier {
           'instanceType': account.instanceType,
           'customerHostname': account.customerHostname,
         });
-        EVLogger.info('Updated Share Extension credentials for account: ${account.displayName}');
+        EVLogger.info(
+          'Updated Share Extension credentials for account: ${account.displayName}',
+        );
       }
     } catch (e) {
       EVLogger.error('Failed to update Share Extension credentials', e);
     }
   }
-  
+
   /// Remove an account (logout from specific account)
   Future<bool> removeAccount(String accountId) async {
     try {
       final success = await _multiAccountAuth.removeAccount(accountId);
       if (success) {
         _allAccounts = await _multiAccountAuth.getAllAccounts();
-        
+
         // If we removed the current account, update current account
         if (_currentAccount?.id == accountId) {
           _currentAccount = await _multiAccountAuth.getActiveAccount();
           _isAuthenticated = _currentAccount != null;
         }
-        
+
         notifyListeners();
       }
       return success;
@@ -214,26 +257,26 @@ class AuthStateManager extends ChangeNotifier {
       return false;
     }
   }
-  
+
   /// Handle logout (removes current account)
   Future<void> logout() async {
     try {
       if (_currentAccount != null) {
         await removeAccount(_currentAccount!.id);
       }
-      
+
       // If no accounts left, clear state
       if (_allAccounts.isEmpty) {
         _clearState();
       }
-      
+
       notifyListeners();
     } catch (e) {
       EVLogger.error('Failed to logout', e);
       rethrow;
     }
   }
-  
+
   /// Logout from all accounts
   Future<void> logoutAll() async {
     try {
@@ -245,9 +288,9 @@ class AuthStateManager extends ChangeNotifier {
       rethrow;
     }
   }
-  
+
   /// Refresh the authentication token
-  /// 
+  ///
   /// Attempts to refresh the token using stored credentials.
   /// Only works for Angora instances. Classic instances don't need refresh.
   /// Returns true if refresh was successful, false otherwise.
@@ -257,31 +300,31 @@ class AuthStateManager extends ChangeNotifier {
         EVLogger.warning('Cannot refresh token: no active account');
         return false;
       }
-      
+
       // Only refresh for Angora instances
       if (_currentAccount!.instanceType.toLowerCase() != 'angora') {
         EVLogger.debug('Token refresh not needed for Classic instance');
         return true;
       }
-      
+
       if (_currentAccount!.password == null) {
         EVLogger.warning('Cannot refresh token: password not stored');
         return false;
       }
-      
+
       // Attempt to refresh token
       final authService = AngoraAuthService(_currentAccount!.baseUrl);
       final loginResult = await authService.refreshToken(
         _currentAccount!.username,
         _currentAccount!.password!,
       );
-      
+
       final newToken = loginResult['token'];
       if (newToken == null || newToken.toString().isEmpty) {
         EVLogger.error('Token refresh failed: no token in response');
         return false;
       }
-      
+
       // Update account token
       final tokenExpiry = loginResult['tokenExpiry']?.toString();
       await _multiAccountAuth.updateAccountToken(
@@ -289,29 +332,29 @@ class AuthStateManager extends ChangeNotifier {
         newToken.toString(),
         tokenExpiry: tokenExpiry,
       );
-      
+
       // Reload accounts to get updated token
       _allAccounts = await _multiAccountAuth.getAllAccounts();
       _currentAccount = await _multiAccountAuth.getActiveAccount();
-      
+
       if (_currentAccount != null) {
         await _updateShareExtensionCredentials(_currentAccount!);
       }
-      
+
       EVLogger.info('Token refreshed successfully');
       notifyListeners();
-      
+
       return true;
     } catch (e) {
       EVLogger.error('Failed to refresh token', e);
       return false;
     }
   }
-  
+
   /// Clear the current state
   void _clearState() {
     _isAuthenticated = false;
     _currentAccount = null;
     _allAccounts = [];
   }
-} 
+}

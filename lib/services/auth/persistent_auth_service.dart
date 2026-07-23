@@ -2,14 +2,14 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 
 /// Service to persist authentication credentials for offline access
-/// 
+///
 /// This service stores authentication tokens and related information
 /// securely using flutter_secure_storage, enabling app access without
 /// requiring re-authentication when offline.
 class PersistentAuthService {
   // Instance of secure storage for storing sensitive auth data
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
-  
+
   // Keys for stored values
   static const String _tokenKey = 'auth_token';
   static const String _usernameKey = 'username';
@@ -17,11 +17,13 @@ class PersistentAuthService {
   static const String _firstNameKey = 'first_name';
   static const String _instanceTypeKey = 'instance_type';
   static const String _baseUrlKey = 'base_url';
+  static const String _essBaseUrlKey = 'ess_base_url';
+  static const String _alfrescoTicketKey = 'alfresco_ticket';
   static const String _tokenExpiryKey = 'token_expiry';
   static const String _customerHostnameKey = 'customer_hostname';
-  
+
   /// Stores user credentials securely
-  /// 
+  ///
   /// Saves authentication data for future offline access
   Future<void> storeCredentials({
     required String token,
@@ -32,6 +34,8 @@ class PersistentAuthService {
     required String customerHostname,
     String? tokenExpiry,
     String? password,
+    String? essBaseUrl,
+    String? alfrescoTicket,
   }) async {
     try {
       await _storage.write(key: _tokenKey, value: token);
@@ -39,28 +43,32 @@ class PersistentAuthService {
       await _storage.write(key: _firstNameKey, value: firstName);
       await _storage.write(key: _instanceTypeKey, value: instanceType);
       await _storage.write(key: _baseUrlKey, value: baseUrl);
+      if (essBaseUrl != null && essBaseUrl.isNotEmpty) {
+        await _storage.write(key: _essBaseUrlKey, value: essBaseUrl);
+      }
+      if (alfrescoTicket != null && alfrescoTicket.isNotEmpty) {
+        await _storage.write(key: _alfrescoTicketKey, value: alfrescoTicket);
+      }
       await _storage.write(key: _customerHostnameKey, value: customerHostname);
-      
+
       // Store password for Angora instances only (needed for token refresh)
       // Classic uses Basic Auth which doesn't expire, so password not needed
       if (password != null && instanceType.toLowerCase() == 'angora') {
         await _storage.write(key: _passwordKey, value: password);
       }
-      
+
       // Store token expiry if provided (for JWT tokens)
       if (tokenExpiry != null) {
         await _storage.write(key: _tokenExpiryKey, value: tokenExpiry);
       }
-      
-      
     } catch (e) {
       EVLogger.error('Failed to store credentials', e);
       rethrow;
     }
   }
-  
+
   /// Retrieves stored credentials
-  /// 
+  ///
   /// Returns a map containing all stored authentication data or null values
   /// if specific entries aren't found
   Future<Map<String, String?>> getStoredCredentials() async {
@@ -72,6 +80,8 @@ class PersistentAuthService {
         'firstName': await _storage.read(key: _firstNameKey),
         'instanceType': await _storage.read(key: _instanceTypeKey),
         'baseUrl': await _storage.read(key: _baseUrlKey),
+        'essBaseUrl': await _storage.read(key: _essBaseUrlKey),
+        'alfrescoTicket': await _storage.read(key: _alfrescoTicketKey),
         'customerHostname': await _storage.read(key: _customerHostnameKey),
         'tokenExpiry': await _storage.read(key: _tokenExpiryKey),
       };
@@ -80,9 +90,9 @@ class PersistentAuthService {
       return {};
     }
   }
-  
+
   /// Checks if valid credentials exist
-  /// 
+  ///
   /// Verifies that required credentials are stored and the token
   /// has not expired (if expiry information is available)
   Future<bool> hasValidCredentials() async {
@@ -90,42 +100,40 @@ class PersistentAuthService {
       final token = await _storage.read(key: _tokenKey);
       final baseUrl = await _storage.read(key: _baseUrlKey);
       final instanceType = await _storage.read(key: _instanceTypeKey);
-      
+
       // Check if essential credentials exist
       if (token == null || baseUrl == null || instanceType == null) {
         return false;
       }
-      
+
       // Check token expiry if available
       final tokenExpiry = await _storage.read(key: _tokenExpiryKey);
       if (tokenExpiry != null) {
         final expiryDate = DateTime.parse(tokenExpiry);
         if (DateTime.now().isAfter(expiryDate)) {
-          
           return false;
         }
       }
-      
+
       return true;
     } catch (e) {
       EVLogger.error('Error checking credential validity', e);
       return false;
     }
   }
-  
+
   /// Clears all stored credentials
-  /// 
+  ///
   /// Used during logout to remove all authentication data
   Future<void> clearCredentials() async {
     try {
       await _storage.deleteAll();
-      
     } catch (e) {
       EVLogger.error('Failed to clear credentials', e);
       rethrow;
     }
   }
-  
+
   /// Gets stored password for token refresh (Angora only)
   /// Returns null if password is not stored or instance is not Angora
   Future<String?> getStoredPassword() async {

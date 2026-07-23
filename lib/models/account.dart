@@ -12,6 +12,8 @@ class Account {
   final String token;
   final String? password; // Only for Angora instances
   final String? tokenExpiry;
+  final String? essBaseUrl;
+  final String? alfrescoTicket;
   final DateTime lastUsed; // When this account was last accessed
 
   Account({
@@ -24,6 +26,8 @@ class Account {
     required this.token,
     this.password,
     this.tokenExpiry,
+    this.essBaseUrl,
+    this.alfrescoTicket,
     required this.lastUsed,
   });
 
@@ -37,6 +41,8 @@ class Account {
     required String token,
     String? password,
     String? tokenExpiry,
+    String? essBaseUrl,
+    String? alfrescoTicket,
   }) {
     // Generate unique ID from username + baseUrl
     final id = _generateAccountId(username, baseUrl);
@@ -50,6 +56,8 @@ class Account {
       token: token,
       password: password,
       tokenExpiry: tokenExpiry,
+      essBaseUrl: essBaseUrl,
+      alfrescoTicket: alfrescoTicket,
       lastUsed: DateTime.now(),
     );
   }
@@ -74,6 +82,8 @@ class Account {
       'token': token,
       'password': password,
       'tokenExpiry': tokenExpiry,
+      'essBaseUrl': essBaseUrl,
+      'alfrescoTicket': alfrescoTicket,
       'lastUsed': lastUsed.toIso8601String(),
     };
   }
@@ -90,6 +100,8 @@ class Account {
       token: json['token'] as String,
       password: json['password'] as String?,
       tokenExpiry: json['tokenExpiry'] as String?,
+      essBaseUrl: json['essBaseUrl'] as String?,
+      alfrescoTicket: json['alfrescoTicket'] as String?,
       lastUsed: DateTime.parse(json['lastUsed'] as String),
     );
   }
@@ -99,6 +111,8 @@ class Account {
     String? token,
     String? password,
     String? tokenExpiry,
+    String? essBaseUrl,
+    String? alfrescoTicket,
     DateTime? lastUsed,
   }) {
     return Account(
@@ -111,7 +125,26 @@ class Account {
       token: token ?? this.token,
       password: password ?? this.password,
       tokenExpiry: tokenExpiry ?? this.tokenExpiry,
+      essBaseUrl: essBaseUrl ?? this.essBaseUrl,
+      alfrescoTicket: alfrescoTicket ?? this.alfrescoTicket,
       lastUsed: lastUsed ?? this.lastUsed,
+    );
+  }
+
+  Account withEssBaseUrl(String? value) {
+    return Account(
+      id: id,
+      username: username,
+      firstName: firstName,
+      instanceType: instanceType,
+      baseUrl: baseUrl,
+      customerHostname: customerHostname,
+      token: token,
+      password: password,
+      tokenExpiry: tokenExpiry,
+      essBaseUrl: value,
+      alfrescoTicket: alfrescoTicket,
+      lastUsed: lastUsed,
     );
   }
 
@@ -122,8 +155,9 @@ class Account {
 
   /// Get display subtitle showing instance type and baseUrl
   String get displaySubtitle {
-    final cleanUrl = baseUrl.replaceAll(RegExp(r'https?://'), '').replaceAll(RegExp(r'/.*'), '');
+    final cleanUrl = baseUrl
+        .replaceAll(RegExp(r'https?://'), '')
+        .replaceAll(RegExp(r'/.*'), '');
     return '$instanceType - $cleanUrl';
   }
 }
-

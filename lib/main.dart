@@ -18,12 +18,14 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import 'package:eisenvaultappflutter/services/offline/download_manager.dart';
 import 'dart:io'; // Required for Platform.isWindows check
+import 'dart:ui' show ViewFocusEvent, ViewFocusState;
 
 // Global navigator key for context menu navigation
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  _installMacOsKeyboardStateWorkaround();
 
   // Initialize FFI for desktop (Windows/Linux)
   if (!kIsWeb) {
@@ -60,6 +62,35 @@ void main() async {
       ),
     ),
   );
+}
+
+void _installMacOsKeyboardStateWorkaround() {
+  if (kIsWeb || !Platform.isMacOS) return;
+
+  final previousOnError = FlutterError.onError;
+  FlutterError.onError = (FlutterErrorDetails details) {
+    final message = details.exceptionAsString();
+    if (message.contains('A KeyDownEvent is dispatched') &&
+        message.contains('physical key is already pressed')) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _resetMacOsKeyboardState('duplicate key down');
+      });
+    }
+    previousOnError?.call(details);
+  };
+}
+
+void _resetMacOsKeyboardState(String reason) {
+  if (kIsWeb || !Platform.isMacOS) return;
+  try {
+    // Flutter macOS can occasionally retain stale modifier state after focus
+    // transitions. Ask the engine for the current state instead of clearing it,
+    // since clearing can race with synthesized key-up events.
+    HardwareKeyboard.instance.syncKeyboardState();
+    EVLogger.debug('Reset macOS keyboard state', {'reason': reason});
+  } catch (e) {
+    EVLogger.warning('Failed to reset macOS keyboard state', e);
+  }
 }
 
 /// Save DMS credentials to App Groups for Share Extension access
@@ -217,8 +248,16 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && !_isBootstrapping) {
+      _resetMacOsKeyboardState('app resumed');
       widget.uploadService.checkForUploadDataWhenAppForeground();
       _saveDMSCredentialsToSharedPrefs();
+    }
+  }
+
+  @override
+  void didChangeViewFocus(ViewFocusEvent event) {
+    if (event.state == ViewFocusState.focused) {
+      _resetMacOsKeyboardState('view focused');
     }
   }
 

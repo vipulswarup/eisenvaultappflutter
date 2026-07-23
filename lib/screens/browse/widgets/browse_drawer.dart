@@ -4,6 +4,7 @@ import 'package:eisenvaultappflutter/screens/browse/browse_screen.dart';
 import 'package:eisenvaultappflutter/screens/offline/offline_browse_screen.dart';
 import 'package:eisenvaultappflutter/screens/favorites/favorites_screen.dart';
 import 'package:eisenvaultappflutter/screens/login_screen.dart';
+import 'package:eisenvaultappflutter/screens/signing/opensign_settings_screen.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/services/auth/auth_state_manager.dart';
 import 'package:flutter/material.dart';
@@ -39,16 +40,10 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
   String _cleanServerUrl(String url) {
     // Remove trailing slashes first
     String cleanedUrl = url.replaceAll(RegExp(r'/+$'), '');
-    
+
     // List of known suffixes to strip
-    final suffixes = [
-      '/alfresco',
-      '/share/page',
-      '/share',
-      '/page',
-      '/s',
-    ];
-    
+    final suffixes = ['/alfresco', '/share/page', '/share', '/page', '/s'];
+
     for (final suffix in suffixes) {
       if (cleanedUrl.endsWith(suffix)) {
         cleanedUrl = cleanedUrl.substring(0, cleanedUrl.length - suffix.length);
@@ -56,14 +51,17 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
         cleanedUrl = cleanedUrl.replaceAll(RegExp(r'/+$'), '');
       }
     }
-    
+
     return cleanedUrl;
   }
 
   Future<void> _switchAccount(String accountId) async {
-    final authStateManager = Provider.of<AuthStateManager>(context, listen: false);
+    final authStateManager = Provider.of<AuthStateManager>(
+      context,
+      listen: false,
+    );
     final success = await authStateManager.switchAccount(accountId);
-    
+
     if (success && mounted) {
       Navigator.pop(context); // Close drawer
       final account = authStateManager.currentAccount;
@@ -72,13 +70,14 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => BrowseScreen(
-              baseUrl: account.baseUrl,
-              authToken: account.token,
-              firstName: account.firstName,
-              instanceType: account.instanceType,
-              customerHostname: account.customerHostname,
-            ),
+            builder:
+                (context) => BrowseScreen(
+                  baseUrl: account.baseUrl,
+                  authToken: account.token,
+                  firstName: account.firstName,
+                  instanceType: account.instanceType,
+                  customerHostname: account.customerHostname,
+                ),
           ),
         );
       }
@@ -93,32 +92,38 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
   }
 
   Future<void> _removeAccount(String accountId) async {
-    final authStateManager = Provider.of<AuthStateManager>(context, listen: false);
+    final authStateManager = Provider.of<AuthStateManager>(
+      context,
+      listen: false,
+    );
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Remove Account'),
-        content: const Text('Are you sure you want to remove this account? You will need to log in again to access it.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Remove Account'),
+            content: const Text(
+              'Are you sure you want to remove this account? You will need to log in again to access it.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: TextButton.styleFrom(foregroundColor: EVColors.errorRed),
+                child: const Text('Remove'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: EVColors.errorRed),
-            child: const Text('Remove'),
-          ),
-        ],
-      ),
     );
 
     if (confirmed == true && mounted) {
       final success = await authStateManager.removeAccount(accountId);
-      
+
       if (success && mounted) {
         Navigator.pop(context); // Close drawer
-        
+
         // If no accounts left, go to login
         if (authStateManager.allAccounts.isEmpty) {
           Navigator.pushReplacement(
@@ -132,13 +137,14 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) => BrowseScreen(
-                  baseUrl: account.baseUrl,
-                  authToken: account.token,
-                  firstName: account.firstName,
-                  instanceType: account.instanceType,
-                  customerHostname: account.customerHostname,
-                ),
+                builder:
+                    (context) => BrowseScreen(
+                      baseUrl: account.baseUrl,
+                      authToken: account.token,
+                      firstName: account.firstName,
+                      instanceType: account.instanceType,
+                      customerHostname: account.customerHostname,
+                    ),
               ),
             );
           }
@@ -160,14 +166,16 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
       builder: (context, authStateManager, _) {
         final currentAccount = authStateManager.currentAccount;
         final allAccounts = authStateManager.allAccounts;
-        
+
         // Use current account if available, otherwise fall back to widget properties
         final displayFirstName = currentAccount?.firstName ?? widget.firstName;
         final displayBaseUrl = currentAccount?.baseUrl ?? widget.baseUrl;
         final displayAuthToken = currentAccount?.token ?? widget.authToken;
-        final displayInstanceType = currentAccount?.instanceType ?? widget.instanceType;
-        final displayCustomerHostname = currentAccount?.customerHostname ?? widget.customerHostname;
-        
+        final displayInstanceType =
+            currentAccount?.instanceType ?? widget.instanceType;
+        final displayCustomerHostname =
+            currentAccount?.customerHostname ?? widget.customerHostname;
+
         return Drawer(
           child: ListView(
             padding: EdgeInsets.zero,
@@ -205,7 +213,7 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
                   ],
                 ),
               ),
-              
+
               // Account switching section
               if (allAccounts.isNotEmpty) ...[
                 const Padding(
@@ -229,25 +237,25 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
                     title: Text(
                       account.displayName,
                       style: TextStyle(
-                        fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                        fontWeight:
+                            isActive ? FontWeight.bold : FontWeight.normal,
                       ),
                     ),
                     subtitle: Text(account.displaySubtitle),
-                    trailing: allAccounts.length > 1
-                      ? IconButton(
-                          icon: const Icon(Icons.close, size: 20),
-                          onPressed: () => _removeAccount(account.id),
-                          tooltip: 'Remove account',
-                        )
-                      : null,
-                    onTap: isActive
-                      ? null
-                      : () => _switchAccount(account.id),
+                    trailing:
+                        allAccounts.length > 1
+                            ? IconButton(
+                              icon: const Icon(Icons.close, size: 20),
+                              onPressed: () => _removeAccount(account.id),
+                              tooltip: 'Remove account',
+                            )
+                            : null,
+                    onTap: isActive ? null : () => _switchAccount(account.id),
                   );
                 }),
                 const Divider(),
               ],
-              
+
               // Add Account option
               ListTile(
                 leading: const Icon(Icons.add_circle_outline),
@@ -262,7 +270,7 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
                   );
                 },
               ),
-              
+
               ListTile(
                 leading: const Icon(Icons.folder),
                 title: const Text('Departments'),
@@ -271,13 +279,14 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => BrowseScreen(
-                        baseUrl: displayBaseUrl,
-                        authToken: displayAuthToken,
-                        firstName: displayFirstName,
-                        instanceType: displayInstanceType,
-                        customerHostname: displayCustomerHostname,
-                      ),
+                      builder:
+                          (context) => BrowseScreen(
+                            baseUrl: displayBaseUrl,
+                            authToken: displayAuthToken,
+                            firstName: displayFirstName,
+                            instanceType: displayInstanceType,
+                            customerHostname: displayCustomerHostname,
+                          ),
                     ),
                   );
                 },
@@ -290,13 +299,14 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => FavoritesScreen(
-                        baseUrl: displayBaseUrl,
-                        authToken: displayAuthToken,
-                        firstName: displayFirstName,
-                        instanceType: displayInstanceType,
-                        customerHostname: displayCustomerHostname,
-                      ),
+                      builder:
+                          (context) => FavoritesScreen(
+                            baseUrl: displayBaseUrl,
+                            authToken: displayAuthToken,
+                            firstName: displayFirstName,
+                            instanceType: displayInstanceType,
+                            customerHostname: displayCustomerHostname,
+                          ),
                     ),
                   );
                 },
@@ -309,15 +319,31 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => OfflineSettingsScreen(
-                        instanceType: displayInstanceType,
-                        baseUrl: displayBaseUrl,
-                        authToken: displayAuthToken,
-                      ),
+                      builder:
+                          (context) => OfflineSettingsScreen(
+                            instanceType: displayInstanceType,
+                            baseUrl: displayBaseUrl,
+                            authToken: displayAuthToken,
+                          ),
                     ),
                   );
                 },
               ),
+              if (displayInstanceType.toLowerCase() == 'classic' ||
+                  displayInstanceType.toLowerCase() == 'alfresco')
+                ListTile(
+                  leading: const Icon(Icons.draw),
+                  title: const Text('OpenSign Settings'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const OpenSignSettingsScreen(),
+                      ),
+                    );
+                  },
+                ),
               ListTile(
                 leading: const Icon(Icons.cloud_off),
                 title: const Text('Offline Content'),
@@ -326,12 +352,13 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => OfflineBrowseScreen(
-                        baseUrl: displayBaseUrl,
-                        authToken: displayAuthToken,
-                        firstName: displayFirstName,
-                        instanceType: displayInstanceType,
-                      ),
+                      builder:
+                          (context) => OfflineBrowseScreen(
+                            baseUrl: displayBaseUrl,
+                            authToken: displayAuthToken,
+                            firstName: displayFirstName,
+                            instanceType: displayInstanceType,
+                          ),
                     ),
                   );
                 },
@@ -342,7 +369,8 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
                 title: const Text('Logout'),
                 onTap: () {
                   Navigator.pop(context); // Close the drawer
-                  widget.offlineManager.clearOfflineContent(); // Clear offline content
+                  widget.offlineManager
+                      .clearOfflineContent(); // Clear offline content
                   widget.onLogoutTap(); // Handle logout
                 },
               ),
