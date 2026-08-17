@@ -12,8 +12,8 @@ dependencies:
     sdk: flutter
   
   # Core Flutter Dependencies
-  cupertino_icons: ^1.0.2
-  async: ^2.12.0
+  cupertino_icons: ^1.0.8
+  async: ^2.13.0
   provider: ^6.1.5
   
   # Networking and API
@@ -23,57 +23,56 @@ dependencies:
   mime: ^2.0.0
   
   # Logging
-  logger: ^2.0.2+1
+  logger: ^2.7.0
   
   # PDF Handling
-  syncfusion_flutter_pdf: ^29.1.41
-  syncfusion_flutter_core: ^29.1.41
-  syncfusion_flutter_signaturepad: ^29.1.41
-  pdf: ^3.11.3
-  printing: ^5.14.2
+  syncfusion_flutter_pdf: ^33.1.44
+  syncfusion_flutter_core: ^33.1.44
+  syncfusion_flutter_signaturepad: ^33.1.44
+  pdf: ^3.12.0
+  printing: ^5.14.3
   
   # File System
-  path_provider: ^2.1.2
+  path_provider: ^2.1.6
   
   # Cryptography
   crypto: ^3.0.5
   
   # Sharing
-  share_plus: ^10.1.4
-  share_plus_platform_interface: ^5.0.2
+  share_plus: ^12.0.0
   
   # Device info and file handling
-  device_info_plus: ^11.0.0
-  open_file: ^3.5.10
+  device_info_plus: ^11.5.0
+  open_file: ^4.0.0
   debounce_throttle: ^2.0.0
-  dio: ^5.3.2
-  permission_handler: ^11.3.0
+  dio: ^5.11.0
+  permission_handler: ^13.0.0
   
   # File selection
   file_selector: ^1.0.3
 
   # Security and storage
   flutter_secure_storage: ^9.2.4
-  shared_preferences: ^2.3.2
-  connectivity_plus: ^7.0.0
-  sqflite: ^2.3.0
-  sqflite_common_ffi: ^2.3.2
+  shared_preferences: ^2.5.5
+  connectivity_plus: ^7.3.1
+  sqflite: ^2.4.3
+  sqflite_common_ffi: ^2.4.2
   path: ^1.8.3
   intl: ^0.20.2
-  flutter_svg: ^2.1.0
-  package_info_plus: ^9.0.0
+  flutter_svg: ^2.3.0
+  package_info_plus: ^9.0.1
   archive: ^4.0.7
   xml: ^6.5.0
 
   # File Preview Dependencies
-  flutter_markdown: ^0.6.18
+  flutter_markdown_plus: ^1.0.12
   flutter_html: ^3.0.0-beta.2
-  csv: ^7.1.0
-  image_picker: ^1.2.1
+  csv: ^7.2.0
+  image_picker: ^1.2.3
   microsoft_viewer:
     path: packages/microsoft_viewer
   in_app_file_view: ^1.1.1
-  webview_flutter: ^4.13.0
+  webview_flutter: ^4.14.1
   pdfrx: ^2.4.7
   
   # Document Scanning
@@ -87,7 +86,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   fake_async: ^1.3.2
   flutter_launcher_icons: ^0.14.0
-  msix: ^3.16.9
+  msix: ^3.18.0
 
 
 flutter:

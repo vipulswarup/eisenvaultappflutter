@@ -8,11 +8,13 @@ class ShareUtils {
     String? text,
     String? subject,
   }) async {
-    await Share.shareXFiles(
-      files,
-      text: text,
-      subject: subject,
-      sharePositionOrigin: sharePositionOrigin(context),
+    await SharePlus.instance.share(
+      ShareParams(
+        files: files,
+        text: text,
+        subject: subject,
+        sharePositionOrigin: sharePositionOrigin(context),
+      ),
     );
   }
 
@@ -21,10 +23,12 @@ class ShareUtils {
     required String text,
     String? subject,
   }) async {
-    await Share.share(
-      text,
-      subject: subject,
-      sharePositionOrigin: sharePositionOrigin(context),
+    await SharePlus.instance.share(
+      ShareParams(
+        text: text,
+        subject: subject,
+        sharePositionOrigin: sharePositionOrigin(context),
+      ),
     );
   }
 

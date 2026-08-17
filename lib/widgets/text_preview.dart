@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:path/path.dart' as path;
 import 'package:eisenvaultappflutter/utils/share_utils.dart';
 import 'package:share_plus/share_plus.dart';
