@@ -1,3 +1,5 @@
+import '../../workflows/my_tasks_screen.dart';
+import '../../../services/workflows/alfresco_workflow_service.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/screens/offline/offline_settings_screen.dart';
 import 'package:eisenvaultappflutter/screens/browse/browse_screen.dart';
@@ -317,6 +319,29 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
                   );
                 },
               ),
+              if (displayInstanceType.toLowerCase() == 'classic' ||
+                  displayInstanceType.toLowerCase() == 'alfresco')
+                ListTile(
+                  leading: const Icon(Icons.assignment_outlined),
+                  title: const Text('Workflows'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (_) => MyTasksScreen(
+                              service: AlfrescoWorkflowService(
+                                baseUrl: displayBaseUrl,
+                                authToken: displayAuthToken,
+                              ),
+                              accountLabel:
+                                  '${currentAccount?.username ?? displayFirstName} · ${_cleanServerUrl(displayBaseUrl)}',
+                            ),
+                      ),
+                    );
+                  },
+                ),
               ListTile(
                 leading: const Icon(Icons.star),
                 title: const Text('Favourites'),
