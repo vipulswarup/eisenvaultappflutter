@@ -368,37 +368,26 @@ class BrowseScreenController extends ChangeNotifier {
 
   /// Applies current filter and sort options to items
   void _applyFilterAndSort() {
-    // Determine source items - prefer _allItems, fallback to items if _allItems is empty
-    // This handles edge cases where filters are applied before _allItems is populated
-    final sourceItems = _allItems.isNotEmpty ? _allItems : items;
-
-    if (sourceItems.isEmpty) {
+    // _allItems is the unfiltered source of truth, including empty folders.
+    // Falling back to `items` when _allItems is empty re-shows the previous
+    // folder after navigating into a newly created (empty) folder.
+    if (_allItems.isEmpty) {
+      items = [];
       EVLogger.productionLog('_applyFilterAndSort: No items to filter/sort');
       return;
     }
 
     EVLogger.productionLog(
-      '_applyFilterAndSort: Applying filters/sort to ${sourceItems.length} items (using ${_allItems.isNotEmpty ? "_allItems" : "items"} as source)',
+      '_applyFilterAndSort: Applying filters/sort to ${_allItems.length} items (using _allItems as source)',
     );
     final filteredSorted = FilterSortService.applyFilterAndSort(
-      sourceItems,
+      _allItems,
       _filterSortOptions,
     );
     EVLogger.productionLog(
       '_applyFilterAndSort: Result has ${filteredSorted.length} items',
     );
     items = filteredSorted;
-
-    // If we used items as source and _allItems was empty, update _allItems for future operations
-    // But only if we don't have active filters (to avoid storing filtered data as "all items")
-    if (_allItems.isEmpty &&
-        !_filterSortOptions.hasActiveFilters &&
-        items.isNotEmpty) {
-      _allItems = List<BrowseItem>.from(sourceItems);
-      EVLogger.productionLog(
-        '_applyFilterAndSort: Synced items to _allItems (${_allItems.length} items)',
-      );
-    }
   }
 
   /// Loads top-level departments/folders

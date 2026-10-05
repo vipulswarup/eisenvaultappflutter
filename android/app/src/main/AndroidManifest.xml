@@ -105,13 +105,6 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-        
-        <!-- ML Kit barcode model dependency - Temporarily disabled due to 16KB page size compliance issue -->
-        <!--
-        <meta-data
-            android:name="com.google.mlkit.vision.DEPENDENCIES"
-            android:value="barcode" />
-        -->
     </application>
 
     <queries>

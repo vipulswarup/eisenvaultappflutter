@@ -32,7 +32,6 @@ import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:eisenvaultappflutter/screens/browse/components/action_button_builder.dart';
-import 'dart:io' show Platform;
 
 /// BrowseScreen handles online browsing of the repository content.
 class BrowseScreen extends StatefulWidget {
@@ -907,15 +906,15 @@ class _BrowseScreenState extends State<BrowseScreen> {
   }
 
   void _handleScanDocument() async {
-    if (!(Platform.isAndroid || Platform.isIOS)) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Document scanning is temporarily disabled. Please use the camera or gallery options instead.',
-        ),
-        backgroundColor: EVColors.statusWarning,
-      ),
+    final handler = MediaUploadHandler(
+      context: context,
+      instanceType: widget.instanceType,
+      baseUrl: widget.baseUrl,
+      authToken: widget.authToken,
+      getCurrentFolderId: () => _controller?.currentFolder?.id,
+      onUploadComplete: _refreshCurrentFolder,
     );
+    await handler.scanDocumentAndUpload();
   }
 
   void _handleUploadFromGallery() async {

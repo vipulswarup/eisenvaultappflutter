@@ -45,12 +45,10 @@ class _OfficeDocumentPreviewState extends State<OfficeDocumentPreview> {
 
     return Column(
       children: [
-        Expanded(
-          child: MicrosoftViewer(
-            widget.bytes,
-            false,
-            key: ValueKey(widget.fileName),
-          ),
+        MicrosoftViewer(
+          widget.bytes,
+          false,
+          key: ValueKey(widget.fileName),
         ),
         if (_fallbackText != null)
           TextButton.icon(

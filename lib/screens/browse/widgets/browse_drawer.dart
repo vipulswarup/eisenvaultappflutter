@@ -8,6 +8,7 @@ import 'package:eisenvaultappflutter/screens/signing/opensign_settings_screen.da
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/services/auth/auth_state_manager.dart';
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 
 /// Drawer for the browse screen
@@ -36,6 +37,23 @@ class BrowseDrawer extends StatefulWidget {
 }
 
 class _BrowseDrawerState extends State<BrowseDrawer> {
+  String? _appVersion;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAppVersion();
+  }
+
+  Future<void> _loadAppVersion() async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    if (!mounted) return;
+
+    setState(() {
+      _appVersion = '${packageInfo.version} (${packageInfo.buildNumber})';
+    });
+  }
+
   /// Cleans the server URL by removing common suffixes like /alfresco
   String _cleanServerUrl(String url) {
     // Remove trailing slashes first
@@ -205,6 +223,14 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
                     const SizedBox(height: 4),
                     Text(
                       'Server: ${_cleanServerUrl(displayBaseUrl)}',
+                      style: const TextStyle(
+                        color: EVColors.sidebarForegroundMuted,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'App version: ${_appVersion ?? 'Loading…'}',
                       style: const TextStyle(
                         color: EVColors.sidebarForegroundMuted,
                         fontSize: 12,

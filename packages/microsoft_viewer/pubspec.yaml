@@ -15,7 +15,6 @@ dependencies:
   path_provider: ^2.1.5
   flutter_widget_from_html: ^0.17.0
   collection: ^1.19.1
-  flutter_isolate: ^2.1.0
   intl: ^0.20.2
 
 dev_dependencies:
@@ -35,5 +34,4 @@ platforms:
   web:
   linux:
   macos:
-
 

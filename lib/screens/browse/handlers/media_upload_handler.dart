@@ -1,12 +1,14 @@
 import 'dart:io' show Platform;
+import 'package:cunning_document_scanner/cunning_document_scanner.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart' as p;
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/services/upload/upload_service_factory.dart';
 import 'package:eisenvaultappflutter/services/permission_service.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 
-/// Handles camera and gallery uploads from the browse screen.
+/// Handles camera, gallery, and document-scan uploads from the browse screen.
 class MediaUploadHandler {
   final BuildContext context;
   final String instanceType;
@@ -41,9 +43,13 @@ class MediaUploadHandler {
     XFile? image;
 
     if (Platform.isAndroid) {
-      final hasCameraPermission = await PermissionService.checkCameraPermission();
+      final hasCameraPermission =
+          await PermissionService.checkCameraPermission();
       if (!hasCameraPermission) {
-        final granted = await PermissionService.requestCameraPermission(context);
+        if (!context.mounted) return;
+        final granted = await PermissionService.requestCameraPermission(
+          context,
+        );
         if (!granted) return;
       }
       image = await picker.pickImage(source: ImageSource.camera);
@@ -70,7 +76,66 @@ class MediaUploadHandler {
     }
   }
 
-  Future<void> _uploadFiles(List<XFile> files, {required bool isCameraImage}) async {
+  /// Scan a document with VisionKit (iOS) or Play Services document scanner
+  /// (Android, with the plugin's fallback cropper) and upload the result.
+  Future<void> scanDocumentAndUpload() async {
+    if (!(Platform.isAndroid || Platform.isIOS)) return;
+
+    if (_isIOSSimulator()) {
+      _showSnackbar(
+        'Document scanning is not supported on the iOS simulator. Please use a physical device.',
+        EVColors.statusWarning,
+      );
+      return;
+    }
+
+    final options = await _showScanOptionsDialog();
+    if (options == null || !context.mounted) return;
+
+    try {
+      final pictures = await CunningDocumentScanner.getPictures(
+        asPdf: options.asPdf,
+        scannerSource: ScannerSource.cameraAndGallery,
+        androidScannerMode: AndroidScannerMode.full,
+        iosScannerOptions: IosScannerOptions(
+          imageFormat: IosImageFormat.jpg,
+          jpgCompressionQuality: 0.85,
+        ),
+      );
+      if (pictures == null || pictures.isEmpty || !context.mounted) return;
+
+      final extension = options.asPdf ? '.pdf' : '.jpg';
+      final fileName = await _getCustomFileName(extension);
+      if (fileName == null || !context.mounted) return;
+
+      await _uploadScannedFiles(pictures, fileName);
+    } on CunningDocumentScannerException catch (e) {
+      if (e.code == 'permission_denied') {
+        _showSnackbar(
+          'Camera permission is required to scan documents',
+          EVColors.statusError,
+        );
+        return;
+      }
+      EVLogger.error('Error scanning document', e);
+      _showSnackbar(
+        'Error scanning document: ${e.message}',
+        EVColors.statusError,
+      );
+    } catch (e) {
+      EVLogger.error('Error scanning document', e);
+      _showSnackbar('Error scanning document: $e', EVColors.statusError);
+    } finally {
+      try {
+        await CunningDocumentScanner.cleanCache();
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _uploadFiles(
+    List<XFile> files, {
+    required bool isCameraImage,
+  }) async {
     final parentFolderId = getCurrentFolderId();
     if (parentFolderId == null) {
       _showSnackbar('No folder selected', EVColors.statusError);
@@ -107,13 +172,201 @@ class MediaUploadHandler {
       }
 
       if (context.mounted) Navigator.of(context).pop();
-      final label = files.length == 1 ? 'Image uploaded successfully' : 'Images uploaded successfully';
+      final label =
+          files.length == 1
+              ? 'Image uploaded successfully'
+              : 'Images uploaded successfully';
       _showSnackbar(label, EVColors.successGreen);
       await onUploadComplete();
     } catch (e) {
       if (context.mounted) Navigator.of(context).pop();
       _showSnackbar('Failed to upload: $e', EVColors.statusError);
     }
+  }
+
+  Future<void> _uploadScannedFiles(
+    List<String> filePaths,
+    String fileName,
+  ) async {
+    final parentFolderId = getCurrentFolderId();
+    if (parentFolderId == null) {
+      _showSnackbar('No folder selected', EVColors.statusError);
+      return;
+    }
+
+    final uploadService = UploadServiceFactory.getService(
+      instanceType: instanceType,
+      baseUrl: baseUrl,
+      authToken: authToken,
+    );
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      for (var i = 0; i < filePaths.length; i++) {
+        final filePath = filePaths[i];
+        final extension =
+            p.extension(filePath).isNotEmpty
+                ? p.extension(filePath)
+                : p.extension(fileName);
+        final uploadName =
+            filePaths.length == 1
+                ? fileName
+                : '${p.basenameWithoutExtension(fileName)}_page_${i + 1}$extension';
+        await uploadService.uploadDocument(
+          parentFolderId: parentFolderId,
+          filePath: filePath,
+          fileName: uploadName,
+        );
+      }
+
+      if (context.mounted) Navigator.of(context).pop();
+      final label =
+          filePaths.length == 1
+              ? 'Scanned document uploaded successfully'
+              : '${filePaths.length} scanned documents uploaded successfully';
+      _showSnackbar(label, EVColors.successGreen);
+      await onUploadComplete();
+    } catch (e) {
+      if (context.mounted) Navigator.of(context).pop();
+      _showSnackbar(
+        'Failed to upload scanned documents: $e',
+        EVColors.statusError,
+      );
+    }
+  }
+
+  Future<_ScanOptions?> _showScanOptionsDialog() async {
+    var asPdf = false;
+
+    return showDialog<_ScanOptions>(
+      context: context,
+      builder:
+          (dialogCtx) => StatefulBuilder(
+            builder:
+                (context, setState) => AlertDialog(
+                  backgroundColor: EVColors.cardBackground,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  title: const Text(
+                    'Scan Options',
+                    style: TextStyle(color: EVColors.textDefault),
+                  ),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Output Format:',
+                          style: TextStyle(
+                            color: EVColors.textDefault,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      DropdownButton<bool>(
+                        value: asPdf,
+                        items: const [
+                          DropdownMenuItem(
+                            value: false,
+                            child: Text('Images (JPG)'),
+                          ),
+                          DropdownMenuItem(value: true, child: Text('PDF')),
+                        ],
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setState(() => asPdf = value);
+                        },
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(dialogCtx).pop(),
+                      child: const Text(
+                        'CANCEL',
+                        style: TextStyle(color: EVColors.textSecondary),
+                      ),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: EVColors.buttonBackground,
+                        foregroundColor: EVColors.buttonForeground,
+                      ),
+                      onPressed:
+                          () => Navigator.of(
+                            dialogCtx,
+                          ).pop(_ScanOptions(asPdf: asPdf)),
+                      child: const Text('SCAN'),
+                    ),
+                  ],
+                ),
+          ),
+    );
+  }
+
+  Future<String?> _getCustomFileName(String extension) async {
+    var fileName = 'scanned_document_${DateTime.now().millisecondsSinceEpoch}';
+
+    final result = await showDialog<String>(
+      context: context,
+      builder:
+          (dialogCtx) => AlertDialog(
+            backgroundColor: EVColors.cardBackground,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Text(
+              'Name Your File',
+              style: TextStyle(color: EVColors.textDefault),
+            ),
+            content: TextFormField(
+              initialValue: fileName,
+              autofocus: true,
+              onChanged: (value) => fileName = value,
+              decoration: InputDecoration(
+                labelText: 'File Name',
+                labelStyle: const TextStyle(color: EVColors.textFieldLabel),
+                enabledBorder: const UnderlineInputBorder(
+                  borderSide: BorderSide(color: EVColors.textFieldBorder),
+                ),
+                focusedBorder: const UnderlineInputBorder(
+                  borderSide: BorderSide(color: EVColors.buttonBackground),
+                ),
+                suffixText: extension,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogCtx).pop(),
+                child: const Text(
+                  'CANCEL',
+                  style: TextStyle(color: EVColors.textSecondary),
+                ),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: EVColors.buttonBackground,
+                  foregroundColor: EVColors.buttonForeground,
+                ),
+                onPressed: () {
+                  final stem = fileName.trim();
+                  if (stem.isEmpty) return;
+                  Navigator.of(dialogCtx).pop('$stem$extension');
+                },
+                child: const Text('SAVE'),
+              ),
+            ],
+          ),
+    );
+    return result;
   }
 
   bool _isIOSSimulator() {
@@ -132,4 +385,10 @@ class MediaUploadHandler {
       SnackBar(content: Text(message), backgroundColor: backgroundColor),
     );
   }
+}
+
+class _ScanOptions {
+  final bool asPdf;
+
+  const _ScanOptions({required this.asPdf});
 }

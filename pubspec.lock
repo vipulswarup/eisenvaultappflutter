@@ -201,6 +201,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "7.2.0"
+  cunning_document_scanner:
+    dependency: "direct main"
+    description:
+      name: cunning_document_scanner
+      sha256: "7fc553dc9c9413e041bc898cf234292e9923e1d8acd74055c8bb9a7501590ae6"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.0.1"
   cupertino_icons:
     dependency: "direct main"
     description:
@@ -374,14 +382,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.0"
-  flutter_isolate:
-    dependency: transitive
-    description:
-      name: flutter_isolate
-      sha256: "36a84e1a22371d8092ea2121145b330c24fb272acb951fb30c60ba44926b8fb3"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.1.0"
   flutter_launcher_icons:
     dependency: "direct dev"
     description:
@@ -1088,7 +1088,7 @@ packages:
     source: hosted
     version: "2.4.7"
   pdfrx_engine:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
       name: pdfrx_engine
       sha256: ef8f8cfa64255bfc91a559dd2d32d7cfe7a0f8003bac297bbf9a0aed1182fae5

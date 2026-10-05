@@ -140,9 +140,20 @@
 -keep class io.flutter.plugins.imagepicker.** { *; }
 -dontwarn io.flutter.plugins.imagepicker.**
 
-# AIO Scanner
--keep class com.aio_scanner.** { *; }
--dontwarn com.aio_scanner.**
+# Cunning Document Scanner
+-keep class biz.cunning.cunning_document_scanner.** { *; }
+-dontwarn biz.cunning.cunning_document_scanner.**
+
+# WorkManager uses Room to construct this generated database by reflection.
+# Keeping its no-argument constructor prevents R8 from removing it in releases.
+-keep class androidx.work.impl.WorkDatabase_Impl {
+    public <init>();
+}
+
+# ML Kit instantiates this registrar by the fully-qualified name in its manifest.
+-keep class com.google.mlkit.common.internal.CommonComponentRegistrar {
+    public <init>();
+}
 
 # URL Launcher
 -keep class io.flutter.plugins.urllauncher.** { *; }
@@ -205,4 +216,4 @@
 -keep class com.crazecoder.** { *; }
 -keep class net.nfet.** { *; }
 -keep class com.syncfusion.** { *; }
--keep class com.aio_scanner.** { *; }
+-keep class biz.cunning.cunning_document_scanner.** { *; }
