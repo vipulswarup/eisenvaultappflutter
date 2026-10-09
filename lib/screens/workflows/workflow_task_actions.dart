@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../models/workflow_task_form.dart';
+import '../../constants/colors.dart';
 import '../../services/workflows/alfresco_workflow_service.dart';
 import '../../services/workflows/workflow_draft_store.dart';
 
 class WorkflowTaskActions extends StatefulWidget {
   final WorkflowActionService service;
   final String taskId, accountId;
-  final VoidCallback onCompleted;
+  final ValueChanged<String> onCompleted;
   const WorkflowTaskActions({
     super.key,
     required this.service,
@@ -92,10 +93,40 @@ class _WorkflowTaskActionsState extends State<WorkflowTaskActions> {
       _error = null;
     });
     try {
+      final action = _form!.actions.singleWhere((a) => a.id == transition);
+      if (action.requiresConfirmation) {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder:
+              (dialogContext) => AlertDialog(
+                title: const Text('Reject task?'),
+                content: const Text(
+                  'This will submit a rejection for this review task.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(false),
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor:
+                          Theme.of(dialogContext).colorScheme.error,
+                      foregroundColor:
+                          Theme.of(dialogContext).colorScheme.onError,
+                    ),
+                    onPressed: () => Navigator.of(dialogContext).pop(true),
+                    child: Text(action.label),
+                  ),
+                ],
+              ),
+        );
+        if (confirmed != true || !mounted) return;
+      }
       await _writes;
       await widget.service.completeTask(_form!, _values, transition);
       await _draft.clear();
-      if (mounted) widget.onCompleted();
+      if (mounted) widget.onCompleted(transition);
     } catch (e) {
       if (!mounted) return;
       if (e is WorkflowTaskChanged) {
@@ -118,100 +149,171 @@ class _WorkflowTaskActionsState extends State<WorkflowTaskActions> {
   Widget build(BuildContext context) {
     if (_loading) return const LinearProgressIndicator();
     final form = _form;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (_notice != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Text(_notice!),
-          ),
-        if (_error != null) Text(_error!),
-        if (form == null)
-          TextButton(
-            onPressed:
-                _submitting
-                    ? null
-                    : () {
-                      setState(() => _loading = true);
-                      _load();
-                    },
-            child: const Text('Refresh task form'),
-          ),
-        if (form?.unavailableReason != null) Text(form!.unavailableReason!),
-        if (form != null && form.unavailableReason == null)
-          Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Complete task',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 12),
-                for (final field in form.fields)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child:
-                        field.choices.isNotEmpty
-                            ? DropdownButtonFormField<String>(
-                              key: ValueKey('${form.fingerprint}:${field.key}'),
-                              initialValue:
-                                  field.choices.containsKey(_values[field.key])
-                                      ? _values[field.key]
-                                      : null,
-                              isExpanded: true,
-                              decoration: InputDecoration(
-                                labelText:
-                                    '${field.label}${field.required ? ' *' : ''}',
+    return Card(
+      elevation: 0,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_notice != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(_notice!),
+              ),
+            if (_error != null) Text(_error!),
+            if (form == null)
+              TextButton(
+                onPressed:
+                    _submitting
+                        ? null
+                        : () {
+                          setState(() => _loading = true);
+                          _load();
+                        },
+                child: const Text('Refresh task form'),
+              ),
+            if (form?.unavailableReason != null) Text(form!.unavailableReason!),
+            if (form != null && form.unavailableReason == null)
+              Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      form.actions.any(
+                            (a) => a.id == 'Approve' || a.id == 'Reject',
+                          )
+                          ? 'Review task'
+                          : 'Complete task',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 12),
+                    for (final field in form.fields)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child:
+                            field.choices.isNotEmpty
+                                ? DropdownButtonFormField<String>(
+                                  key: ValueKey(
+                                    '${form.fingerprint}:${field.key}',
+                                  ),
+                                  initialValue:
+                                      field.choices.containsKey(
+                                            _values[field.key],
+                                          )
+                                          ? _values[field.key]
+                                          : null,
+                                  isExpanded: true,
+                                  decoration: InputDecoration(
+                                    labelText:
+                                        '${field.label}${field.required ? ' *' : ''}',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    alignLabelWithHint: true,
+                                    contentPadding: const EdgeInsets.all(16),
+                                  ),
+                                  items:
+                                      field.choices.entries
+                                          .map(
+                                            (e) => DropdownMenuItem(
+                                              value: e.key,
+                                              child: Text(e.value),
+                                            ),
+                                          )
+                                          .toList(),
+                                  onChanged:
+                                      _submitting
+                                          ? null
+                                          : (value) {
+                                            if (value != null) {
+                                              _save(field.key, value);
+                                            }
+                                          },
+                                  validator:
+                                      (value) => field.validate(value ?? ''),
+                                )
+                                : TextFormField(
+                                  key: ValueKey(
+                                    '${form.fingerprint}:${field.key}',
+                                  ),
+                                  initialValue: _values[field.key],
+                                  enabled: !_submitting,
+                                  decoration: InputDecoration(
+                                    labelText:
+                                        '${field.label}${field.required ? ' *' : ''}',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    alignLabelWithHint: true,
+                                    contentPadding: const EdgeInsets.all(16),
+                                  ),
+                                  keyboardType:
+                                      field.dataType == 'int'
+                                          ? TextInputType.number
+                                          : TextInputType.multiline,
+                                  maxLines: field.name == 'bpm:comment' ? 3 : 1,
+                                  onChanged: (value) => _save(field.key, value),
+                                  validator:
+                                      (value) => field.validate(value ?? ''),
+                                ),
+                      ),
+                    const Divider(height: 32),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        for (final action in form.actions)
+                          if (action.id == 'Reject')
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor:
+                                    Theme.of(context).colorScheme.error,
+                                side: BorderSide(
+                                  color: Theme.of(context).colorScheme.error,
+                                ),
+                                minimumSize: const Size(132, 48),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                  vertical: 14,
+                                ),
                               ),
-                              items:
-                                  field.choices.entries
-                                      .map(
-                                        (e) => DropdownMenuItem(
-                                          value: e.key,
-                                          child: Text(e.value),
-                                        ),
-                                      )
-                                      .toList(),
-                              onChanged:
-                                  _submitting
-                                      ? null
-                                      : (value) {
-                                        if (value != null) {
-                                          _save(field.key, value);
-                                        }
-                                      },
-                              validator: (value) => field.validate(value ?? ''),
+                              onPressed:
+                                  _submitting ? null : () => _submit(action.id),
+                              icon: const Icon(Icons.close_rounded, size: 20),
+                              label: Text(
+                                _submitting ? 'Submitting…' : action.label,
+                              ),
                             )
-                            : TextFormField(
-                              key: ValueKey('${form.fingerprint}:${field.key}'),
-                              initialValue: _values[field.key],
-                              enabled: !_submitting,
-                              decoration: InputDecoration(
-                                labelText:
-                                    '${field.label}${field.required ? ' *' : ''}',
+                          else
+                            FilledButton.icon(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: EVColors.buttonBackground,
+                                foregroundColor: EVColors.buttonForeground,
+                                minimumSize: const Size(132, 48),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                  vertical: 14,
+                                ),
                               ),
-                              keyboardType:
-                                  field.dataType == 'int'
-                                      ? TextInputType.number
-                                      : TextInputType.multiline,
-                              maxLines: field.name == 'bpm:comment' ? 3 : 1,
-                              onChanged: (value) => _save(field.key, value),
-                              validator: (value) => field.validate(value ?? ''),
+                              onPressed:
+                                  _submitting ? null : () => _submit(action.id),
+                              icon: const Icon(Icons.check_rounded, size: 20),
+                              label: Text(
+                                _submitting ? 'Submitting…' : action.label,
+                              ),
                             ),
-                  ),
-                for (final transition in form.transitions.entries)
-                  FilledButton(
-                    onPressed:
-                        _submitting ? null : () => _submit(transition.key),
-                    child: Text(_submitting ? 'Submitting…' : transition.value),
-                  ),
-              ],
-            ),
-          ),
-      ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

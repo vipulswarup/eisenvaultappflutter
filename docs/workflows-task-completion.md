@@ -38,4 +38,4 @@ For a dedicated existing test task, `dart run tool/workflow_live_check.dart <alf
 
 ## Next
 
-Extend validated controls and workflow types, followed by review approve/reject actions and group claim/release. Signature transitions must remain disabled until signing/versioning recovery is implemented and tested.
+Standard review approve/reject actions are covered in [the next increment](workflows-review-actions.md). Group claim/release and broader form support remain next. Signature transitions must remain disabled until signing/versioning recovery is implemented and tested.

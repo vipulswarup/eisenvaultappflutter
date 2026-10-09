@@ -253,7 +253,7 @@ void main() {
             service: service,
             taskId: 'activiti\$test',
             accountId: 'a',
-            onCompleted: () {},
+            onCompleted: (_) {},
           ),
         ),
       );
@@ -315,7 +315,7 @@ void main() {
             service: service,
             taskId: 'activiti\$test',
             accountId: 'a',
-            onCompleted: () {},
+            onCompleted: (_) {},
           ),
         ),
       ),

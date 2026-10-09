@@ -1,4 +1,6 @@
 import '../workflows/workflow_draft_store.dart';
+import 'classic_session_validator.dart';
+import 'package:http/http.dart' as http;
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show ChangeNotifier, kIsWeb;
 import 'package:flutter/services.dart';
@@ -41,7 +43,7 @@ class AuthStateManager extends ChangeNotifier {
 
   /// Initialize the auth state manager
   /// This should be called when the app starts
-  Future<void> initialize() async {
+  Future<void> initialize({http.Client? sessionClient}) async {
     try {
       // Load all accounts
       _allAccounts = await _multiAccountAuth.getAllAccounts();
@@ -66,6 +68,20 @@ class AuthStateManager extends ChangeNotifier {
         }
       }
 
+      final account = _currentAccount;
+      if (account != null &&
+          [
+            'classic',
+            'alfresco',
+          ].contains(account.instanceType.toLowerCase()) &&
+          await isClassicSessionRejected(
+            account.baseUrl,
+            account.token,
+            client: sessionClient,
+          )) {
+        _currentAccount = null;
+        _isAuthenticated = false;
+      }
       notifyListeners();
     } catch (e) {
       EVLogger.error('Failed to initialize auth state', e);
@@ -242,7 +258,6 @@ class AuthStateManager extends ChangeNotifier {
     try {
       final success = await _multiAccountAuth.removeAccount(accountId);
       if (success) {
-        await WorkflowDraftStore.clearAccount(accountId);
         _allAccounts = await _multiAccountAuth.getAllAccounts();
 
         // If we removed the current account, update current account
@@ -252,6 +267,12 @@ class AuthStateManager extends ChangeNotifier {
         }
 
         notifyListeners();
+        // Draft cleanup must not prevent signing out after credentials are removed.
+        try {
+          await WorkflowDraftStore.clearAccount(accountId);
+        } catch (e) {
+          EVLogger.error('Failed to clear workflow drafts after logout', e);
+        }
       }
       return success;
     } catch (e) {
@@ -264,7 +285,9 @@ class AuthStateManager extends ChangeNotifier {
   Future<void> logout() async {
     try {
       if (_currentAccount != null) {
-        await removeAccount(_currentAccount!.id);
+        if (!await removeAccount(_currentAccount!.id)) {
+          throw StateError('Could not remove saved account. Please try again.');
+        }
       }
 
       // If no accounts left, clear state

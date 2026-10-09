@@ -1,4 +1,5 @@
 import '../../workflows/my_tasks_screen.dart';
+import '../handlers/auth_handler.dart';
 import '../../../services/workflows/alfresco_workflow_service.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/screens/offline/offline_settings_screen.dart';
@@ -10,6 +11,7 @@ import 'package:eisenvaultappflutter/screens/signing/opensign_settings_screen.da
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/services/auth/auth_state_manager.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 
@@ -322,7 +324,18 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
               if (displayInstanceType.toLowerCase() == 'classic' ||
                   displayInstanceType.toLowerCase() == 'alfresco')
                 ListTile(
-                  leading: const Icon(Icons.assignment_outlined),
+                  leading: SvgPicture.asset(
+                    'assets/icons/workflow_shape.svg',
+                    width: IconTheme.of(context).size ?? 24,
+                    height: IconTheme.of(context).size ?? 24,
+                    colorFilter: ColorFilter.mode(
+                      ListTileTheme.of(context).iconColor ??
+                          IconTheme.of(context).color ??
+                          Theme.of(context).colorScheme.onSurfaceVariant,
+                      BlendMode.srcIn,
+                    ),
+                    excludeFromSemantics: true,
+                  ),
                   title: const Text('Workflows'),
                   onTap: () {
                     Navigator.pop(context);
@@ -330,7 +343,14 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
                       context,
                       MaterialPageRoute(
                         builder:
-                            (_) => MyTasksScreen(
+                            (taskContext) => MyTasksScreen(
+                              onSignIn:
+                                  () =>
+                                      AuthHandler(
+                                        context: taskContext,
+                                        instanceType: displayInstanceType,
+                                        baseUrl: displayBaseUrl,
+                                      ).performLogout(),
                               service: AlfrescoWorkflowService(
                                 baseUrl: displayBaseUrl,
                                 authToken: displayAuthToken,

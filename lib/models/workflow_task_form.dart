@@ -68,6 +68,19 @@ class WorkflowFormField {
   Object value(String text) => dataType == 'int' ? int.parse(text) : text;
 }
 
+class WorkflowTaskAction {
+  final String id, label, transitionId;
+  final Map<String, String> properties;
+  final bool requiresConfirmation;
+  const WorkflowTaskAction({
+    required this.id,
+    required this.label,
+    required this.transitionId,
+    this.properties = const {},
+    this.requiresConfirmation = false,
+  });
+}
+
 /// A deliberately limited, fail-closed standard task form.
 class WorkflowTaskForm {
   final String taskId, fingerprint;
@@ -75,6 +88,7 @@ class WorkflowTaskForm {
   final Map<String, dynamic> data;
   final Map<String, String> transitions;
   final String? unavailableReason;
+  final List<WorkflowTaskAction> actions;
   WorkflowTaskForm._(
     this.taskId,
     this.fingerprint,
@@ -82,7 +96,16 @@ class WorkflowTaskForm {
     this.data,
     this.transitions,
     this.unavailableReason,
+    this.actions,
   );
+
+  static bool supportsTask(Map<String, dynamic> task) {
+    final workflow = (task['workflowInstance'] as Map?)?['name'];
+    return (workflow == 'activiti\$activitiAdhoc' &&
+            ['wf:adhocTask', 'wf:completedAdhocTask'].contains(task['name'])) ||
+        (workflow == 'activiti\$activitiReview' &&
+            task['name'] == 'wf:activitiReviewTask');
+  }
 
   factory WorkflowTaskForm.fromJson(
     String taskId,
@@ -96,15 +119,38 @@ class WorkflowTaskForm {
     final data = Map<String, dynamic>.from(form['formData'] as Map);
     final workflow = task['workflowInstance'] as Map? ?? {};
     String? reason;
-    if (workflow['name'] != 'activiti\$activitiAdhoc' ||
-        !['wf:adhocTask', 'wf:completedAdhocTask'].contains(task['name'])) {
+    if (!supportsTask(task)) {
       reason = 'Task actions for this workflow are not supported yet.';
     } else if (task['isEditable'] != true || task['isPooled'] == true) {
       reason = 'This task is not currently available for completion.';
     }
+    final isReview = workflow['name'] == 'activiti\$activitiReview';
+    final outcome =
+        isReview
+            ? fields.where((f) => f.name == 'wf:reviewOutcome').firstOrNull
+            : null;
+    final outcomeName =
+        (task['properties'] as Map?)?['bpm_outcomePropertyName'] ??
+        data['prop_bpm_outcomePropertyName'];
+    if (isReview &&
+        (outcome == null ||
+            !outcome.supported ||
+            outcome.protected ||
+            ![
+              'wf:reviewOutcome',
+              '{http://www.alfresco.org/model/workflow/1.0}reviewOutcome',
+            ].contains(outcomeName) ||
+            outcome.choices.isEmpty ||
+            outcome.choices.keys.any(
+              (value) => !['Approve', 'Reject'].contains(value),
+            ))) {
+      reason ??= 'The review outcome control is unsupported or unavailable.';
+    }
     final visible = <WorkflowFormField>[];
     for (final field in fields) {
-      if (field.protected) continue;
+      if (field.protected || (isReview && field.name == 'wf:reviewOutcome')) {
+        continue;
+      }
       if (field.metadata['type'] == 'association' &&
           field.name == 'bpm:assignee' &&
           (data[field.key]?.toString().isNotEmpty ?? false)) {
@@ -134,6 +180,34 @@ class WorkflowTaskForm {
     if (transitions.keys.any((key) => key != 'Next')) {
       reason ??= 'This task uses an unsupported transition.';
     }
+    final actions = <WorkflowTaskAction>[];
+    if (isReview && outcome != null && transitions.containsKey('Next')) {
+      for (final choice in outcome.choices.entries) {
+        if (outcome.validate(choice.key) != null) {
+          reason ??=
+              'The review outcome does not satisfy the server form rules.';
+        }
+        actions.add(
+          WorkflowTaskAction(
+            id: choice.key,
+            label: choice.value,
+            transitionId: 'Next',
+            properties: {outcome.key: choice.key},
+            requiresConfirmation: choice.key == 'Reject',
+          ),
+        );
+      }
+    } else if (!isReview) {
+      for (final transition in transitions.entries) {
+        actions.add(
+          WorkflowTaskAction(
+            id: transition.key,
+            label: transition.value,
+            transitionId: transition.key,
+          ),
+        );
+      }
+    }
     return WorkflowTaskForm._(
       taskId,
       sha256
@@ -145,6 +219,7 @@ class WorkflowTaskForm {
       data,
       transitions,
       reason,
+      actions,
     );
   }
 
@@ -153,21 +228,20 @@ class WorkflowTaskForm {
       f.key: (data[f.key] ?? f.metadata['defaultValue'] ?? '').toString(),
   };
 
-  Map<String, dynamic> submission(
-    Map<String, String> values,
-    String transition,
-  ) {
+  Map<String, dynamic> submission(Map<String, String> values, String actionId) {
     if (unavailableReason != null) throw StateError(unavailableReason!);
-    if (!transitions.containsKey(transition)) {
+    final action = actions.where((a) => a.id == actionId).firstOrNull;
+    if (action == null) {
       throw StateError('Task action is unavailable');
     }
-    final result = <String, dynamic>{'prop_transitions': transition};
+    final result = <String, dynamic>{'prop_transitions': action.transitionId};
     for (final field in fields) {
       final text = values[field.key] ?? '';
       final error = field.validate(text);
       if (error != null) throw FormatException(error);
       result[field.key] = field.value(text);
     }
+    result.addAll(action.properties);
     return result;
   }
 }

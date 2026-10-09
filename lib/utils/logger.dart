@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:logger/logger.dart';
 import 'dart:convert';
 
@@ -16,21 +15,20 @@ final _logger = Logger(
 
 class EVLogger {
   /// Flag to control whether sensitive data should be sanitized.
-  /// Defaults to true in release builds to prevent credential leakage.
-  /// Set to false in debug builds when you need to see full authorization keys.
-  static bool sanitizeSensitiveData = kReleaseMode;
+  /// Enabled in debug and release builds to prevent credential leakage.
+  static bool sanitizeSensitiveData = true;
 
   /// Sanitizes sensitive data in logs
   static dynamic _sanitizeData(dynamic data) {
     if (data == null) return null;
-    
+
     // If sanitization is disabled, return the data as is
     if (!sanitizeSensitiveData) return data;
-    
+
     // If data is a string, check if it's JSON and sanitize if needed
     if (data is String) {
       // Try to parse as JSON if it looks like JSON
-      if ((data.startsWith('{') && data.endsWith('}')) || 
+      if ((data.startsWith('{') && data.endsWith('}')) ||
           (data.startsWith('[') && data.endsWith(']'))) {
         try {
           final jsonData = json.decode(data);
@@ -43,48 +41,51 @@ class EVLogger {
       }
       return data;
     }
-    
+
     // If data is a map, sanitize its values
     if (data is Map) {
       final sanitizedMap = Map<dynamic, dynamic>.from(data);
-      
+
       // Sanitize known sensitive keys
       final sensitiveKeys = [
-        'Authorization', 
+        'Authorization',
         'authorization',
-        'token', 
-        'accessToken', 
-        'refreshToken',
+        'token',
+        'accesstoken',
+        'authtoken',
+        'alfrescoticket',
+        'refreshtoken',
         'password',
         'secret',
         'api_key',
-        'apiKey'
+        'apikey',
       ];
-      
+
       for (final key in sanitizedMap.keys.toList()) {
         final value = sanitizedMap[key];
-        
+
         // Check if this is a sensitive key
         if (sensitiveKeys.contains(key.toString().toLowerCase())) {
           if (value != null && value.toString().isNotEmpty) {
             sanitizedMap[key] = '***REDACTED***';
           }
-        } 
+        }
         // Recursively sanitize nested structures
-        else if (value is Map || value is List || 
-                (value is String && value.length > 100)) {
+        else if (value is Map ||
+            value is List ||
+            (value is String && value.length > 100)) {
           sanitizedMap[key] = _sanitizeData(value);
         }
       }
-      
+
       return sanitizedMap;
     }
-    
+
     // If data is a list, sanitize each item
     if (data is List) {
       return data.map((item) => _sanitizeData(item)).toList();
     }
-    
+
     // Return other types as is
     return data;
   }
@@ -114,14 +115,20 @@ class EVLogger {
         sanitizedError = _sanitizeData(error);
       }
     }
-    
-    _logger.e('$message ${sanitizedError != null ? '| $sanitizedError' : ''}', error: error, stackTrace: stackTrace);
+
+    _logger.e(
+      '$message ${sanitizedError != null ? '| $sanitizedError' : ''}',
+      error: sanitizedError,
+      stackTrace: stackTrace,
+    );
   }
 
   /// Production-safe logging that always works
   static void productionLog(String message, [dynamic data]) {
     final sanitizedData = _sanitizeData(data);
-    _logger.i('PROD: $message ${sanitizedData != null ? '| $sanitizedData' : ''}');
+    _logger.i(
+      'PROD: $message ${sanitizedData != null ? '| $sanitizedData' : ''}',
+    );
   }
 
   /// Dispose of the logger when no longer needed

@@ -8,11 +8,13 @@ class MyTasksScreen extends StatefulWidget {
   final WorkflowService service;
   final String accountLabel;
   final String? accountId;
+  final VoidCallback? onSignIn;
   const MyTasksScreen({
     super.key,
     required this.service,
     required this.accountLabel,
     this.accountId,
+    this.onSignIn,
   });
   @override
   State<MyTasksScreen> createState() => _MyTasksScreenState();
@@ -64,7 +66,11 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
                 return const Center(child: CircularProgressIndicator());
               }
               if (snapshot.hasError) {
-                return _ErrorView(error: snapshot.error!, retry: _refresh);
+                return _ErrorView(
+                  error: snapshot.error!,
+                  retry: _refresh,
+                  onSignIn: widget.onSignIn,
+                );
               }
               final tasks = snapshot.data!;
               return RefreshIndicator(
@@ -197,66 +203,148 @@ class _WorkflowTaskScreenState extends State<WorkflowTaskScreen> {
             ),
           );
         }
-        return ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            Text(task.title, style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 16),
-            if (task.workflowType.isNotEmpty)
-              _field('Workflow', task.workflowType),
-            if (task.initiator.isNotEmpty) _field('Initiator', task.initiator),
-            if (task.summary.isNotEmpty) _field('Description', task.summary),
-            _DueDate(task: task),
-            const SizedBox(height: 16),
-            _field(
-              'Assignment',
-              task.isPooled
-                  ? 'Available through your groups'
-                  : 'Assigned to you',
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 960),
+            child: ListView(
+              padding: const EdgeInsets.all(24),
+              children: [
+                _section(
+                  children: [
+                    Text(
+                      task.title,
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: 16),
+                    if (task.workflowType.isNotEmpty)
+                      _field('Workflow', task.workflowType),
+                    if (task.initiator.isNotEmpty)
+                      _field('Initiator', task.initiator),
+                    if (task.summary.isNotEmpty)
+                      _field('Description', task.summary),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        Chip(
+                          avatar: const Icon(Icons.person_outline, size: 18),
+                          label: Text(
+                            task.isPooled
+                                ? 'Available through your groups'
+                                : 'Assigned to you',
+                          ),
+                        ),
+                        Chip(
+                          avatar: const Icon(Icons.schedule, size: 18),
+                          label: _DueDate(task: task),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    _field(
+                      'Current comments',
+                      task.comments.isEmpty
+                          ? 'No current comments'
+                          : task.comments,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _section(
+                  children: [
+                    Text(
+                      'Documents',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 12),
+                    FutureBuilder<List<String>>(
+                      future: _documents,
+                      builder: (context, docs) {
+                        if (docs.connectionState != ConnectionState.done) {
+                          return const LinearProgressIndicator();
+                        }
+                        if (docs.hasError) {
+                          return const Text(
+                            'Unable to load document names. Refresh to try again.',
+                          );
+                        }
+                        return docs.data!.isEmpty
+                            ? const Text('No documents supplied')
+                            : Column(
+                              children: [
+                                for (final name in docs.data!)
+                                  ListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    leading: Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.primaryContainer,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Icon(
+                                        name.toLowerCase().endsWith('.pdf')
+                                            ? Icons.picture_as_pdf_outlined
+                                            : Icons.insert_drive_file_outlined,
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.primary,
+                                      ),
+                                    ),
+                                    title: Text(name),
+                                  ),
+                              ],
+                            );
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                if (widget.service is WorkflowActionService &&
+                    widget.accountId != null)
+                  WorkflowTaskActions(
+                    key: ValueKey(_task),
+                    service: widget.service as WorkflowActionService,
+                    taskId: task.id,
+                    accountId: widget.accountId!,
+                    onCompleted: (actionId) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            actionId == 'Approve'
+                                ? 'Task approved'
+                                : actionId == 'Reject'
+                                ? 'Task rejected'
+                                : 'Task completed',
+                          ),
+                        ),
+                      );
+                      Navigator.of(context).pop();
+                    },
+                  )
+                else
+                  const Text('Task actions are not available in this version.'),
+              ],
             ),
-            _field(
-              'Current comments',
-              task.comments.isEmpty ? 'No current comments' : task.comments,
-            ),
-            FutureBuilder<List<String>>(
-              future: _documents,
-              builder: (context, docs) {
-                if (docs.connectionState != ConnectionState.done) {
-                  return const LinearProgressIndicator();
-                }
-                if (docs.hasError) {
-                  return const Text(
-                    'Unable to load document names. Refresh to try again.',
-                  );
-                }
-                return _field(
-                  'Documents',
-                  docs.data!.isEmpty
-                      ? 'No documents supplied'
-                      : docs.data!.join('\n'),
-                );
-              },
-            ),
-            const SizedBox(height: 24),
-            if (widget.service is WorkflowActionService &&
-                widget.accountId != null)
-              WorkflowTaskActions(
-                key: ValueKey(_task),
-                service: widget.service as WorkflowActionService,
-                taskId: task.id,
-                accountId: widget.accountId!,
-                onCompleted: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Task completed')),
-                  );
-                  Navigator.of(context).pop();
-                },
-              )
-            else
-              const Text('Task actions are not available in this version.'),
-          ],
+          ),
         );
       },
+    ),
+  );
+  Widget _section({required List<Widget> children}) => Card(
+    elevation: 0,
+    color: Colors.white,
+    margin: EdgeInsets.zero,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
+      ),
     ),
   );
   Widget _field(String label, String value) => Padding(
@@ -294,7 +382,8 @@ class _DueDate extends StatelessWidget {
 class _ErrorView extends StatelessWidget {
   final Object error;
   final VoidCallback retry;
-  const _ErrorView({required this.error, required this.retry});
+  final VoidCallback? onSignIn;
+  const _ErrorView({required this.error, required this.retry, this.onSignIn});
   @override
   Widget build(BuildContext context) => Center(
     child: Padding(
@@ -307,6 +396,9 @@ class _ErrorView extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(error.toString().replaceFirst('Exception: ', '')),
+          if (onSignIn != null &&
+              error.toString().contains('session has expired'))
+            TextButton(onPressed: onSignIn, child: const Text('Sign in again')),
           TextButton(onPressed: retry, child: const Text('Retry')),
         ],
       ),

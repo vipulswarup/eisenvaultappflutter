@@ -45,33 +45,39 @@ class AuthHandler {
 
   /// Performs the actual logout (removes current account)
   Future<void> performLogout() async {
+    final navigator = Navigator.of(context);
     try {
       // Get auth state manager
-      final authStateManager = Provider.of<AuthStateManager>(context, listen: false);
-      
+      final authStateManager = Provider.of<AuthStateManager>(
+        context,
+        listen: false,
+      );
+
       // Perform logout (removes current account)
       await authStateManager.logout();
 
       // Navigate based on remaining accounts
-      if (context.mounted) {
-        if (authStateManager.isAuthenticated && authStateManager.currentAccount != null) {
+      if (navigator.mounted) {
+        if (authStateManager.isAuthenticated &&
+            authStateManager.currentAccount != null) {
           // Switch to another account
           final account = authStateManager.currentAccount!;
-          Navigator.of(context).pushAndRemoveUntil(
+          navigator.pushAndRemoveUntil(
             MaterialPageRoute(
-              builder: (context) => BrowseScreen(
-                baseUrl: account.baseUrl,
-                authToken: account.token,
-                firstName: account.firstName,
-                instanceType: account.instanceType,
-                customerHostname: account.customerHostname,
-              ),
+              builder:
+                  (context) => BrowseScreen(
+                    baseUrl: account.baseUrl,
+                    authToken: account.token,
+                    firstName: account.firstName,
+                    instanceType: account.instanceType,
+                    customerHostname: account.customerHostname,
+                  ),
             ),
             (Route<dynamic> route) => false,
           );
         } else {
           // No accounts left, go to login
-          Navigator.of(context).pushAndRemoveUntil(
+          navigator.pushAndRemoveUntil(
             MaterialPageRoute(builder: (context) => const LoginScreen()),
             (Route<dynamic> route) => false,
           );

@@ -1,6 +1,6 @@
 # Workflow requirements — initial release
 
-Status: requirements draft based on user decisions. My Tasks and standard New Task completion are implemented; see workflows-first-increment.md and workflows-task-completion.md for coverage and validation.
+Status: requirements draft based on user decisions. My Tasks, standard New Task completion and single-review approve/reject actions are implemented; see workflows-first-increment.md, workflows-task-completion.md and workflows-review-actions.md for coverage and validation.
 Date: 5 October 2026.
 
 ## Goal and scope

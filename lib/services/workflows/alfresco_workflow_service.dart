@@ -165,9 +165,7 @@ class AlfrescoWorkflowService
       throw WorkflowTaskChanged();
     }
     final taskData = Map<String, dynamic>.from(task['data'] as Map);
-    if ((taskData['workflowInstance'] as Map?)?['name'] !=
-            'activiti\$activitiAdhoc' ||
-        !['wf:adhocTask', 'wf:completedAdhocTask'].contains(taskData['name'])) {
+    if (!WorkflowTaskForm.supportsTask(taskData)) {
       return WorkflowTaskForm.fromJson(id, taskData, {
         'definition': {'fields': []},
         'formData': {},
@@ -197,9 +195,25 @@ class AlfrescoWorkflowService
       's/api/task/${Uri.encodeComponent(form.taskId)}/formprocessor',
       body,
     );
-    final task = await getTask(form.taskId);
-    if (task != null && task.isActive) {
-      throw Exception('The task is still active. Refresh before trying again.');
+    final response = await _get(
+      _uri('s/api/task-instances/${Uri.encodeComponent(form.taskId)}'),
+      missingAllowed: true,
+    );
+    final completed = response?['data'] as Map?;
+    final state = completed?['state']?.toString().toUpperCase();
+    if (!['COMPLETED', 'COMPLETE'].contains(state)) {
+      throw Exception(
+        'Unable to confirm task completion. Refresh before trying again.',
+      );
+    }
+    final action = fresh.actions.singleWhere((a) => a.id == transition);
+    for (final property in action.properties.entries) {
+      final key = property.key.replaceFirst('prop_', '');
+      if ((completed?['properties'] as Map?)?[key] != property.value) {
+        throw Exception(
+          'Unable to confirm the selected review outcome. Refresh the task before continuing.',
+        );
+      }
     }
   }
 
