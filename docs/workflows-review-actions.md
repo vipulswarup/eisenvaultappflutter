@@ -21,5 +21,5 @@ metadata, cancellation, stale state and outcome verification. The native test in
 approval and rejection fixtures and checks the rendered macOS UI and server
 result. See [test configuration instructions](workflows-task-completion.md#repeat-the-native-test).
 
-Next: group task claim/release, followed by broader workflow form support.
+Group task claim/release is covered in [the next increment](workflows-group-ownership.md). Next: workflow initiation and broader workflow form support.
 Signature approval needs its signing/version recovery flow before enabling it.

@@ -19,6 +19,10 @@ abstract class WorkflowActionService {
   );
 }
 
+abstract class WorkflowOwnershipService {
+  Future<void> changeOwnership(WorkflowTask snapshot, {required bool claim});
+}
+
 class WorkflowTaskChanged implements Exception {
   @override
   String toString() =>
@@ -27,7 +31,10 @@ class WorkflowTaskChanged implements Exception {
 
 /// Account-scoped access to Alfresco Content Services workflows.
 class AlfrescoWorkflowService
-    implements WorkflowService, WorkflowActionService {
+    implements
+        WorkflowService,
+        WorkflowActionService,
+        WorkflowOwnershipService {
   final String baseUrl, authToken;
   final http.Client? client;
   AlfrescoWorkflowService({
@@ -68,6 +75,74 @@ class AlfrescoWorkflowService
       throw const FormatException('Invalid workflow response');
     }
     return json;
+  }
+
+  @override
+  Future<void> changeOwnership(
+    WorkflowTask snapshot, {
+    required bool claim,
+  }) async {
+    final fresh = await getTask(snapshot.id);
+    if (fresh == null ||
+        !fresh.isActive ||
+        fresh.owner != snapshot.owner ||
+        fresh.isPooled != snapshot.isPooled ||
+        fresh.isClaimable != snapshot.isClaimable ||
+        fresh.isReleasable != snapshot.isReleasable ||
+        (claim ? !fresh.isClaimable : !fresh.isReleasable)) {
+      throw WorkflowTaskChanged();
+    }
+    final profile = await _get(
+      _uri('api/-default-/public/alfresco/versions/1/people/-me-'),
+    );
+    final username = (profile?['entry'] as Map?)?['id'] as String?;
+    if (username == null ||
+        (!claim && fresh.owner != username) ||
+        (claim && fresh.owner != null && fresh.owner!.isNotEmpty)) {
+      throw WorkflowTaskChanged();
+    }
+    final taskId = fresh.id;
+    if (!taskId.startsWith('activiti\$')) throw WorkflowTaskChanged();
+    final response = await (client ?? appHttpClient)
+        .put(
+          _uri(
+            'api/-default-/public/workflow/versions/1/tasks/${Uri.encodeComponent(taskId.substring(9))}',
+            {'select': 'state'},
+          ),
+          headers: {
+            'Authorization': authToken,
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({'state': claim ? 'claimed' : 'unclaimed'}),
+        )
+        .timeout(apiRequestTimeout);
+    if (response.statusCode == 401) {
+      throw Exception('Your session has expired. Please sign in again.');
+    }
+    if ([403, 404, 409].contains(response.statusCode)) {
+      throw WorkflowTaskChanged();
+    }
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Unable to confirm task ownership. Refresh before trying again.',
+      );
+    }
+    final result = await _get(
+      _uri('s/api/task-instances/${Uri.encodeComponent(taskId)}'),
+      missingAllowed: true,
+    );
+    if (result == null) throw WorkflowTaskChanged();
+    final updated = WorkflowTask.fromJson(
+      Map<String, dynamic>.from(result['data'] as Map),
+    );
+    if (!updated.isActive ||
+        (claim
+            ? updated.owner != username
+            : (updated.owner?.isNotEmpty ?? false))) {
+      throw Exception(
+        'Unable to confirm task ownership. Refresh before trying again.',
+      );
+    }
   }
 
   @override

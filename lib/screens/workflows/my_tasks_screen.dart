@@ -92,7 +92,7 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
                             for (final task in tasks)
                               ListTile(
                                 leading: Icon(
-                                  task.isPooled
+                                  task.isPooled && task.owner == null
                                       ? Icons.group_outlined
                                       : Icons.assignment_outlined,
                                 ),
@@ -106,7 +106,7 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
                                         task.summary != task.title)
                                       Text(task.summary),
                                     _DueDate(task: task),
-                                    if (task.isPooled)
+                                    if (task.isPooled && task.owner == null)
                                       const Text(
                                         'Available through your groups',
                                       ),
@@ -153,6 +153,7 @@ class WorkflowTaskScreen extends StatefulWidget {
 }
 
 class _WorkflowTaskScreenState extends State<WorkflowTaskScreen> {
+  bool _formBusy = false, _ownershipBusy = false;
   late Future<WorkflowTask?> _task;
   Future<List<String>>? _documents;
   @override
@@ -171,6 +172,56 @@ class _WorkflowTaskScreenState extends State<WorkflowTaskScreen> {
     });
   }
 
+  Future<void> _changeOwnership(WorkflowTask task, bool claim) async {
+    if (_formBusy || _ownershipBusy) return;
+    if (!claim) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder:
+            (context) => AlertDialog(
+              title: const Text('Release task?'),
+              content: const Text(
+                'Return this task to the group so another member can claim it. Your saved form entries will be discarded when the task is refreshed.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Release'),
+                ),
+              ],
+            ),
+      );
+      if (confirmed != true || !mounted || _formBusy) return;
+    }
+    setState(() => _ownershipBusy = true);
+    try {
+      await (widget.service as WorkflowOwnershipService).changeOwnership(
+        task,
+        claim: claim,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(claim ? 'Task claimed' : 'Task released to the group'),
+        ),
+      );
+      setState(_load);
+    } catch (error) {
+      if (!mounted) return;
+      // Replace the form with a refresh-only error after an uncertain mutation.
+      setState(() {
+        _task = Future<WorkflowTask?>.error(error);
+        _documents = null;
+      });
+    } finally {
+      if (mounted) setState(() => _ownershipBusy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
@@ -179,7 +230,7 @@ class _WorkflowTaskScreenState extends State<WorkflowTaskScreen> {
         IconButton(
           tooltip: 'Refresh task',
           icon: const Icon(Icons.refresh),
-          onPressed: () => setState(_load),
+          onPressed: _formBusy || _ownershipBusy ? null : () => setState(_load),
         ),
       ],
     ),
@@ -203,131 +254,178 @@ class _WorkflowTaskScreenState extends State<WorkflowTaskScreen> {
             ),
           );
         }
-        return Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 960),
-            child: ListView(
-              padding: const EdgeInsets.all(24),
-              children: [
-                _section(
-                  children: [
-                    Text(
-                      task.title,
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: 16),
-                    if (task.workflowType.isNotEmpty)
-                      _field('Workflow', task.workflowType),
-                    if (task.initiator.isNotEmpty)
-                      _field('Initiator', task.initiator),
-                    if (task.summary.isNotEmpty)
-                      _field('Description', task.summary),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        Chip(
-                          avatar: const Icon(Icons.person_outline, size: 18),
-                          label: Text(
-                            task.isPooled
-                                ? 'Available through your groups'
-                                : 'Assigned to you',
+        return AbsorbPointer(
+          absorbing: _ownershipBusy,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 960),
+              child: ListView(
+                padding: const EdgeInsets.all(24),
+                children: [
+                  _section(
+                    children: [
+                      Text(
+                        task.title,
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      ),
+                      const SizedBox(height: 16),
+                      if (task.workflowType.isNotEmpty)
+                        _field('Workflow', task.workflowType),
+                      if (task.initiator.isNotEmpty)
+                        _field('Initiator', task.initiator),
+                      if (task.summary.isNotEmpty)
+                        _field('Description', task.summary),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          Chip(
+                            avatar: const Icon(Icons.person_outline, size: 18),
+                            label: Text(
+                              task.isPooled && task.owner == null
+                                  ? 'Available through your groups'
+                                  : 'Assigned to you',
+                            ),
                           ),
-                        ),
-                        Chip(
-                          avatar: const Icon(Icons.schedule, size: 18),
-                          label: _DueDate(task: task),
+                          Chip(
+                            avatar: const Icon(Icons.schedule, size: 18),
+                            label: _DueDate(task: task),
+                          ),
+                        ],
+                      ),
+                      if (widget.service is WorkflowOwnershipService &&
+                          (task.isClaimable || task.isReleasable)) ...[
+                        const SizedBox(height: 16),
+                        _section(
+                          children: [
+                            Text(
+                              task.isClaimable
+                                  ? 'Claim this group task to work on it.'
+                                  : 'You own this group task.',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 12),
+                            OutlinedButton.icon(
+                              icon: Icon(
+                                task.isClaimable
+                                    ? Icons.person_add_alt_1
+                                    : Icons.undo,
+                              ),
+                              label: Text(
+                                _ownershipBusy
+                                    ? 'Updating…'
+                                    : task.isClaimable
+                                    ? 'Claim task'
+                                    : 'Release task',
+                              ),
+                              onPressed:
+                                  _formBusy || _ownershipBusy
+                                      ? null
+                                      : () => _changeOwnership(
+                                        task,
+                                        task.isClaimable,
+                                      ),
+                            ),
+                          ],
                         ),
                       ],
-                    ),
-                    const SizedBox(height: 16),
-                    _field(
-                      'Current comments',
-                      task.comments.isEmpty
-                          ? 'No current comments'
-                          : task.comments,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                _section(
-                  children: [
-                    Text(
-                      'Documents',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 12),
-                    FutureBuilder<List<String>>(
-                      future: _documents,
-                      builder: (context, docs) {
-                        if (docs.connectionState != ConnectionState.done) {
-                          return const LinearProgressIndicator();
-                        }
-                        if (docs.hasError) {
-                          return const Text(
-                            'Unable to load document names. Refresh to try again.',
-                          );
-                        }
-                        return docs.data!.isEmpty
-                            ? const Text('No documents supplied')
-                            : Column(
-                              children: [
-                                for (final name in docs.data!)
-                                  ListTile(
-                                    contentPadding: EdgeInsets.zero,
-                                    leading: Container(
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        color:
-                                            Theme.of(
-                                              context,
-                                            ).colorScheme.primaryContainer,
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: Icon(
-                                        name.toLowerCase().endsWith('.pdf')
-                                            ? Icons.picture_as_pdf_outlined
-                                            : Icons.insert_drive_file_outlined,
-                                        color:
-                                            Theme.of(
-                                              context,
-                                            ).colorScheme.primary,
-                                      ),
-                                    ),
-                                    title: Text(name),
-                                  ),
-                              ],
+                      const SizedBox(height: 16),
+                      _field(
+                        'Current comments',
+                        task.comments.isEmpty
+                            ? 'No current comments'
+                            : task.comments,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _section(
+                    children: [
+                      Text(
+                        'Documents',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 12),
+                      FutureBuilder<List<String>>(
+                        future: _documents,
+                        builder: (context, docs) {
+                          if (docs.connectionState != ConnectionState.done) {
+                            return const LinearProgressIndicator();
+                          }
+                          if (docs.hasError) {
+                            return const Text(
+                              'Unable to load document names. Refresh to try again.',
                             );
+                          }
+                          return docs.data!.isEmpty
+                              ? const Text('No documents supplied')
+                              : Column(
+                                children: [
+                                  for (final name in docs.data!)
+                                    ListTile(
+                                      contentPadding: EdgeInsets.zero,
+                                      leading: Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.primaryContainer,
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                        child: Icon(
+                                          name.toLowerCase().endsWith('.pdf')
+                                              ? Icons.picture_as_pdf_outlined
+                                              : Icons
+                                                  .insert_drive_file_outlined,
+                                          color:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.primary,
+                                        ),
+                                      ),
+                                      title: Text(name),
+                                    ),
+                                ],
+                              );
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  if (widget.service is WorkflowActionService &&
+                      widget.accountId != null)
+                    WorkflowTaskActions(
+                      key: ValueKey(_task),
+                      service: widget.service as WorkflowActionService,
+                      taskId: task.id,
+                      accountId: widget.accountId!,
+                      onBusyChanged: (busy) {
+                        if (mounted) setState(() => _formBusy = busy);
                       },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                if (widget.service is WorkflowActionService &&
-                    widget.accountId != null)
-                  WorkflowTaskActions(
-                    key: ValueKey(_task),
-                    service: widget.service as WorkflowActionService,
-                    taskId: task.id,
-                    accountId: widget.accountId!,
-                    onCompleted: (actionId) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            actionId == 'Approve'
-                                ? 'Task approved'
-                                : actionId == 'Reject'
-                                ? 'Task rejected'
-                                : 'Task completed',
+                      onCompleted: (actionId) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              actionId == 'Approve'
+                                  ? 'Task approved'
+                                  : actionId == 'Reject'
+                                  ? 'Task rejected'
+                                  : 'Task completed',
+                            ),
                           ),
-                        ),
-                      );
-                      Navigator.of(context).pop();
-                    },
-                  )
-                else
-                  const Text('Task actions are not available in this version.'),
-              ],
+                        );
+                        Navigator.of(context).pop();
+                      },
+                    )
+                  else
+                    const Text(
+                      'Task actions are not available in this version.',
+                    ),
+                ],
+              ),
             ),
           ),
         );

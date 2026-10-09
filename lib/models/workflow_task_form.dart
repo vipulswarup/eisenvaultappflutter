@@ -103,7 +103,10 @@ class WorkflowTaskForm {
     final workflow = (task['workflowInstance'] as Map?)?['name'];
     return (workflow == 'activiti\$activitiAdhoc' &&
             ['wf:adhocTask', 'wf:completedAdhocTask'].contains(task['name'])) ||
-        (workflow == 'activiti\$activitiReview' &&
+        ([
+              'activiti\$activitiReview',
+              'activiti\$activitiReviewPooled',
+            ].contains(workflow) &&
             task['name'] == 'wf:activitiReviewTask');
   }
 
@@ -121,10 +124,16 @@ class WorkflowTaskForm {
     String? reason;
     if (!supportsTask(task)) {
       reason = 'Task actions for this workflow are not supported yet.';
-    } else if (task['isEditable'] != true || task['isPooled'] == true) {
+    } else if (task['isEditable'] != true ||
+        (task['isPooled'] == true &&
+            ((task['owner'] as Map?)?['userName'] == null ||
+                task['isClaimable'] == true))) {
       reason = 'This task is not currently available for completion.';
     }
-    final isReview = workflow['name'] == 'activiti\$activitiReview';
+    final isReview = [
+      'activiti\$activitiReview',
+      'activiti\$activitiReviewPooled',
+    ].contains(workflow['name']);
     final outcome =
         isReview
             ? fields.where((f) => f.name == 'wf:reviewOutcome').firstOrNull

@@ -8,12 +8,14 @@ class WorkflowTaskActions extends StatefulWidget {
   final WorkflowActionService service;
   final String taskId, accountId;
   final ValueChanged<String> onCompleted;
+  final ValueChanged<bool>? onBusyChanged;
   const WorkflowTaskActions({
     super.key,
     required this.service,
     required this.taskId,
     required this.accountId,
     required this.onCompleted,
+    this.onBusyChanged,
   });
   @override
   State<WorkflowTaskActions> createState() => _WorkflowTaskActionsState();
@@ -92,6 +94,7 @@ class _WorkflowTaskActionsState extends State<WorkflowTaskActions> {
       _submitting = true;
       _error = null;
     });
+    widget.onBusyChanged?.call(true);
     try {
       final action = _form!.actions.singleWhere((a) => a.id == transition);
       if (action.requiresConfirmation) {
@@ -142,6 +145,7 @@ class _WorkflowTaskActionsState extends State<WorkflowTaskActions> {
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
+      if (mounted) widget.onBusyChanged?.call(false);
     }
   }
 

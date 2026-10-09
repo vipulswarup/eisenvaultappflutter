@@ -4,6 +4,8 @@ class WorkflowTask {
   final DateTime? dueDate;
   final String? packageNode;
   final bool isPooled;
+  final bool isClaimable, isReleasable;
+  final String? owner;
 
   const WorkflowTask({
     required this.id,
@@ -16,6 +18,9 @@ class WorkflowTask {
     this.dueDate,
     this.packageNode,
     this.isPooled = false,
+    this.isClaimable = false,
+    this.isReleasable = false,
+    this.owner,
   });
 
   factory WorkflowTask.fromJson(Map<String, dynamic> json) {
@@ -47,6 +52,9 @@ class WorkflowTask {
       state: (json['state'] ?? '').toString(),
       packageNode: workflow['package'] as String?,
       isPooled: json['isPooled'] == true,
+      isClaimable: json['isClaimable'] == true,
+      isReleasable: json['isReleasable'] == true,
+      owner: (json['owner'] as Map?)?['userName'] as String?,
     );
   }
 
