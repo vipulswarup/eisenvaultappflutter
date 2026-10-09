@@ -29,12 +29,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _checkConnectivity() async {
     if (_isCheckingConnectivity) return;
-    
+
     try {
       _isCheckingConnectivity = true;
-      
+
       final result = await _connectivity.checkConnectivity();
-      
+
       _updateConnectionStatus(result);
     } catch (e) {
       EVLogger.error('Error checking connectivity', e);
@@ -46,8 +46,10 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _setupConnectivityListener() async {
     // Cancel any existing subscription
     _connectivitySubscription?.cancel();
-    
-    _connectivitySubscription = _connectivity.onConnectivityChanged.listen((results) {
+
+    _connectivitySubscription = _connectivity.onConnectivityChanged.listen((
+      results,
+    ) {
       // Debounce connectivity changes to prevent rapid state updates
       _debounceTimer?.cancel();
       _debounceTimer = Timer(const Duration(seconds: 1), () {
@@ -58,17 +60,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _updateConnectionStatus(List<ConnectivityResult> results) async {
     if (!mounted) return;
-    
+
     // Only consider ConnectivityResult.none as offline
     // ConnectivityResult.other can be VPN connections and should not be treated as offline
     final isNowOffline = results.contains(ConnectivityResult.none);
-    
+
     if (isNowOffline) {
       if (mounted) {
         setState(() {
           _isOfflineMode = true;
         });
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('You are offline. Switching to offline mode.'),
@@ -89,25 +91,25 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: EVColors.screenBackground,
-      appBar: AppBar(
-        backgroundColor: EVColors.appBarBackground,
-        foregroundColor: EVColors.appBarForeground,
-        title: const Text('EisenVault Login'),
-      ),
+      appBar:
+          Navigator.of(context).canPop()
+              ? AppBar(title: const Text('Add account'))
+              : null,
       body: SafeArea(
-        child: _isOfflineMode 
-          ? OfflineLoginUI(
-              onTryOnlineLogin: () {
-                setState(() {
-                  _isOfflineMode = false;
-                });
-              },
-            )
-          : LoginForm(
-              onLoginFailed: (e) async {
-                await _checkConnectivity();
-              },
-            ),
+        child:
+            _isOfflineMode
+                ? OfflineLoginUI(
+                  onTryOnlineLogin: () {
+                    setState(() {
+                      _isOfflineMode = false;
+                    });
+                  },
+                )
+                : LoginForm(
+                  onLoginFailed: (e) async {
+                    await _checkConnectivity();
+                  },
+                ),
       ),
     );
   }

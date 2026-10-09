@@ -341,191 +341,260 @@ class _BrowseScreenState extends State<BrowseScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    return Scaffold(
-      key: _scaffoldKey,
-      backgroundColor: EVColors.screenBackground,
-      appBar: BrowseAppBar(
-        onDrawerOpen: () => _scaffoldKey.currentState?.openDrawer(),
-        onSearchTap: () => _searchHandler.navigateToSearch(),
-        onLogoutTap: () => _authHandler.showLogoutConfirmation(),
-        showBackButton:
-            _controller?.currentFolder != null &&
-            _controller?.currentFolder?.id != 'root',
-        onBackPressed: _controller?.handleBackNavigation,
-        isOfflineMode: _controller?.isOffline ?? false,
-        isInSelectionMode: _controller?.isInSelectionMode ?? false,
-        onSelectionModeToggle: () => _controller?.toggleSelectionMode(),
-        onFilterSortTap: _showFilterSortDialog,
-        hasActiveFilters: _controller?.hasActiveFilters ?? false,
-      ),
-      drawer:
-          _offlineManager == null
-              ? null
-              : BrowseDrawer(
-                firstName: widget.firstName,
-                baseUrl: widget.baseUrl,
-                authToken: widget.authToken,
-                instanceType: widget.instanceType,
-                customerHostname: widget.customerHostname,
-                onLogoutTap: () => _authHandler.showLogoutConfirmation(),
-                offlineManager: _offlineManager!,
-              ),
-      body: Stack(
-        children: [
-          // Main content
-          Column(
-            children: [
-              if (_controller?.isOffline ?? false)
-                Container(
-                  width: double.infinity,
-                  color: EVColors.offlineBackground,
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 8,
-                    horizontal: 16,
-                  ),
-                  child: Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide =
+            constraints.maxWidth >= 1100 &&
+            MediaQuery.textScalerOf(context).scale(1) <= 1.4;
+        Widget navigation({bool persistent = false}) => BrowseDrawer(
+          firstName: widget.firstName,
+          baseUrl: widget.baseUrl,
+          authToken: widget.authToken,
+          instanceType: widget.instanceType,
+          customerHostname: widget.customerHostname,
+          onLogoutTap: () => _authHandler.showLogoutConfirmation(),
+          offlineManager: _offlineManager!,
+          persistent: persistent,
+        );
+        final workspace = Scaffold(
+          key: _scaffoldKey,
+          backgroundColor: EVColors.screenBackground,
+          appBar: BrowseAppBar(
+            showMenuButton: !wide,
+            onDrawerOpen: () => _scaffoldKey.currentState?.openDrawer(),
+            onSearchTap: () => _searchHandler.navigateToSearch(),
+            onLogoutTap: () => _authHandler.showLogoutConfirmation(),
+            showBackButton:
+                _controller?.currentFolder != null &&
+                _controller?.currentFolder?.id != 'root',
+            onBackPressed: _controller?.handleBackNavigation,
+            isOfflineMode: _controller?.isOffline ?? false,
+            isInSelectionMode: _controller?.isInSelectionMode ?? false,
+            onSelectionModeToggle: () => _controller?.toggleSelectionMode(),
+            onFilterSortTap: _showFilterSortDialog,
+            hasActiveFilters: _controller?.hasActiveFilters ?? false,
+          ),
+          drawer: wide || _offlineManager == null ? null : navigation(),
+          body: SafeArea(
+            top: false,
+            child: Padding(
+              padding: EdgeInsets.all(wide ? 24 : 8),
+              child: Stack(
+                children: [
+                  // Main content
+                  Column(
                     children: [
-                      const Icon(
-                        Icons.offline_pin,
-                        color: EVColors.offlineIndicator,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Offline Mode - Showing offline content only',
-                          style: const TextStyle(
-                            color: EVColors.offlineText,
-                            fontWeight: FontWeight.w500,
+                      if (_controller?.isOffline ?? false)
+                        Container(
+                          width: double.infinity,
+                          color: EVColors.offlineBackground,
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 8,
+                            horizontal: 16,
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.offline_pin,
+                                color: EVColors.offlineIndicator,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Offline Mode - Showing offline content only',
+                                  style: const TextStyle(
+                                    color: EVColors.offlineText,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _controller!.currentFolder?.name ??
+                                        'Your workspace',
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .headlineSmall
+                                        ?.copyWith(fontWeight: FontWeight.w700),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _controller!.isInSelectionMode
+                                        ? '${_controller!.selectedItemCount} selected'
+                                        : 'Browse and manage your documents',
+                                    style: const TextStyle(
+                                      color: EVColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              onPressed:
+                                  _controller!.isLoading
+                                      ? null
+                                      : _refreshCurrentFolder,
+                              tooltip: 'Refresh',
+                              icon: const Icon(Icons.refresh),
+                            ),
+                          ],
+                        ),
+                      ),
+                      BrowseNavigation(
+                        onHomeTap: () {
+                          _controller?.loadDepartments();
+                        },
+                        onBreadcrumbTap: (index) {
+                          _controller?.navigateToBreadcrumb(index);
+                        },
+                        currentFolderName: _controller?.currentFolder?.name,
+                        navigationStack: _controller?.navigationStack ?? [],
+                        currentFolder: _controller?.currentFolder,
+                      ),
+                      Expanded(
+                        child:
+                            _controller == null
+                                ? const Center(
+                                  child: CircularProgressIndicator(),
+                                )
+                                : _controller!.isLoading
+                                ? const Center(
+                                  child: CircularProgressIndicator(),
+                                )
+                                : _controller!.items.isEmpty
+                                ? Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(
+                                        Icons.folder_off,
+                                        color: EVColors.textFieldHint,
+                                        size: 48,
+                                      ),
+                                      const SizedBox(height: 16),
+                                      const Text(
+                                        'No content available in this folder',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          color: EVColors.textFieldHint,
+                                        ),
+                                      ),
+                                      if (_controller!.errorMessage !=
+                                          null) ...[
+                                        const SizedBox(height: 16),
+                                        Container(
+                                          padding: const EdgeInsets.all(16),
+                                          margin: const EdgeInsets.symmetric(
+                                            horizontal: 32,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: EVColors.statusError
+                                                .withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                            border: Border.all(
+                                              color: EVColors.statusError
+                                                  .withOpacity(0.3),
+                                            ),
+                                          ),
+                                          child: Column(
+                                            children: [
+                                              const Icon(
+                                                Icons.error_outline,
+                                                color: EVColors.statusError,
+                                                size: 24,
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                'Error: ${_controller!.errorMessage}',
+                                                textAlign: TextAlign.center,
+                                                style: const TextStyle(
+                                                  color: EVColors.statusError,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                )
+                                : BrowseList(
+                                  items: _controller!.items,
+                                  isLoading: _controller!.isLoading,
+                                  errorMessage: _controller!.errorMessage,
+                                  onItemTap: _handleItemTap,
+                                  onItemLongPress: _handleItemLongPress,
+                                  isOffline: _controller!.isOffline,
+                                  isInSelectionMode:
+                                      _controller!.isInSelectionMode,
+                                  selectedItems: _controller!.selectedItems,
+                                  onItemSelectionChanged: (itemId, selected) {
+                                    _controller!.toggleItemSelection(itemId);
+                                  },
+                                  onLoadMore: _controller!.loadMoreItems,
+                                  isLoadingMore: _controller!.isLoadingMore,
+                                  hasMoreItems: _controller!.hasMoreItems,
+                                ),
                       ),
                     ],
                   ),
-                ),
-              BrowseNavigation(
-                onHomeTap: () {
-                  _controller?.loadDepartments();
-                },
-                onBreadcrumbTap: (index) {
-                  _controller?.navigateToBreadcrumb(index);
-                },
-                currentFolderName: _controller?.currentFolder?.name,
-                navigationStack: _controller?.navigationStack ?? [],
-                currentFolder: _controller?.currentFolder,
+                  // Modal download progress overlay (always above all content)
+                  const DownloadProgressIndicator(),
+                ],
               ),
-              Expanded(
-                child:
-                    _controller == null
-                        ? const Center(child: CircularProgressIndicator())
-                        : _controller!.isLoading
-                        ? const Center(child: CircularProgressIndicator())
-                        : _controller!.items.isEmpty
-                        ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                Icons.folder_off,
-                                color: EVColors.textFieldHint,
-                                size: 48,
-                              ),
-                              const SizedBox(height: 16),
-                              const Text(
-                                'No content available in this folder',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(color: EVColors.textFieldHint),
-                              ),
-                              if (_controller!.errorMessage != null) ...[
-                                const SizedBox(height: 16),
-                                Container(
-                                  padding: const EdgeInsets.all(16),
-                                  margin: const EdgeInsets.symmetric(
-                                    horizontal: 32,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: EVColors.statusError.withOpacity(
-                                      0.1,
-                                    ),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: EVColors.statusError.withOpacity(
-                                        0.3,
-                                      ),
-                                    ),
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      const Icon(
-                                        Icons.error_outline,
-                                        color: EVColors.statusError,
-                                        size: 24,
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        'Error: ${_controller!.errorMessage}',
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                          color: EVColors.statusError,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        )
-                        : BrowseList(
-                          items: _controller!.items,
-                          isLoading: _controller!.isLoading,
-                          errorMessage: _controller!.errorMessage,
-                          onItemTap: _handleItemTap,
-                          onItemLongPress: _handleItemLongPress,
-                          isOffline: _controller!.isOffline,
-                          isInSelectionMode: _controller!.isInSelectionMode,
-                          selectedItems: _controller!.selectedItems,
-                          onItemSelectionChanged: (itemId, selected) {
-                            _controller!.toggleItemSelection(itemId);
-                          },
-                          onLoadMore: _controller!.loadMoreItems,
-                          isLoadingMore: _controller!.isLoadingMore,
-                          hasMoreItems: _controller!.hasMoreItems,
-                        ),
-              ),
-            ],
-          ),
-          // Modal download progress overlay (always above all content)
-          const DownloadProgressIndicator(),
-        ],
-      ),
-      floatingActionButton: ActionButtonBuilder.buildFloatingActionButton(
-        isInSelectionMode: _controller?.isInSelectionMode ?? false,
-        hasSelectedItems: _controller?.selectedItemCount != 0,
-        isInFolder:
-            _controller?.currentFolder != null &&
-            !_controller!.currentFolder!.isDepartment,
-        hasWritePermission:
-            _controller?.currentFolder?.allowableOperations?.contains(
-              'create',
-            ) ??
-            false,
-        onBatchDelete: () => _batchDeleteHandler.handleBatchDelete(),
-        onCreateFolder: _handleCreateFolder,
-        onTakePicture: _handleTakePicture,
-        onScanDocument: _handleScanDocument,
-        onUploadFromGallery: _handleUploadFromGallery,
-        onUploadFromFilePicker: _handleUploadFromFilePicker,
-        onShowNoPermissionMessage: (message) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(message),
-              backgroundColor: EVColors.statusError,
             ),
-          );
-        },
-      ),
+          ),
+          floatingActionButton: ActionButtonBuilder.buildFloatingActionButton(
+            isInSelectionMode: _controller?.isInSelectionMode ?? false,
+            hasSelectedItems: _controller?.selectedItemCount != 0,
+            isInFolder:
+                _controller?.currentFolder != null &&
+                !_controller!.currentFolder!.isDepartment,
+            hasWritePermission:
+                _controller?.currentFolder?.allowableOperations?.contains(
+                  'create',
+                ) ??
+                false,
+            onBatchDelete: () => _batchDeleteHandler.handleBatchDelete(),
+            onCreateFolder: _handleCreateFolder,
+            onTakePicture: _handleTakePicture,
+            onScanDocument: _handleScanDocument,
+            onUploadFromGallery: _handleUploadFromGallery,
+            onUploadFromFilePicker: _handleUploadFromFilePicker,
+            onShowNoPermissionMessage: (message) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(message),
+                  backgroundColor: EVColors.statusError,
+                ),
+              );
+            },
+          ),
+        );
+        return Row(
+          children: [
+            if (wide && _offlineManager != null)
+              SizedBox(width: 280, child: navigation(persistent: true)),
+            Expanded(child: workspace),
+          ],
+        );
+      },
     );
   }
 

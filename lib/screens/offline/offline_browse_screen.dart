@@ -568,6 +568,7 @@ class _OfflineBrowseScreenState extends State<OfflineBrowseScreen> {
           isOfflineMode: true,
         ),
         drawer: BrowseDrawer(
+          isOfflineView: true,
           firstName: widget.firstName,
           baseUrl: widget.baseUrl,
           authToken: widget.authToken,

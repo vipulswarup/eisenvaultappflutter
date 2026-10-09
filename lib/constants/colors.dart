@@ -5,13 +5,15 @@ import 'package:flutter/material.dart';
 class EVColors {
   // Brand palette (from EisenVault ONE web)
   static const paletteBrand = Color(0xFFE74C3C); // logo "ONE", brand accent
-  static const palettePrimary = Color(0xFF17A2B8); // primary action buttons (teal)
-  static const palettePrimaryDark = Color(0xFF138496);
-  static const paletteLink = Color(0xFF00A3C4); // breadcrumbs, links, usernames
-  static const paletteBackground = Color(0xFFF4F7F9); // main content area
+  static const palettePrimary = Color(
+    0xFF087F8C,
+  ); // primary action buttons (teal)
+  static const palettePrimaryDark = Color(0xFF066873);
+  static const paletteLink = Color(0xFF087F8C); // breadcrumbs, links, usernames
+  static const paletteBackground = Color(0xFFF3F5F9); // main content area
   static const paletteSurface = Color(0xFFFFFFFF); // cards, header, table rows
-  static const paletteSidebar = Color(0xFF2D2F36); // navigation sidebar
-  static const paletteTextDark = Color(0xFF212529);
+  static const paletteSidebar = Color(0xFF172B3A); // navigation sidebar
+  static const paletteTextDark = Color(0xFF172B3A);
 
   // Legacy aliases (semantic names used across the app)
   static const paletteButton = palettePrimary;

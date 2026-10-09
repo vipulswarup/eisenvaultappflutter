@@ -21,77 +21,136 @@ class _LoginFormState extends State<LoginForm> {
 
   @override
   Widget build(BuildContext context) {
-    // Get screen dimensions
-    final size = MediaQuery.of(context).size;
-    final isSmallScreen = size.height < 700;
-    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
-
-    // Calculate logo height based on screen size and keyboard visibility
-    final logoHeight =
-        isSmallScreen
-            ? size.height *
-                0.30 // Reduced from 0.40
-            : size.height * 0.35; // Reduced from 0.50
-
-    final screenPadding = EdgeInsets.only(
-      left: 24.0,
-      right: 24.0,
-      top: 24.0,
-      bottom: 24.0 + bottomPadding, // Add keyboard height to bottom padding
-    );
-
-    final elementSpacing = isSmallScreen ? 12.0 : 16.0;
-
-    return Center(
-      child: SingleChildScrollView(
-        padding: screenPadding,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: size.height - screenPadding.top - screenPadding.bottom,
-          ),
-          child: IntrinsicHeight(
-            child: AutofillGroup(
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Image.asset(
-                      'assets/images/eisenvault_logo.png',
-                      height: logoHeight,
-                    ),
-                    SizedBox(
-                      height: elementSpacing * 2,
-                    ), // Increased spacing after logo
-
-                    _buildTextField(
-                      controller: _urlController,
-                      label: 'Server URL',
-                      hint: 'https://your-instance.eisenvault.net',
-                      icon: Icons.link,
-                      autofillHints: const [AutofillHints.url],
-                    ),
-                    SizedBox(height: elementSpacing),
-                    _buildTextField(
-                      controller: _usernameController,
-                      label: 'Username',
-                      icon: Icons.person,
-                      autofillHints: const [AutofillHints.username],
-                    ),
-                    SizedBox(height: elementSpacing),
-                    _buildPasswordField(),
-                    SizedBox(
-                      height: elementSpacing * 2,
-                    ), // Increased spacing before button
-                    _buildLoginButton(),
-                    SizedBox(height: elementSpacing), // Add bottom spacing
-                  ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 900;
+        final form = Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: AutofillGroup(
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Image.asset(
+                          'assets/images/eisenvault_logo.png',
+                          height: 64,
+                          width: 200,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      Text(
+                        'Welcome back',
+                        style: Theme.of(context).textTheme.headlineMedium
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Sign in to your document workspace.',
+                        style: TextStyle(color: EVColors.textSecondary),
+                      ),
+                      const SizedBox(height: 32),
+                      _buildTextField(
+                        controller: _urlController,
+                        label: 'Server URL',
+                        hint: 'https://your-instance.eisenvault.net',
+                        icon: Icons.dns_outlined,
+                        autofillHints: const [AutofillHints.url],
+                      ),
+                      const SizedBox(height: 20),
+                      _buildTextField(
+                        controller: _usernameController,
+                        label: 'Username',
+                        icon: Icons.person_outline,
+                        autofillHints: const [AutofillHints.username],
+                      ),
+                      const SizedBox(height: 20),
+                      _buildPasswordField(),
+                      const SizedBox(height: 28),
+                      _buildLoginButton(),
+                      const SizedBox(height: 24),
+                      const Text(
+                        'Use the server address provided by your organisation.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: EVColors.textSecondary,
+                          height: 1.5,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+        return Row(
+          children: [
+            if (wide)
+              Expanded(
+                child: Container(
+                  margin: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: EVColors.sidebarBackground,
+                    borderRadius: BorderRadius.circular(28),
+                  ),
+                  child: const Center(
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.all(48),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.folder_copy_outlined,
+                            size: 64,
+                            color: Color(0xFF73D9CF),
+                          ),
+                          SizedBox(height: 40),
+                          Text(
+                            'Your documents.\nOne organised space.',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 40,
+                              height: 1.2,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          SizedBox(height: 24),
+                          Text(
+                            'Find, share and manage your team’s knowledge. Wherever work takes you.',
+                            style: TextStyle(
+                              color: Color(0xFFC1D1DD),
+                              fontSize: 18,
+                              height: 1.6,
+                            ),
+                          ),
+                          SizedBox(height: 40),
+                          Text(
+                            'DOCUMENTS  /  WORKFLOWS  /  COLLABORATION',
+                            style: TextStyle(
+                              color: Color(0xFF73D9CF),
+                              fontSize: 12,
+                              height: 1.8,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            Expanded(child: form),
+          ],
+        );
+      },
     );
   }
 
@@ -104,6 +163,7 @@ class _LoginFormState extends State<LoginForm> {
   }) {
     return TextFormField(
       controller: controller,
+      textInputAction: TextInputAction.next,
       autocorrect: false,
       enableSuggestions: false,
       textCapitalization: TextCapitalization.none,
@@ -144,6 +204,8 @@ class _LoginFormState extends State<LoginForm> {
   Widget _buildPasswordField() {
     return TextFormField(
       controller: _passwordController,
+      textInputAction: TextInputAction.done,
+      onFieldSubmitted: (_) => _handleLogin(),
       obscureText: !_showPassword,
       autofillHints: const [AutofillHints.password],
       keyboardType: TextInputType.visiblePassword,
@@ -151,6 +213,7 @@ class _LoginFormState extends State<LoginForm> {
         labelText: 'Password',
         prefixIcon: Icon(Icons.lock, color: EVColors.textFieldPrefixIcon),
         suffixIcon: IconButton(
+          tooltip: _showPassword ? 'Hide password' : 'Show password',
           icon: Icon(
             _showPassword ? Icons.visibility_off : Icons.visibility,
             color: EVColors.textFieldPrefixIcon,

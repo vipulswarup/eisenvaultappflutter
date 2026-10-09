@@ -1,3 +1,4 @@
+import 'package:eisenvaultappflutter/theme/app_theme.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/constants/platform_channels.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_database_service.dart';
@@ -355,37 +356,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     return MaterialApp(
       navigatorKey: navigatorKey,
       title: 'EisenVault',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: EVColors.palettePrimary,
-          brightness: Brightness.light,
-          primary: EVColors.palettePrimary,
-          surface: EVColors.paletteSurface,
-        ),
-        scaffoldBackgroundColor: EVColors.screenBackground,
-        appBarTheme: AppBarTheme(
-          backgroundColor: EVColors.appBarBackground,
-          foregroundColor: EVColors.appBarForeground,
-          surfaceTintColor: Colors.transparent,
-          elevation: 0,
-          scrolledUnderElevation: 1,
-          shadowColor: EVColors.shadowBlack,
-          iconTheme: IconThemeData(color: EVColors.appBarForeground),
-          titleTextStyle: TextStyle(
-            color: EVColors.appBarForeground,
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
-          actionsIconTheme: IconThemeData(color: EVColors.appBarForeground),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: EVColors.buttonBackground,
-            foregroundColor: EVColors.buttonForeground,
-          ),
-        ),
-        dividerColor: EVColors.listItemDivider,
-      ),
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.light,
       routes: {'/share': (context) => const ShareActivityWrapper()},
       home:
           _isBootstrapping

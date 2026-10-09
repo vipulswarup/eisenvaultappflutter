@@ -56,8 +56,12 @@ class _BrowseListState extends State<BrowseList> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
-      if (widget.hasMoreItems && !widget.isLoadingMore && !_isLoadingMore && widget.onLoadMore != null) {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      if (widget.hasMoreItems &&
+          !widget.isLoadingMore &&
+          !_isLoadingMore &&
+          widget.onLoadMore != null) {
         setState(() {
           _isLoadingMore = true;
         });
@@ -85,7 +89,11 @@ class _BrowseListState extends State<BrowseList> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, color: EVColors.statusError, size: 48),
+            const Icon(
+              Icons.error_outline,
+              color: EVColors.statusError,
+              size: 48,
+            ),
             const SizedBox(height: 16),
             Text(
               widget.errorMessage!,
@@ -107,10 +115,14 @@ class _BrowseListState extends State<BrowseList> {
     }
 
     return ListView.builder(
+      padding: const EdgeInsets.only(bottom: 96),
       controller: _scrollController,
-      itemCount: widget.items.length + (widget.isLoadingMore || _isLoadingMore ? 1 : 0),
+      itemCount:
+          widget.items.length +
+          (widget.isLoadingMore || _isLoadingMore ? 1 : 0),
       itemBuilder: (context, index) {
-        if (index == widget.items.length && (widget.isLoadingMore || _isLoadingMore)) {
+        if (index == widget.items.length &&
+            (widget.isLoadingMore || _isLoadingMore)) {
           return const Padding(
             padding: EdgeInsets.symmetric(vertical: 16),
             child: Center(child: CircularProgressIndicator()),
@@ -134,9 +146,10 @@ class _BrowseListState extends State<BrowseList> {
           },
           isSelected: isSelected,
           showSelectionCheckbox: widget.isInSelectionMode,
-          onSelectionChanged: (selected) => widget.onItemSelectionChanged(item.id, selected),
+          onSelectionChanged:
+              (selected) => widget.onItemSelectionChanged(item.id, selected),
         );
       },
     );
   }
-} 
+}

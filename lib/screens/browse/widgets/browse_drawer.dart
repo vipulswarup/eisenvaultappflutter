@@ -17,6 +17,8 @@ import 'package:provider/provider.dart';
 
 /// Drawer for the browse screen
 class BrowseDrawer extends StatefulWidget {
+  final bool persistent;
+  final bool isOfflineView;
   final String firstName;
   final String baseUrl;
   final String authToken;
@@ -27,6 +29,8 @@ class BrowseDrawer extends StatefulWidget {
 
   const BrowseDrawer({
     super.key,
+    this.persistent = false,
+    this.isOfflineView = false,
     required this.firstName,
     required this.baseUrl,
     required this.authToken,
@@ -42,6 +46,10 @@ class BrowseDrawer extends StatefulWidget {
 
 class _BrowseDrawerState extends State<BrowseDrawer> {
   String? _appVersion;
+
+  void _closeDrawer() {
+    if (!widget.persistent) Navigator.of(context).pop();
+  }
 
   @override
   void initState() {
@@ -85,7 +93,7 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
     final success = await authStateManager.switchAccount(accountId);
 
     if (success && mounted) {
-      Navigator.pop(context); // Close drawer
+      _closeDrawer(); // Close drawer
       final account = authStateManager.currentAccount;
       if (account != null) {
         // Navigate to BrowseScreen with new account
@@ -144,7 +152,7 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
       final success = await authStateManager.removeAccount(accountId);
 
       if (success && mounted) {
-        Navigator.pop(context); // Close drawer
+        _closeDrawer(); // Close drawer
 
         // If no accounts left, go to login
         if (authStateManager.allAccounts.isEmpty) {
@@ -202,48 +210,59 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
           child: ListView(
             padding: EdgeInsets.zero,
             children: [
-              DrawerHeader(
+              Container(
+                padding: const EdgeInsets.fromLTRB(24, 40, 24, 28),
                 decoration: const BoxDecoration(
                   color: EVColors.sidebarBackground,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    const Icon(
+                      Icons.folder_copy_outlined,
+                      color: Color(0xFF73D9CF),
+                      size: 32,
+                    ),
+                    const SizedBox(height: 16),
                     const Text(
                       'EisenVault',
                       style: TextStyle(
-                        color: EVColors.sidebarForeground,
+                        color: Colors.white,
                         fontSize: 24,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 24),
                     Text(
-                      'Welcome, $displayFirstName!',
+                      displayFirstName,
                       style: const TextStyle(
-                        color: EVColors.sidebarForeground,
+                        color: Colors.white,
                         fontSize: 16,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     Text(
-                      'Server: ${_cleanServerUrl(displayBaseUrl)}',
+                      _cleanServerUrl(displayBaseUrl),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: EVColors.sidebarForegroundMuted,
+                        color: Color(0xFFC1D1DD),
                         fontSize: 12,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 12),
                     Text(
-                      'App version: ${_appVersion ?? 'Loading…'}',
+                      'Version ${_appVersion ?? '…'}',
                       style: const TextStyle(
-                        color: EVColors.sidebarForegroundMuted,
+                        color: Color(0xFFC1D1DD),
                         fontSize: 12,
                       ),
                     ),
                   ],
                 ),
               ),
-
+              const SizedBox(height: 12),
               // Account switching section
               if (allAccounts.isNotEmpty) ...[
                 const Padding(
@@ -291,7 +310,7 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
                 leading: const Icon(Icons.add_circle_outline),
                 title: const Text('Add Account'),
                 onTap: () {
-                  Navigator.pop(context); // Close drawer
+                  _closeDrawer(); // Close drawer
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -304,8 +323,10 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
               ListTile(
                 leading: const Icon(Icons.folder),
                 title: const Text('Departments'),
+                selected: !widget.isOfflineView,
+                selectedTileColor: EVColors.tintTeal,
                 onTap: () {
-                  Navigator.pop(context); // Close the drawer
+                  _closeDrawer(); // Close the drawer
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
@@ -338,7 +359,7 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
                   ),
                   title: const Text('Workflows'),
                   onTap: () {
-                    Navigator.pop(context);
+                    _closeDrawer();
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -367,7 +388,7 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
                 leading: const Icon(Icons.star),
                 title: const Text('Favourites'),
                 onTap: () {
-                  Navigator.pop(context); // Close the drawer
+                  _closeDrawer(); // Close the drawer
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -387,7 +408,7 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
                 leading: const Icon(Icons.offline_pin),
                 title: const Text('Offline Settings'),
                 onTap: () {
-                  Navigator.pop(context); // Close the drawer
+                  _closeDrawer(); // Close the drawer
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -407,7 +428,7 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
                   leading: const Icon(Icons.draw),
                   title: const Text('OpenSign Settings'),
                   onTap: () {
-                    Navigator.pop(context);
+                    _closeDrawer();
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -419,8 +440,10 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
               ListTile(
                 leading: const Icon(Icons.cloud_off),
                 title: const Text('Offline Content'),
+                selected: widget.isOfflineView,
+                selectedTileColor: EVColors.tintTeal,
                 onTap: () {
-                  Navigator.pop(context); // Close the drawer
+                  _closeDrawer(); // Close the drawer
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -440,9 +463,7 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
                 leading: const Icon(Icons.logout),
                 title: const Text('Logout'),
                 onTap: () {
-                  Navigator.pop(context); // Close the drawer
-                  widget.offlineManager
-                      .clearOfflineContent(); // Clear offline content
+                  _closeDrawer(); // Close the drawer
                   widget.onLogoutTap(); // Handle logout
                 },
               ),

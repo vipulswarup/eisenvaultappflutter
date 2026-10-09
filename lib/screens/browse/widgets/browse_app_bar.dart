@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:eisenvaultappflutter/constants/colors.dart';
 
 class BrowseAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback? onDrawerOpen;
   final VoidCallback? onSearchTap;
   final VoidCallback? onLogoutTap;
   final bool showBackButton;
+  final bool showMenuButton;
   final bool? Function()? onBackPressed;
   final bool isOfflineMode;
   final bool isInSelectionMode;
@@ -19,6 +19,7 @@ class BrowseAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.onSearchTap,
     this.onLogoutTap,
     this.showBackButton = false,
+    this.showMenuButton = true,
     this.onBackPressed,
     this.isOfflineMode = false,
     this.isInSelectionMode = false,
@@ -29,95 +30,96 @@ class BrowseAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final compact =
+        MediaQuery.sizeOf(context).width < 600 ||
+        MediaQuery.textScalerOf(context).scale(1) > 1.4;
     return AppBar(
-      backgroundColor: EVColors.appBarBackground,
-      foregroundColor: EVColors.appBarForeground,
-      surfaceTintColor: Colors.transparent,
-      elevation: 0,
-      scrolledUnderElevation: 1,
-      shadowColor: EVColors.shadowBlack,
-      bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(1),
-        child: Container(color: EVColors.appBarBorder, height: 1),
-      ),
-      iconTheme: const IconThemeData(color: EVColors.appBarForeground),
-      titleTextStyle: const TextStyle(
-        color: EVColors.appBarForeground,
-        fontSize: 20,
-        fontWeight: FontWeight.w600,
-      ),
-      actionsIconTheme: const IconThemeData(color: EVColors.appBarForeground),
-      leading: showBackButton
-          ? IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () {
-                if (onBackPressed?.call() ?? false) {
-                  // Navigation handled by controller
-                } else {
-                  Navigator.of(context).pop();
-                }
-              },
-            )
-          : IconButton(
-              icon: const Icon(Icons.menu),
-              onPressed: onDrawerOpen,
-            ),
-      title: Row(
-        children: [
-          const Text('Browse'),
-          if (isOfflineMode)
-            Container(
-              margin: const EdgeInsets.only(left: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: EVColors.statusWarning,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Text(
-                'Offline',
-                style: TextStyle(
-                  color: EVColors.buttonForeground,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-        ],
+      automaticallyImplyLeading: false,
+      leading:
+          showBackButton
+              ? IconButton(
+                tooltip: 'Back',
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  if (!(onBackPressed?.call() ?? false))
+                    Navigator.of(context).maybePop();
+                },
+              )
+              : showMenuButton
+              ? IconButton(
+                tooltip: 'Open navigation',
+                icon: const Icon(Icons.menu),
+                onPressed: onDrawerOpen,
+              )
+              : null,
+      title: Text(
+        isOfflineMode ? 'Offline files' : 'Documents',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
       actions: [
         if (!isOfflineMode) ...[
           IconButton(
-            icon: Icon(isInSelectionMode ? Icons.close : Icons.select_all),
-            onPressed: onSelectionModeToggle,
-          ),
-          IconButton(
-            icon: Stack(
-              children: [
-                const Icon(Icons.filter_list),
-                if (hasActiveFilters)
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: EVColors.errorRed,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            onPressed: onFilterSortTap,
-          ),
-          IconButton(
+            tooltip: 'Search documents',
             icon: const Icon(Icons.search),
             onPressed: onSearchTap,
           ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: onLogoutTap,
+          if (!compact) ...[
+            IconButton(
+              tooltip: isInSelectionMode ? 'Cancel selection' : 'Select items',
+              icon: Icon(isInSelectionMode ? Icons.close : Icons.checklist),
+              onPressed: onSelectionModeToggle,
+            ),
+            IconButton(
+              tooltip: hasActiveFilters ? 'Filters active' : 'Filter and sort',
+              icon: Badge(
+                isLabelVisible: hasActiveFilters,
+                child: const Icon(Icons.tune),
+              ),
+              onPressed: onFilterSortTap,
+            ),
+          ],
+          PopupMenuButton<String>(
+            tooltip: 'More actions',
+            icon: Badge(
+              isLabelVisible: compact && hasActiveFilters,
+              child: const Icon(Icons.more_horiz),
+            ),
+            onSelected: (action) {
+              switch (action) {
+                case 'select':
+                  onSelectionModeToggle?.call();
+                case 'filter':
+                  onFilterSortTap?.call();
+                case 'logout':
+                  onLogoutTap?.call();
+                case 'navigation':
+                  onDrawerOpen?.call();
+              }
+            },
+            itemBuilder:
+                (_) => [
+                  if (showMenuButton && showBackButton)
+                    const PopupMenuItem(
+                      value: 'navigation',
+                      child: Text('Open navigation'),
+                    ),
+                  if (compact) ...[
+                    PopupMenuItem(
+                      value: 'select',
+                      child: Text(
+                        isInSelectionMode ? 'Cancel selection' : 'Select items',
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'filter',
+                      child: Text('Filter and sort'),
+                    ),
+                  ],
+                  const PopupMenuItem(value: 'logout', child: Text('Sign out')),
+                ],
           ),
+          const SizedBox(width: 8),
         ],
       ],
     );
