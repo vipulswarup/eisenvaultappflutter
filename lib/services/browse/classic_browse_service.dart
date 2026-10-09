@@ -87,7 +87,7 @@ class ClassicBrowseService implements BrowseService {
 
       EVLogger.productionLog('=== CLASSIC BROWSE SERVICE - GET SITES ===');
       EVLogger.productionLog('Request URL: $url');
-      EVLogger.productionLog('Headers: ${_baseService.createHeaders()}');
+      EVLogger.productionLog('Request headers', _baseService.createHeaders());
       EVLogger.productionLog('Skip Count: $skipCount, Max Items: $maxItems');
 
       final response = await getWithTimeout(

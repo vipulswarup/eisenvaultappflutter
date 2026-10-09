@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../models/workflow_task.dart';
+import '../../models/workflow_task_form.dart';
 import '../../utils/http_utils.dart';
 
 abstract class WorkflowService {
@@ -9,8 +10,24 @@ abstract class WorkflowService {
   Future<List<String>> getDocumentNames(WorkflowTask task);
 }
 
-/// Read-only, account-scoped access to Alfresco Content Services workflows.
-class AlfrescoWorkflowService implements WorkflowService {
+abstract class WorkflowActionService {
+  Future<WorkflowTaskForm> getTaskForm(String id);
+  Future<void> completeTask(
+    WorkflowTaskForm form,
+    Map<String, String> values,
+    String transition,
+  );
+}
+
+class WorkflowTaskChanged implements Exception {
+  @override
+  String toString() =>
+      'This task changed or is no longer assigned to you. The form has been refreshed.';
+}
+
+/// Account-scoped access to Alfresco Content Services workflows.
+class AlfrescoWorkflowService
+    implements WorkflowService, WorkflowActionService {
   final String baseUrl, authToken;
   final http.Client? client;
   AlfrescoWorkflowService({
@@ -56,29 +73,36 @@ class AlfrescoWorkflowService implements WorkflowService {
   @override
   Future<List<WorkflowTask>> getMyTasks() async {
     final tasks = <String, WorkflowTask>{};
-    var skip = 0;
-    while (true) {
-      final json =
-          (await _get(
-            _uri('s/api/task-instances', {
-              'state': 'IN_PROGRESS',
-              'pooledTasks': 'true',
-              'maxItems': '100',
-              'skipCount': '$skip',
-            }),
-          ))!;
-      final rows = json['data'];
-      if (rows is! List) throw const FormatException('Invalid task list');
-      for (final row in rows) {
-        final task = WorkflowTask.fromJson(
-          Map<String, dynamic>.from(row as Map),
-        );
-        if (task.isActive) tasks[task.id] = task;
-      }
-      skip += rows.length;
-      final total = (json['paging'] as Map?)?['totalItems'] as num?;
-      if (rows.isEmpty || (total != null ? skip >= total : rows.length < 100)) {
-        break;
+    for (final pooled in [false, true]) {
+      var skip = 0;
+      while (true) {
+        final json =
+            (await _get(
+              _uri('s/api/task-instances', {
+                'state': 'IN_PROGRESS',
+                'pooledTasks': '$pooled',
+                'maxItems': '100',
+                'skipCount': '$skip',
+              }),
+            ))!;
+        final rows = json['data'];
+        if (rows is! List) throw const FormatException('Invalid task list');
+        for (final row in rows) {
+          final task = WorkflowTask.fromJson(
+            Map<String, dynamic>.from(row as Map),
+          );
+          if (task.isActive &&
+              (row['workflowInstance'] as Map?)?['name'] !=
+                  'activiti\$activitiPermissionProcess') {
+            tasks[task.id] = task;
+          }
+        }
+        skip += rows.length;
+        final total = (json['paging'] as Map?)?['totalItems'] as num?;
+        if (rows.isEmpty ||
+            (total != null ? skip >= total : rows.length < 100)) {
+          break;
+        }
       }
     }
     return tasks.values.toList()..sort(WorkflowTask.compare);
@@ -100,6 +124,83 @@ class AlfrescoWorkflowService implements WorkflowService {
       return null;
     }
     return task;
+  }
+
+  Future<Map<String, dynamic>> _post(
+    String path,
+    Map<String, dynamic> body,
+  ) async {
+    final headers = {
+      'Authorization': authToken,
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    };
+    // Never retry a mutation: an uncertain response might already have completed the task.
+    final response = await (client ?? appHttpClient)
+        .post(_uri(path), headers: headers, body: jsonEncode(body))
+        .timeout(apiRequestTimeout);
+    if (response.statusCode == 401) {
+      throw Exception('Your session has expired. Please sign in again.');
+    }
+    if (response.statusCode == 403 ||
+        response.statusCode == 404 ||
+        response.statusCode == 409) {
+      throw WorkflowTaskChanged();
+    }
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception(
+        'The server could not process the task form (HTTP ${response.statusCode}). Refresh before trying again.',
+      );
+    }
+    return Map<String, dynamic>.from(jsonDecode(response.body) as Map);
+  }
+
+  @override
+  Future<WorkflowTaskForm> getTaskForm(String id) async {
+    final task = await _get(
+      _uri('s/api/task-instances/${Uri.encodeComponent(id)}'),
+      missingAllowed: true,
+    );
+    if (task == null || !(await getMyTasks()).any((t) => t.id == id)) {
+      throw WorkflowTaskChanged();
+    }
+    final taskData = Map<String, dynamic>.from(task['data'] as Map);
+    if ((taskData['workflowInstance'] as Map?)?['name'] !=
+            'activiti\$activitiAdhoc' ||
+        !['wf:adhocTask', 'wf:completedAdhocTask'].contains(taskData['name'])) {
+      return WorkflowTaskForm.fromJson(id, taskData, {
+        'definition': {'fields': []},
+        'formData': {},
+      });
+    }
+    final form = await _post('s/api/formdefinitions', {
+      'itemKind': 'task',
+      'itemId': id,
+    });
+    return WorkflowTaskForm.fromJson(
+      id,
+      Map<String, dynamic>.from(task['data'] as Map),
+      Map<String, dynamic>.from(form['data'] as Map),
+    );
+  }
+
+  @override
+  Future<void> completeTask(
+    WorkflowTaskForm form,
+    Map<String, String> values,
+    String transition,
+  ) async {
+    final fresh = await getTaskForm(form.taskId);
+    if (fresh.fingerprint != form.fingerprint) throw WorkflowTaskChanged();
+    final body = fresh.submission(values, transition);
+    await _post(
+      's/api/task/${Uri.encodeComponent(form.taskId)}/formprocessor',
+      body,
+    );
+    final task = await getTask(form.taskId);
+    if (task != null && task.isActive) {
+      throw Exception('The task is still active. Refresh before trying again.');
+    }
   }
 
   @override

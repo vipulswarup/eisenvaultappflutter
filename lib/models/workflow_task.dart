@@ -1,6 +1,6 @@
 /// A current task from Alfresco's built-in workflow engine.
 class WorkflowTask {
-  final String id, title, workflowType, initiator, comments, state;
+  final String id, title, workflowType, initiator, comments, state, summary;
   final DateTime? dueDate;
   final String? packageNode;
   final bool isPooled;
@@ -8,6 +8,7 @@ class WorkflowTask {
   const WorkflowTask({
     required this.id,
     required this.title,
+    this.summary = '',
     this.workflowType = '',
     this.initiator = '',
     this.comments = '',
@@ -33,6 +34,7 @@ class WorkflowTask {
       id: id,
       title:
           (json['title'] ?? json['description'] ?? 'Workflow task').toString(),
+      summary: (workflow['message'] ?? json['description'] ?? '').toString(),
       workflowType: (workflow['title'] ?? workflow['name'] ?? '').toString(),
       initiator: name.isNotEmpty ? name : (person['userName'] ?? '').toString(),
       comments:

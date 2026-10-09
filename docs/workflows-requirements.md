@@ -1,6 +1,6 @@
 # Workflow requirements — initial release
 
-Status: requirements draft based on user decisions. Implementation has not started.
+Status: requirements draft based on user decisions. My Tasks and standard New Task completion are implemented; see workflows-first-increment.md and workflows-task-completion.md for coverage and validation.
 Date: 5 October 2026.
 
 ## Goal and scope

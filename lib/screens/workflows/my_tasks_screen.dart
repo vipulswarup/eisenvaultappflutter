@@ -1,3 +1,4 @@
+import 'workflow_task_actions.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/workflow_task.dart';
@@ -6,10 +7,12 @@ import '../../services/workflows/alfresco_workflow_service.dart';
 class MyTasksScreen extends StatefulWidget {
   final WorkflowService service;
   final String accountLabel;
+  final String? accountId;
   const MyTasksScreen({
     super.key,
     required this.service,
     required this.accountLabel,
+    this.accountId,
   });
   @override
   State<MyTasksScreen> createState() => _MyTasksScreenState();
@@ -93,6 +96,9 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
                                   children: [
                                     if (task.workflowType.isNotEmpty)
                                       Text(task.workflowType),
+                                    if (task.summary.isNotEmpty &&
+                                        task.summary != task.title)
+                                      Text(task.summary),
                                     _DueDate(task: task),
                                     if (task.isPooled)
                                       const Text(
@@ -108,6 +114,7 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
                                           (_) => WorkflowTaskScreen(
                                             service: widget.service,
                                             taskId: task.id,
+                                            accountId: widget.accountId,
                                           ),
                                     ),
                                   );
@@ -128,10 +135,12 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
 class WorkflowTaskScreen extends StatefulWidget {
   final WorkflowService service;
   final String taskId;
+  final String? accountId;
   const WorkflowTaskScreen({
     super.key,
     required this.service,
     required this.taskId,
+    this.accountId,
   });
   @override
   State<WorkflowTaskScreen> createState() => _WorkflowTaskScreenState();
@@ -196,6 +205,7 @@ class _WorkflowTaskScreenState extends State<WorkflowTaskScreen> {
             if (task.workflowType.isNotEmpty)
               _field('Workflow', task.workflowType),
             if (task.initiator.isNotEmpty) _field('Initiator', task.initiator),
+            if (task.summary.isNotEmpty) _field('Description', task.summary),
             _DueDate(task: task),
             const SizedBox(height: 16),
             _field(
@@ -228,7 +238,22 @@ class _WorkflowTaskScreenState extends State<WorkflowTaskScreen> {
               },
             ),
             const SizedBox(height: 24),
-            const Text('Task actions are not available in this version.'),
+            if (widget.service is WorkflowActionService &&
+                widget.accountId != null)
+              WorkflowTaskActions(
+                key: ValueKey(_task),
+                service: widget.service as WorkflowActionService,
+                taskId: task.id,
+                accountId: widget.accountId!,
+                onCompleted: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Task completed')),
+                  );
+                  Navigator.of(context).pop();
+                },
+              )
+            else
+              const Text('Task actions are not available in this version.'),
           ],
         );
       },

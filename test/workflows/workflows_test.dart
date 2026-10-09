@@ -100,9 +100,10 @@ void main() {
         }),
       );
       expect((await service.getMyTasks()).map((t) => t.id), ['1', '2']);
-      expect(requests, hasLength(2));
+      expect(requests, hasLength(4));
       expect(requests.first.url.path, '/alfresco/s/api/task-instances');
-      expect(requests.first.url.queryParameters['pooledTasks'], 'true');
+      expect(requests.first.url.queryParameters['pooledTasks'], 'false');
+      expect(requests.last.url.queryParameters['pooledTasks'], 'true');
       expect(requests.first.url.queryParameters['authority'], isNull);
       expect(requests.first.headers['authorization'], 'Basic ticket');
     },

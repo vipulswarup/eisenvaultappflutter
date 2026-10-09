@@ -335,6 +335,7 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
                                 baseUrl: displayBaseUrl,
                                 authToken: displayAuthToken,
                               ),
+                              accountId: currentAccount?.id,
                               accountLabel:
                                   '${currentAccount?.username ?? displayFirstName} · ${_cleanServerUrl(displayBaseUrl)}',
                             ),

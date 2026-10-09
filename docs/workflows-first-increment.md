@@ -28,3 +28,7 @@ https://github.com/Alfresco/alfresco-remote-api/blob/master/src/main/resources/a
 https://github.com/Alfresco/alfresco-remote-api/blob/master/src/main/resources/alfresco/templates/webscripts/org/alfresco/repository/workflow/task-instance.get.desc.xml
 
 Android emulator verification required raising compileSdk from 36 to 37 for the existing permission_handler_android dependency. targetSdk and minSdk remain unchanged.
+
+## Follow-up
+
+The task-list API was validated on the demo Alfresco 5.2 server on 9 October 2026. On this server `pooledTasks=true` returns pooled tasks only, so the client now combines separately paginated direct and pooled queries. The deployed permission workflow is identified by `activiti$activitiPermissionProcess` and excluded. Workflow package document-name resolution was validated. See workflows-task-completion.md for the next increment and macOS testing.

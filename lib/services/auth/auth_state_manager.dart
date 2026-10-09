@@ -1,3 +1,4 @@
+import '../workflows/workflow_draft_store.dart';
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show ChangeNotifier, kIsWeb;
 import 'package:flutter/services.dart';
@@ -241,6 +242,7 @@ class AuthStateManager extends ChangeNotifier {
     try {
       final success = await _multiAccountAuth.removeAccount(accountId);
       if (success) {
+        await WorkflowDraftStore.clearAccount(accountId);
         _allAccounts = await _multiAccountAuth.getAllAccounts();
 
         // If we removed the current account, update current account
@@ -281,6 +283,7 @@ class AuthStateManager extends ChangeNotifier {
   Future<void> logoutAll() async {
     try {
       await _multiAccountAuth.clearAllAccounts();
+      await WorkflowDraftStore.clearAccount(null);
       _clearState();
       notifyListeners();
     } catch (e) {
