@@ -338,8 +338,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                       child: ListTile(
                         leading: FileTypeIcon(
                           fileName: file.name,
-                          showBackground: false,
-                          iconSize: 24,
+                                                    iconSize: 24,
                         ),
                         title: Text(file.name),
                         subtitle: Text(kIsWeb ? 'Selected file (Web)' : 'Selected file'),

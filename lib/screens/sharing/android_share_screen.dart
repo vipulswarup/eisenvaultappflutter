@@ -545,8 +545,7 @@ class _AndroidShareScreenState extends State<AndroidShareScreen> {
                       children: [
                         FileTypeIcon(
                           fileName: fileNames[file] ?? file.split('/').last,
-                          showBackground: false,
-                          iconSize: 16,
+                                                    iconSize: 16,
                         ),
                         const SizedBox(width: 8),
                         Expanded(
@@ -615,8 +614,7 @@ class _AndroidShareScreenState extends State<AndroidShareScreen> {
               children: [
                 FileTypeIcon(
                   isFolder: true,
-                  showBackground: false,
-                  iconSize: 24,
+                                    iconSize: 24,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -678,8 +676,7 @@ class _AndroidShareScreenState extends State<AndroidShareScreen> {
               children: [
                 FileTypeIcon(
                   isFolder: true,
-                  showBackground: false,
-                  iconSize: 16,
+                                    iconSize: 16,
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -796,8 +793,7 @@ class _AndroidShareScreenState extends State<AndroidShareScreen> {
                                 children: [
                                   FileTypeIcon(
                                     isFolder: true,
-                                    showBackground: false,
-                                    iconSize: 48,
+                                                                        iconSize: 48,
                                   ),
                                   const SizedBox(height: 8),
                                   Text(

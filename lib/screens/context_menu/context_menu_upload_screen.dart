@@ -113,8 +113,7 @@ class _ContextMenuUploadScreenState extends State<ContextMenuUploadScreen> {
                     return ListTile(
                       leading: FileTypeIcon(
                         fileName: fileName,
-                        showBackground: false,
-                        iconSize: 24,
+                                                iconSize: 24,
                       ),
                       title: Text(fileName),
                       subtitle: Text(filePath),

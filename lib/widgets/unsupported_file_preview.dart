@@ -76,8 +76,7 @@ class UnsupportedFilePreview extends StatelessWidget {
           children: [
             FileTypeIcon(
               fileName: fileName,
-              showBackground: false,
-              iconSize: 64,
+                            iconSize: 64,
             ),
             const SizedBox(height: 16),
             Text(
