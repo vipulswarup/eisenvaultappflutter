@@ -1,4 +1,6 @@
 import 'workflow_task_actions.dart';
+import '../../models/browse_item.dart';
+import '../browse/handlers/file_tap_handler.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/workflow_task.dart';
@@ -153,9 +155,9 @@ class WorkflowTaskScreen extends StatefulWidget {
 }
 
 class _WorkflowTaskScreenState extends State<WorkflowTaskScreen> {
-  bool _formBusy = false, _ownershipBusy = false;
+  bool _formBusy = false, _ownershipBusy = false, _previewBusy = false;
   late Future<WorkflowTask?> _task;
-  Future<List<String>>? _documents;
+  Future<List<BrowseItem>>? _documents;
   @override
   void initState() {
     super.initState();
@@ -166,10 +168,42 @@ class _WorkflowTaskScreenState extends State<WorkflowTaskScreen> {
     _documents = null;
     _task = widget.service.getTask(widget.taskId).then((task) {
       if (task != null && task.isActive) {
-        _documents = widget.service.getDocumentNames(task);
+        _documents =
+            widget.service is WorkflowDocumentService
+                ? (widget.service as WorkflowDocumentService).getDocuments(task)
+                : widget.service
+                    .getDocumentNames(task)
+                    .then(
+                      (names) =>
+                          names
+                              .map(
+                                (name) => BrowseItem(
+                                  id: '',
+                                  name: name,
+                                  type: 'file',
+                                ),
+                              )
+                              .toList(),
+                    );
       }
       return task;
     });
+  }
+
+  Future<void> _preview(BrowseItem document) async {
+    if (_previewBusy) return;
+    final service = widget.service as WorkflowDocumentService;
+    setState(() => _previewBusy = true);
+    try {
+      await FileTapHandler(
+        context: context,
+        instanceType: 'Classic',
+        baseUrl: service.baseUrl,
+        authToken: service.authToken,
+      ).handleFileTap(document);
+    } finally {
+      if (mounted) setState(() => _previewBusy = false);
+    }
   }
 
   Future<void> _changeOwnership(WorkflowTask task, bool claim) async {
@@ -346,7 +380,7 @@ class _WorkflowTaskScreenState extends State<WorkflowTaskScreen> {
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 12),
-                      FutureBuilder<List<String>>(
+                      FutureBuilder<List<BrowseItem>>(
                         future: _documents,
                         builder: (context, docs) {
                           if (docs.connectionState != ConnectionState.done) {
@@ -361,7 +395,7 @@ class _WorkflowTaskScreenState extends State<WorkflowTaskScreen> {
                               ? const Text('No documents supplied')
                               : Column(
                                 children: [
-                                  for (final name in docs.data!)
+                                  for (final document in docs.data!)
                                     ListTile(
                                       contentPadding: EdgeInsets.zero,
                                       leading: Container(
@@ -376,7 +410,9 @@ class _WorkflowTaskScreenState extends State<WorkflowTaskScreen> {
                                           ),
                                         ),
                                         child: Icon(
-                                          name.toLowerCase().endsWith('.pdf')
+                                          document.name.toLowerCase().endsWith(
+                                                '.pdf',
+                                              )
                                               ? Icons.picture_as_pdf_outlined
                                               : Icons
                                                   .insert_drive_file_outlined,
@@ -386,7 +422,18 @@ class _WorkflowTaskScreenState extends State<WorkflowTaskScreen> {
                                               ).colorScheme.primary,
                                         ),
                                       ),
-                                      title: Text(name),
+                                      title: Text(document.name),
+                                      trailing:
+                                          document.id.isEmpty
+                                              ? null
+                                              : const Icon(Icons.chevron_right),
+                                      onTap:
+                                          document.id.isEmpty ||
+                                                  _previewBusy ||
+                                                  _formBusy ||
+                                                  _ownershipBusy
+                                              ? null
+                                              : () => _preview(document),
                                     ),
                                 ],
                               );

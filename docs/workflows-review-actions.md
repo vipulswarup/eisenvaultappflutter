@@ -23,3 +23,54 @@ result. See [test configuration instructions](workflows-task-completion.md#repea
 
 Group task claim/release is covered in [the next increment](workflows-group-ownership.md). Next: workflow initiation and broader workflow form support.
 Signature approval needs its signing/version recovery flow before enabling it.
+
+## Follow-up acknowledgement and document previews
+
+Built-in single and pooled review workflows now support `wf:approvedTask` and
+`wf:rejectedTask` follow-up notifications. Their Acknowledge button submits the
+server's validated `Next` transition without a new approval/rejection outcome.
+Existing form constraints, ownership checks, draft persistence and completion
+verification apply. Custom and parallel workflow task types remain unavailable.
+
+Workflow document rows retain the package document IDs and open through the same
+`FileTapHandler`, document download service and type-specific viewers used by
+folder browsing. Preview routes are pushed above task details, so Back returns
+to that workflow. Folder/search callers retain their existing offline support
+and navigation. Workflow previews download with the current account credentials.
+
+Validation: approved/rejected form rules were inspected on the Alfresco 5.2 test
+server; acknowledgement payloads have regression coverage. The native macOS
+preview test downloads a text document from a local fixture server, verifies
+its content, then checks Back returns to the same workflow. The full 67-test
+suite and focused analysis pass.
+
+## EisenVault Document Approval
+
+The deployed `activiti$docApproveReject` / `scwf:activitiReviewTask` pair
+supports Approve and Reject through `Next`, writing
+`prop_scwf_approveRejectOutcome`. The adapter validates the exact outcome field,
+its data key, editable text/list metadata, allowed decisions, and the task's
+outcome-property reference. Accepted references are `scwf:approveRejectOutcome`
+and `{http://www.jkl.com/model/workflow/1.0}approveRejectOutcome`; surrounding
+whitespace is ignored when matching the reference. Other workflow/task pairs,
+including signature and permission-request tasks, are not enabled by this adapter.
+Required controls/comments, rejection confirmation, drafts, preflight refresh,
+and post-completion outcome verification use the existing review logic.
+Optional custom comments remain omitted under the initial-release requirements.
+
+Alfresco 5.2 emits literal newlines/tabs in this custom model's QName defaults
+inside JSON strings. Only formdefinitions responses escape string control
+characters before decoding, preserving their contents. Other JSON syntax errors
+still fail. This does not change the workflow model on the server.
+
+Validation: all 70 normal tests pass; focused analysis is clean. The opt-in
+`integration_test/document_approval_test.dart` renders the deployed form in
+macOS and cancels rejection, using a client that prevents workflow mutations.
+It takes private `WORKFLOW_TEST_URL` and `WORKFLOW_TEST_AUTH` dart defines for
+an admin account with an existing Document Approval task. Private configuration
+must remain outside the repository; delete it and rebuild the regular app after
+running the test. Payload submission and outcome verification are covered with
+mocked responses; live decision completion is not yet verified. A disposable
+workflow started via the generic form immediately completed without creating a
+review task, so this custom start path remains unsupported. That test workflow
+and document were removed. Existing user tasks were not modified.

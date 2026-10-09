@@ -31,6 +31,9 @@ import 'package:eisenvaultappflutter/services/auth/auth_state_manager.dart';
 import 'package:eisenvaultappflutter/utils/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../workflows/start_workflow_screen.dart';
+import '../../services/workflows/alfresco_workflow_service.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:eisenvaultappflutter/screens/browse/components/action_button_builder.dart';
 
 /// BrowseScreen handles online browsing of the repository content.
@@ -547,72 +550,116 @@ class _BrowseScreenState extends State<BrowseScreen> {
     showModalBottomSheet(
       context: context,
       builder:
-          (sheetContext) => Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: Icon(
-                  isFavorite ? Icons.star : Icons.star_border,
-                  color: isFavorite ? EVColors.iconAmber : EVColors.iconTeal,
-                ),
-                title: Text(
-                  isFavorite ? 'Remove from Favourites' : 'Add to Favourites',
-                ),
-                onTap: () async {
-                  Navigator.pop(sheetContext);
-                  await _toggleFavorite(item);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.offline_pin),
-                title: Text(isOffline ? 'Remove from Offline' : 'Keep Offline'),
-                onTap: () async {
-                  Navigator.pop(sheetContext);
-                  if (isOffline) {
-                    await _removeFromOffline(item);
-                  } else {
-                    await _keepOffline(item);
-                  }
-                },
-              ),
-              if (item.type != 'folder' && !item.isDepartment)
+          (sheetContext) => SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
                 ListTile(
-                  leading: const Icon(Icons.download),
-                  title: const Text('Download'),
-                  onTap: () {
+                  leading: Icon(
+                    isFavorite ? Icons.star : Icons.star_border,
+                    color: isFavorite ? EVColors.iconAmber : EVColors.iconTeal,
+                  ),
+                  title: Text(
+                    isFavorite ? 'Remove from Favourites' : 'Add to Favourites',
+                  ),
+                  onTap: () async {
                     Navigator.pop(sheetContext);
-                    _fileTapHandler.handleFileTap(item);
+                    await _toggleFavorite(item);
                   },
                 ),
-              if (canSign)
                 ListTile(
-                  leading: const Icon(Icons.draw),
-                  title: const Text('ESign with OpenSign'),
-                  onTap: () {
+                  leading: const Icon(Icons.offline_pin),
+                  title: Text(
+                    isOffline ? 'Remove from Offline' : 'Keep Offline',
+                  ),
+                  onTap: () async {
                     Navigator.pop(sheetContext);
-                    _handleSignWithOpenSign(item);
+                    if (isOffline) {
+                      await _removeFromOffline(item);
+                    } else {
+                      await _keepOffline(item);
+                    }
                   },
                 ),
-              if (item.allowableOperations?.contains('update') == true &&
-                  !item.isSystemFolder)
-                ListTile(
-                  leading: const Icon(Icons.edit),
-                  title: const Text('Rename'),
-                  onTap: () {
-                    Navigator.pop(sheetContext);
-                    _renameHandler.showRenameDialog(item);
-                  },
-                ),
-              if (item.canDelete && !item.isSystemFolder)
-                ListTile(
-                  leading: const Icon(Icons.delete),
-                  title: const Text('Delete'),
-                  onTap: () {
-                    Navigator.pop(sheetContext);
-                    _deleteHandler.showDeleteConfirmation(item);
-                  },
-                ),
-            ],
+                if (item.type != 'folder' && !item.isDepartment)
+                  ListTile(
+                    leading: const Icon(Icons.download),
+                    title: const Text('Download'),
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _fileTapHandler.handleFileTap(item);
+                    },
+                  ),
+                if (canSign)
+                  ListTile(
+                    leading: const Icon(Icons.draw),
+                    title: const Text('ESign with OpenSign'),
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _handleSignWithOpenSign(item);
+                    },
+                  ),
+                if (item.type != 'folder' &&
+                    !item.isDepartment &&
+                    [
+                      'classic',
+                      'alfresco',
+                    ].contains(widget.instanceType.toLowerCase()))
+                  ListTile(
+                    leading: SvgPicture.asset(
+                      'assets/icons/workflow_shape.svg',
+                      width: 24,
+                      height: 24,
+                      colorFilter: ColorFilter.mode(
+                        Theme.of(context).colorScheme.onSurfaceVariant,
+                        BlendMode.srcIn,
+                      ),
+                    ),
+                    title: const Text('Start workflow'),
+                    onTap: () async {
+                      Navigator.pop(sheetContext);
+                      final account =
+                          context.read<AuthStateManager>().currentAccount;
+                      if (account == null) return;
+                      final id = await Navigator.of(context).push<String>(
+                        MaterialPageRoute(
+                          builder:
+                              (_) => StartWorkflowScreen(
+                                service: AlfrescoWorkflowService(
+                                  baseUrl: widget.baseUrl,
+                                  authToken: widget.authToken,
+                                ),
+                                nodeId: item.id,
+                                documentName: item.name,
+                                accountId: account.id,
+                              ),
+                        ),
+                      );
+                      if (mounted && id != null)
+                        _showSnackBar('Workflow started successfully.');
+                    },
+                  ),
+                if (item.allowableOperations?.contains('update') == true &&
+                    !item.isSystemFolder)
+                  ListTile(
+                    leading: const Icon(Icons.edit),
+                    title: const Text('Rename'),
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _renameHandler.showRenameDialog(item);
+                    },
+                  ),
+                if (item.canDelete && !item.isSystemFolder)
+                  ListTile(
+                    leading: const Icon(Icons.delete),
+                    title: const Text('Delete'),
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _deleteHandler.showDeleteConfirmation(item);
+                    },
+                  ),
+              ],
+            ),
           ),
     );
   }

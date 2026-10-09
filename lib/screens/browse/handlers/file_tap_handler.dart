@@ -19,7 +19,7 @@ class FileTapHandler {
   final String baseUrl;
   final String authToken;
   final AngoraBaseService? angoraBaseService;
-  final OfflineManager _offlineManager;
+  final OfflineManager? _offlineManager;
   bool _isLoadingOverlayShown = false;
 
   FileTapHandler({
@@ -27,7 +27,7 @@ class FileTapHandler {
     required this.instanceType,
     required this.baseUrl,
     required this.authToken,
-    required OfflineManager offlineManager,
+    OfflineManager? offlineManager,
     this.angoraBaseService,
   }) : _offlineManager = offlineManager;
   
@@ -42,11 +42,11 @@ class FileTapHandler {
     _showLoadingOverlay();
     try {
       final fileType = getFileType(document.name);
-      final isOffline = await _offlineManager.isItemOffline(document.id);
+      final isOffline = await _offlineManager?.isItemOffline(document.id) ?? false;
 
       // First check if file is available offline
       if (isOffline) {
-        final offlineContent = await _offlineManager.getFileContent(document.id);
+        final offlineContent = await _offlineManager!.getFileContent(document.id);
         if (offlineContent != null) {
           if (!context.mounted) return;
           _hideLoadingOverlay();

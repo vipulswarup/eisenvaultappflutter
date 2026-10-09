@@ -1,13 +1,21 @@
 import 'dart:convert';
+import '../../models/browse_item.dart';
 import 'package:http/http.dart' as http;
 import '../../models/workflow_task.dart';
 import '../../models/workflow_task_form.dart';
+import '../../models/workflow_start_form.dart';
 import '../../utils/http_utils.dart';
 
 abstract class WorkflowService {
   Future<List<WorkflowTask>> getMyTasks();
   Future<WorkflowTask?> getTask(String id);
   Future<List<String>> getDocumentNames(WorkflowTask task);
+}
+
+abstract class WorkflowDocumentService {
+  String get baseUrl;
+  String get authToken;
+  Future<List<BrowseItem>> getDocuments(WorkflowTask task);
 }
 
 abstract class WorkflowActionService {
@@ -23,6 +31,20 @@ abstract class WorkflowOwnershipService {
   Future<void> changeOwnership(WorkflowTask snapshot, {required bool claim});
 }
 
+abstract class WorkflowStartService {
+  Future<List<WorkflowDefinition>> getStartDefinitions();
+  Future<WorkflowStartForm> getStartForm(
+    WorkflowDefinition definition,
+    String nodeId,
+  );
+  Future<List<WorkflowAssignee>> searchAssignees(String nodeId, String query);
+  Future<String> startWorkflow(
+    WorkflowStartForm form,
+    Map<String, String> values,
+    WorkflowAssignee assignee,
+  );
+}
+
 class WorkflowTaskChanged implements Exception {
   @override
   String toString() =>
@@ -33,9 +55,14 @@ class WorkflowTaskChanged implements Exception {
 class AlfrescoWorkflowService
     implements
         WorkflowService,
+        WorkflowDocumentService,
         WorkflowActionService,
-        WorkflowOwnershipService {
-  final String baseUrl, authToken;
+        WorkflowOwnershipService,
+        WorkflowStartService {
+  @override
+  final String baseUrl;
+  @override
+  final String authToken;
   final http.Client? client;
   AlfrescoWorkflowService({
     required this.baseUrl,
@@ -50,6 +77,7 @@ class AlfrescoWorkflowService
   Future<Map<String, dynamic>?> _get(
     Uri uri, {
     bool missingAllowed = false,
+    bool permissionDeniedAllowed = false,
   }) async {
     final headers = {'Authorization': authToken, 'Accept': 'application/json'};
     final response =
@@ -59,6 +87,7 @@ class AlfrescoWorkflowService
                 .get(uri, headers: headers)
                 .timeout(apiRequestTimeout);
     if (missingAllowed && response.statusCode == 404) return null;
+    if (permissionDeniedAllowed && response.statusCode == 403) return null;
     if (response.statusCode == 401) {
       throw Exception('Your session has expired. Please sign in again.');
     }
@@ -75,6 +104,257 @@ class AlfrescoWorkflowService
       throw const FormatException('Invalid workflow response');
     }
     return json;
+  }
+
+  @override
+  Future<List<WorkflowDefinition>> getStartDefinitions() async {
+    final response = (await _get(_uri('s/api/workflow-definitions')))!;
+    return (response['data'] as List)
+        .map((row) => WorkflowDefinition.fromJson(row as Map))
+        .where((d) => d.name != 'activiti\$activitiPermissionProcess')
+        .toList();
+  }
+
+  Future<Map<String, dynamic>> _startDocument(String nodeId) async {
+    final response = await _get(
+      _uri(
+        'api/-default-/public/alfresco/versions/1/nodes/${Uri.encodeComponent(nodeId)}',
+        {'include': 'permissions'},
+      ),
+    );
+    final node = Map<String, dynamic>.from(response!['entry'] as Map);
+    if (node['isFile'] != true) {
+      throw const WorkflowStartNotSubmitted(
+        'Select a document to start a workflow.',
+      );
+    }
+    return node;
+  }
+
+  @override
+  Future<WorkflowStartForm> getStartForm(
+    WorkflowDefinition definition,
+    String nodeId,
+  ) async {
+    final node = await _startDocument(nodeId);
+    if (!definition.supported) {
+      return WorkflowStartForm.fromJson(definition, node, {});
+    }
+    final response = await _post('s/api/formdefinitions', {
+      'itemKind': 'workflow',
+      'itemId': definition.name,
+    });
+    return WorkflowStartForm.fromJson(
+      definition,
+      node,
+      Map<String, dynamic>.from(response['data'] as Map),
+    );
+  }
+
+  Future<bool> _assigneeCanRead(
+    Map<String, dynamic> node,
+    Map person,
+    String currentUsername,
+  ) async {
+    final username = person['userName'] as String;
+    if (person['enabled'] != true) return false;
+    // Check content access for self; readable metadata alone is insufficient.
+    if (username == currentUsername) {
+      final request = http.Request(
+        'GET',
+        _uri(
+          'api/-default-/public/alfresco/versions/1/nodes/${Uri.encodeComponent(node['id'] as String)}/content',
+        ),
+      );
+      request.headers.addAll({
+        'Authorization': authToken,
+        'Range': 'bytes=0-0',
+      });
+      final response = await (client ?? appHttpClient)
+          .send(request)
+          .timeout(apiRequestTimeout);
+      // Do not download the document if a server ignores the Range header.
+      await response.stream.listen((_) {}).cancel();
+      return response.statusCode == 200 || response.statusCode == 206;
+    }
+    if (person['isAdminAuthority'] == true) return true;
+    if (node['permissions'] is! Map) return false;
+    final authorities = <String>{username, 'GROUP_EVERYONE'};
+    var skip = 0;
+    while (true) {
+      final response = await _get(
+        _uri(
+          'api/-default-/public/alfresco/versions/1/people/${Uri.encodeComponent(username)}/groups',
+          {'skipCount': '$skip', 'maxItems': '100'},
+        ),
+        permissionDeniedAllowed: true,
+      );
+      if (response == null) {
+        return hasDocumentReadAccess(
+          node,
+          authorities,
+          membershipsKnown: false,
+        );
+      }
+      final rows = response['list']['entries'] as List;
+      authorities.addAll(rows.map((row) => row['entry']['id'] as String));
+      if (response['list']['pagination']['hasMoreItems'] != true) break;
+      if (rows.isEmpty) throw const FormatException('Invalid group pagination');
+      skip += rows.length;
+    }
+    return hasDocumentReadAccess(node, authorities);
+  }
+
+  Future<WorkflowAssignee> _personReference(Map person) async {
+    final username = person['userName'] as String;
+    final escaped = username.replaceAll(r'\', r'\\').replaceAll('"', r'\"');
+    final response = await _post(
+      'api/-default-/public/search/versions/1/search',
+      {
+        'query': {
+          'query': 'TYPE:"cm:person" AND cm:userName:"$escaped"',
+          'language': 'afts',
+        },
+        'paging': {'maxItems': 2},
+      },
+    );
+    final rows = response['list']['entries'] as List;
+    if (rows.length != 1) {
+      throw const WorkflowStartNotSubmitted(
+        'The selected user could not be resolved. Search again.',
+      );
+    }
+    final display =
+        [
+          person['firstName'],
+          person['lastName'],
+        ].whereType<String>().join(' ').trim();
+    return WorkflowAssignee(
+      username,
+      display.isEmpty ? username : display,
+      'workspace://SpacesStore/${rows.single['entry']['id']}',
+    );
+  }
+
+  @override
+  Future<List<WorkflowAssignee>> searchAssignees(
+    String nodeId,
+    String query,
+  ) async {
+    if (query.trim().length < 2) return [];
+    final node = await _startDocument(nodeId);
+    final profile =
+        (await _get(
+          _uri('api/-default-/public/alfresco/versions/1/people/-me-'),
+        ))!;
+    final response =
+        (await _get(
+          _uri('s/api/people', {'filter': query.trim(), 'maxResults': '25'}),
+        ))!;
+    final result = <WorkflowAssignee>[];
+    for (final raw in response['people'] as List) {
+      final person = raw as Map;
+      if (await _assigneeCanRead(
+        node,
+        person,
+        profile['entry']['id'] as String,
+      )) {
+        result.add(await _personReference(person));
+      }
+    }
+    return result;
+  }
+
+  @override
+  Future<String> startWorkflow(
+    WorkflowStartForm form,
+    Map<String, String> values,
+    WorkflowAssignee assignee,
+  ) async {
+    // All checks precede the one workflow mutation. No arbitrary URL or package is submitted.
+    late final Map<String, dynamic> body;
+    try {
+      final definitions = await getStartDefinitions();
+      if (!definitions.any(
+        (d) =>
+            d.id == form.definition.id &&
+            d.name == form.definition.name &&
+            d.supported,
+      )) {
+        throw const WorkflowStartNotSubmitted(
+          'This workflow definition changed. Reopen the form.',
+        );
+      }
+      final fresh = await getStartForm(form.definition, form.nodeId);
+      if (fresh.fingerprint != form.fingerprint) {
+        throw const WorkflowStartNotSubmitted(
+          'The document or workflow form changed. Reopen the form.',
+        );
+      }
+      final person =
+          (await _get(
+            _uri('s/api/people/${Uri.encodeComponent(assignee.username)}'),
+          ))!;
+      final profile =
+          (await _get(
+            _uri('api/-default-/public/alfresco/versions/1/people/-me-'),
+          ))!;
+      final node = await _startDocument(form.nodeId);
+      if (!await _assigneeCanRead(
+        node,
+        person,
+        profile['entry']['id'] as String,
+      )) {
+        throw const WorkflowStartNotSubmitted(
+          'The selected user no longer has verified document access.',
+        );
+      }
+      final resolved = await _personReference(person);
+      body = fresh.submission(values, resolved);
+    } on WorkflowStartNotSubmitted {
+      rethrow;
+    } catch (error) {
+      // No workflow mutation has been sent when these checks fail.
+      throw WorkflowStartNotSubmitted(error.toString());
+    }
+    final result = await _post(
+      's/api/workflow/${Uri.encodeComponent(form.definition.name)}/formprocessor',
+      body,
+    );
+    final id = RegExp(
+      r'WorkflowInstance\[id=([^,]+)',
+    ).firstMatch(result['persistedObject']?.toString() ?? '')?.group(1);
+    if (id == null) {
+      throw Exception(
+        'Unable to confirm workflow creation. Check the server before starting another workflow.',
+      );
+    }
+    final instance =
+        (await _get(
+          _uri('s/api/workflow-instances/${Uri.encodeComponent(id)}'),
+        ))!;
+    final package = instance['data']['package'] as String?;
+    if (package == null) {
+      throw Exception(
+        'Workflow $id was created but its document could not be confirmed.',
+      );
+    }
+    final contents =
+        (await _get(
+          _uri(
+            'api/-default-/public/alfresco/versions/1/nodes/${Uri.encodeComponent(package.split('/').last)}/children',
+            {'maxItems': '2'},
+          ),
+        ))!;
+    final entries = contents['list']['entries'] as List;
+    if (entries.length != 1 ||
+        entries.single['entry']['id'] != form.nodeId ||
+        contents['list']['pagination']['hasMoreItems'] == true) {
+      throw Exception(
+        'Workflow $id was created but its document could not be confirmed.',
+      );
+    }
+    return id;
   }
 
   @override
@@ -227,7 +507,14 @@ class AlfrescoWorkflowService
         'The server could not process the task form (HTTP ${response.statusCode}). Refresh before trying again.',
       );
     }
-    return Map<String, dynamic>.from(jsonDecode(response.body) as Map);
+    return Map<String, dynamic>.from(
+      jsonDecode(
+            path == 's/api/formdefinitions'
+                ? _escapeFormControlCharacters(response.body)
+                : response.body,
+          )
+          as Map,
+    );
   }
 
   @override
@@ -293,11 +580,15 @@ class AlfrescoWorkflowService
   }
 
   @override
-  Future<List<String>> getDocumentNames(WorkflowTask task) async {
+  Future<List<String>> getDocumentNames(WorkflowTask task) async =>
+      (await getDocuments(task)).map((item) => item.name).toList();
+
+  @override
+  Future<List<BrowseItem>> getDocuments(WorkflowTask task) async {
     final package = task.packageNode;
     if (package == null || package.isEmpty) return [];
     final nodeId = package.split('/').last;
-    final names = <String>[];
+    final names = <BrowseItem>[];
     var skip = 0;
     while (true) {
       final json =
@@ -312,7 +603,13 @@ class AlfrescoWorkflowService
       for (final row in entries) {
         final entry = (row as Map)['entry'] as Map;
         if (entry['isFile'] == true && entry['name'] is String) {
-          names.add(entry['name'] as String);
+          names.add(
+            BrowseItem(
+              id: entry['id'] as String,
+              name: entry['name'] as String,
+              type: 'file',
+            ),
+          );
         }
       }
       if ((list['pagination'] as Map?)?['hasMoreItems'] != true) break;
@@ -323,4 +620,28 @@ class AlfrescoWorkflowService
     }
     return names;
   }
+}
+
+// Some Alfresco 5.2 custom-model QName defaults contain literal XML whitespace
+// emitted unescaped inside JSON strings. Preserve that data while escaping only
+// control characters inside strings; all other malformed JSON still fails.
+String _escapeFormControlCharacters(String source) {
+  final result = StringBuffer();
+  var inString = false, escaped = false;
+  for (final code in source.codeUnits) {
+    if (inString && code < 0x20) {
+      result.write('\\u${code.toRadixString(16).padLeft(4, '0')}');
+      escaped = false;
+      continue;
+    }
+    result.writeCharCode(code);
+    if (escaped) {
+      escaped = false;
+    } else if (inString && code == 0x5c) {
+      escaped = true;
+    } else if (code == 0x22) {
+      inString = !inString;
+    }
+  }
+  return result.toString();
 }

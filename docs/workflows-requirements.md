@@ -1,6 +1,6 @@
 # Workflow requirements — initial release
 
-Status: requirements draft based on user decisions. My Tasks, standard New Task completion, single-review approve/reject and group claim/release are implemented; see workflows-first-increment.md, workflows-task-completion.md, workflows-review-actions.md and workflows-group-ownership.md for coverage and validation.
+Status: requirements draft based on user decisions. My Tasks, standard New Task completion, single-review approve/reject, Document Approval task actions, approved/rejected acknowledgement, workflow document previews, group claim/release and starting standard workflows from a document are implemented; see workflows-first-increment.md, workflows-task-completion.md, workflows-review-actions.md, workflows-group-ownership.md and workflows-start.md for coverage and validation.
 Date: 5 October 2026.
 
 ## Goal and scope

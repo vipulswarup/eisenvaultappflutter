@@ -44,6 +44,28 @@ Map<String, dynamic> reviewForm({bool requiredComment = false}) {
   return form;
 }
 
+Map<String, dynamic> documentApprovalTask({
+  bool completed = false,
+  String outcome = 'Reject',
+}) =>
+    reviewTask(completed: completed, outcome: outcome)
+      ..['name'] = 'scwf:activitiReviewTask'
+      ..['properties'] = {
+        'bpm_outcomePropertyName': 'scwf:approveRejectOutcome\n\t',
+        'scwf_approveRejectOutcome': outcome,
+      }
+      ..['workflowInstance'] = {'name': 'activiti\$docApproveReject'};
+
+Map<String, dynamic> documentApprovalForm({bool requiredComment = false}) {
+  final form = reviewForm(requiredComment: requiredComment);
+  final outcome = (form['definition']['fields'] as List).last as Map;
+  outcome['name'] = 'scwf:approveRejectOutcome';
+  outcome['dataKeyName'] = 'prop_scwf_approveRejectOutcome';
+  form['formData']['prop_bpm_outcomePropertyName'] =
+      '{http://www.jkl.com/model/workflow/1.0}approveRejectOutcome\n\t';
+  return form;
+}
+
 WorkflowTaskForm reviewModel({bool requiredComment = false}) =>
     WorkflowTaskForm.fromJson(
       'activiti\$test',
@@ -67,6 +89,74 @@ class ReviewFake implements WorkflowActionService {
 }
 
 void main() {
+  test(
+    'document approval validates its exact custom outcome and trims QName whitespace',
+    () {
+      final task = documentApprovalTask();
+      final raw = documentApprovalForm();
+      final model = WorkflowTaskForm.fromJson('custom', task, raw);
+      expect(model.unavailableReason, isNull);
+      for (final action in ['Approve', 'Reject']) {
+        final body = model.submission(model.initialValues, action);
+        expect(body['prop_scwf_approveRejectOutcome'], action);
+        expect(body.containsKey('prop_wf_reviewOutcome'), isFalse);
+      }
+      expect(model.actions.last.requiresConfirmation, isTrue);
+      task['properties'].remove('bpm_outcomePropertyName');
+      expect(
+        WorkflowTaskForm.fromJson('custom', task, raw).unavailableReason,
+        isNull,
+      );
+      task['properties']['bpm_outcomePropertyName'] =
+          'other:approveRejectOutcome';
+      expect(
+        WorkflowTaskForm.fromJson('custom', task, raw).unavailableReason,
+        isNotNull,
+      );
+      task['properties']['bpm_outcomePropertyName'] =
+          'scwf:approveRejectOutcome';
+      (raw['definition']['fields'] as List).last['protectedField'] = true;
+      expect(
+        WorkflowTaskForm.fromJson('custom', task, raw).unavailableReason,
+        isNotNull,
+      );
+      final mandatory = WorkflowTaskForm.fromJson(
+        'custom',
+        task,
+        documentApprovalForm(requiredComment: true),
+      );
+      expect(
+        () => mandatory.submission(mandatory.initialValues, 'Reject'),
+        throwsFormatException,
+      );
+      task['workflowInstance']['name'] = 'activiti\$signature';
+      expect(
+        WorkflowTaskForm.fromJson(
+          'custom',
+          task,
+          documentApprovalForm(),
+        ).unavailableReason,
+        isNotNull,
+      );
+    },
+  );
+
+  for (final name in ['wf:approvedTask', 'wf:rejectedTask']) {
+    test('$name acknowledges without sending a review decision', () {
+      final task = reviewTask()..['name'] = name;
+      final model = WorkflowTaskForm.fromJson(
+        'activiti\$test',
+        task,
+        fixture.formData(),
+      );
+      expect(model.unavailableReason, isNull);
+      expect(model.actions.single.label, 'Acknowledge');
+      final payload = model.submission(model.initialValues, 'Next');
+      expect(payload['prop_transitions'], 'Next');
+      expect(payload.containsKey('prop_wf_reviewOutcome'), isFalse);
+    });
+  }
+
   testWidgets('decision buttons keep a gap on desktop and narrow windows', (
     tester,
   ) async {
@@ -186,48 +276,64 @@ void main() {
       isNotNull,
     );
   });
-  for (final action in ['Approve', 'Reject']) {
-    test('$action posts its outcome and verifies server result', () async {
-      var completed = false, mutations = 0;
-      final service = AlfrescoWorkflowService(
-        baseUrl: 'https://server/alfresco',
-        authToken: 'ticket',
-        client: MockClient((request) async {
-          if (request.url.path.endsWith('/formprocessor')) {
-            mutations++;
-            final body = jsonDecode(request.body);
-            expect(body['prop_transitions'], 'Next');
-            expect(body['prop_wf_reviewOutcome'], action);
-            completed = true;
-            return http.Response('{}', 200);
-          }
-          if (request.url.path.endsWith('/formdefinitions')) {
-            return http.Response(jsonEncode({'data': reviewForm()}), 200);
-          }
-          if (request.url.path.endsWith('/task-instances')) {
-            return http.Response(
-              jsonEncode({
-                'data': [reviewTask()],
-                'paging': {'totalItems': 1},
-              }),
-              200,
-            );
-          }
-          return http.Response(
-            jsonEncode({
-              'data': reviewTask(
-                completed: completed,
-                outcome: completed ? action : 'Reject',
-              ),
+  for (final custom in [false, true]) {
+    for (final action in ['Approve', 'Reject']) {
+      test(
+        '${custom ? 'document approval' : 'standard review'} $action posts its outcome and verifies server result',
+        () async {
+          var completed = false, mutations = 0;
+          final service = AlfrescoWorkflowService(
+            baseUrl: 'https://server/alfresco',
+            authToken: 'ticket',
+            client: MockClient((request) async {
+              if (request.url.path.endsWith('/formprocessor')) {
+                mutations++;
+                final body = jsonDecode(request.body);
+                expect(body['prop_transitions'], 'Next');
+                expect(
+                  body[custom
+                      ? 'prop_scwf_approveRejectOutcome'
+                      : 'prop_wf_reviewOutcome'],
+                  action,
+                );
+                completed = true;
+                return http.Response('{}', 200);
+              }
+              if (request.url.path.endsWith('/formdefinitions')) {
+                final raw = jsonEncode({
+                  'data': custom ? documentApprovalForm() : reviewForm(),
+                });
+                return http.Response(
+                  custom ? raw.replaceAll(r'\n\t', '\n\t') : raw,
+                  200,
+                );
+              }
+              if (request.url.path.endsWith('/task-instances')) {
+                return http.Response(
+                  jsonEncode({
+                    'data': [custom ? documentApprovalTask() : reviewTask()],
+                    'paging': {'totalItems': 1},
+                  }),
+                  200,
+                );
+              }
+              return http.Response(
+                jsonEncode({
+                  'data': (custom ? documentApprovalTask : reviewTask)(
+                    completed: completed,
+                    outcome: completed ? action : 'Reject',
+                  ),
+                }),
+                200,
+              );
             }),
-            200,
           );
-        }),
+          final form = await service.getTaskForm('activiti\$test');
+          await service.completeTask(form, form.initialValues, action);
+          expect(mutations, 1);
+        },
       );
-      final form = await service.getTaskForm('activiti\$test');
-      await service.completeTask(form, form.initialValues, action);
-      expect(mutations, 1);
-    });
+    }
   }
   test(
     'wrong recorded outcome is not reported as success or retried',

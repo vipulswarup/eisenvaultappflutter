@@ -101,13 +101,19 @@ class WorkflowTaskForm {
 
   static bool supportsTask(Map<String, dynamic> task) {
     final workflow = (task['workflowInstance'] as Map?)?['name'];
-    return (workflow == 'activiti\$activitiAdhoc' &&
+    return (workflow == 'activiti\$docApproveReject' &&
+            task['name'] == 'scwf:activitiReviewTask') ||
+        (workflow == 'activiti\$activitiAdhoc' &&
             ['wf:adhocTask', 'wf:completedAdhocTask'].contains(task['name'])) ||
         ([
               'activiti\$activitiReview',
               'activiti\$activitiReviewPooled',
             ].contains(workflow) &&
-            task['name'] == 'wf:activitiReviewTask');
+            [
+              'wf:activitiReviewTask',
+              'wf:approvedTask',
+              'wf:rejectedTask',
+            ].contains(task['name']));
   }
 
   factory WorkflowTaskForm.fromJson(
@@ -130,25 +136,47 @@ class WorkflowTaskForm {
                 task['isClaimable'] == true))) {
       reason = 'This task is not currently available for completion.';
     }
-    final isReview = [
-      'activiti\$activitiReview',
-      'activiti\$activitiReviewPooled',
-    ].contains(workflow['name']);
+    final isAcknowledgement = [
+      'wf:approvedTask',
+      'wf:rejectedTask',
+    ].contains(task['name']);
+    final isDocumentApproval =
+        workflow['name'] == 'activiti\$docApproveReject' &&
+        task['name'] == 'scwf:activitiReviewTask';
+    final outcomeFieldName =
+        isDocumentApproval ? 'scwf:approveRejectOutcome' : 'wf:reviewOutcome';
+    final outcomePropertyNames =
+        isDocumentApproval
+            ? [
+              'scwf:approveRejectOutcome',
+              '{http://www.jkl.com/model/workflow/1.0}approveRejectOutcome',
+            ]
+            : [
+              'wf:reviewOutcome',
+              '{http://www.alfresco.org/model/workflow/1.0}reviewOutcome',
+            ];
+    final isReview =
+        isDocumentApproval ||
+        task['name'] == 'wf:activitiReviewTask' &&
+            [
+              'activiti\$activitiReview',
+              'activiti\$activitiReviewPooled',
+            ].contains(workflow['name']);
     final outcome =
         isReview
-            ? fields.where((f) => f.name == 'wf:reviewOutcome').firstOrNull
+            ? fields.where((f) => f.name == outcomeFieldName).firstOrNull
             : null;
     final outcomeName =
-        (task['properties'] as Map?)?['bpm_outcomePropertyName'] ??
-        data['prop_bpm_outcomePropertyName'];
+        ((task['properties'] as Map?)?['bpm_outcomePropertyName'] ??
+                data['prop_bpm_outcomePropertyName'])
+            ?.toString()
+            .trim();
     if (isReview &&
         (outcome == null ||
             !outcome.supported ||
+            outcome.key != 'prop_${outcomeFieldName.replaceAll(':', '_')}' ||
             outcome.protected ||
-            ![
-              'wf:reviewOutcome',
-              '{http://www.alfresco.org/model/workflow/1.0}reviewOutcome',
-            ].contains(outcomeName) ||
+            !outcomePropertyNames.contains(outcomeName) ||
             outcome.choices.isEmpty ||
             outcome.choices.keys.any(
               (value) => !['Approve', 'Reject'].contains(value),
@@ -157,7 +185,7 @@ class WorkflowTaskForm {
     }
     final visible = <WorkflowFormField>[];
     for (final field in fields) {
-      if (field.protected || (isReview && field.name == 'wf:reviewOutcome')) {
+      if (field.protected || (isReview && field.name == outcomeFieldName)) {
         continue;
       }
       if (field.metadata['type'] == 'association' &&
@@ -211,7 +239,7 @@ class WorkflowTaskForm {
         actions.add(
           WorkflowTaskAction(
             id: transition.key,
-            label: transition.value,
+            label: isAcknowledgement ? 'Acknowledge' : transition.value,
             transitionId: transition.key,
           ),
         );

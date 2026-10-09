@@ -165,7 +165,11 @@ void main() {
             'list': {
               'entries': [
                 {
-                  'entry': {'name': 'contract.pdf', 'isFile': true},
+                  'entry': {
+                    'id': 'document-id',
+                    'name': 'contract.pdf',
+                    'isFile': true,
+                  },
                 },
               ],
               'pagination': {'hasMoreItems': false},
@@ -178,6 +182,12 @@ void main() {
     expect(
       await service.getDocumentNames(WorkflowTask.fromJson(taskJson('1'))),
       ['contract.pdf'],
+    );
+    expect(
+      (await service.getDocuments(
+        WorkflowTask.fromJson(taskJson('1')),
+      )).single.id,
+      'document-id',
     );
   });
 
