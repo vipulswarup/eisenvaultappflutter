@@ -21,6 +21,7 @@ class StartWorkflowScreen extends StatefulWidget {
 
 class _StartWorkflowScreenState extends State<StartWorkflowScreen> {
   final _key = GlobalKey<FormState>();
+  final _assigneeKey = GlobalKey<FormFieldState<WorkflowAssignee>>();
   late Future<List<WorkflowDefinition>> _definitions;
   WorkflowDefinition? _definition;
   WorkflowStartForm? _form;
@@ -81,11 +82,13 @@ class _StartWorkflowScreenState extends State<StartWorkflowScreen> {
         _locked = values['startAttemptPending'] == 'true';
         if (values['assigneeUsername'] != null &&
             values['assigneeLabel'] != null &&
-            values['assigneeRef'] != null) {
+            values['assigneeRef'] != null &&
+            values['assigneeIsGroup'] == form.usesGroupAssignee.toString()) {
           _assignee = WorkflowAssignee(
             values['assigneeUsername']!,
             values['assigneeLabel']!,
             values['assigneeRef']!,
+            isGroup: form.usesGroupAssignee,
           );
         }
       });
@@ -118,24 +121,35 @@ class _StartWorkflowScreenState extends State<StartWorkflowScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_key.currentState!.validate() || _assignee == null) return;
+    if (!_key.currentState!.validate()) {
+      setState(
+        () => _error = 'Complete the required fields to start this workflow.',
+      );
+      return;
+    }
+    final assignee = _assigneeKey.currentState?.value ?? _assignee;
+    if (assignee == null) {
+      setState(() => _error = 'Select an assignee to start this workflow.');
+      return;
+    }
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
-      _form!.submission(_values, _assignee!);
+      _form!.submission(_values, assignee);
       await _writes;
       _values['startAttemptPending'] = 'true';
       // Persist the attempt before sending it, preventing a duplicate after app restart.
       await _draft!.save(_form!.fingerprint, _values);
-      final id = await widget.service.startWorkflow(
-        _form!,
-        _values,
-        _assignee!,
-      );
+      final id = await widget.service.startWorkflow(_form!, _values, assignee);
       await _draft!.clear();
-      if (mounted) Navigator.pop(context, id);
+      if (mounted) {
+        // PopScope blocks user-initiated back navigation while a start is pending.
+        // Release it after confirmed creation so the success route can pop.
+        setState(() => _busy = false);
+        Navigator.pop(context, id);
+      }
     } catch (e) {
       if (e is WorkflowStartNotSubmitted) {
         _values.remove('startAttemptPending');
@@ -266,7 +280,7 @@ class _StartWorkflowScreenState extends State<StartWorkflowScreen> {
                           ),
                           const SizedBox(height: 20),
                           FormField<WorkflowAssignee>(
-                            key: ValueKey('assignee:$_generation'),
+                            key: _assigneeKey,
                             initialValue: _assignee,
                             validator:
                                 (value) =>
@@ -285,6 +299,9 @@ class _StartWorkflowScreenState extends State<StartWorkflowScreen> {
                                                   (_) => _AssigneePicker(
                                                     service: widget.service,
                                                     nodeId: widget.nodeId,
+                                                    isGroup:
+                                                        _form!
+                                                            .usesGroupAssignee,
                                                   ),
                                             );
                                             if (person == null || !mounted) {
@@ -304,10 +321,15 @@ class _StartWorkflowScreenState extends State<StartWorkflowScreen> {
                                               'assigneeRef',
                                               person.nodeRef,
                                             );
+                                            _save(
+                                              'assigneeIsGroup',
+                                              person.isGroup.toString(),
+                                            );
                                           },
                                   child: InputDecorator(
                                     decoration: InputDecoration(
-                                      labelText: 'Assignee *',
+                                      labelText:
+                                          '${_form!.usesGroupAssignee ? 'Review group' : 'Assignee'} *',
                                       border: const OutlineInputBorder(),
                                       errorText: field.errorText,
                                       suffixIcon: const Icon(
@@ -316,7 +338,11 @@ class _StartWorkflowScreenState extends State<StartWorkflowScreen> {
                                     ),
                                     child: Text(
                                       field.value == null
-                                          ? 'Search users with document access'
+                                          ? _form!.usesGroupAssignee
+                                              ? 'Search groups with an eligible member'
+                                              : 'Search users with document access'
+                                          : field.value!.isGroup
+                                          ? field.value!.displayName
                                           : '${field.value!.displayName} (${field.value!.username})',
                                     ),
                                   ),
@@ -450,7 +476,12 @@ class _StartWorkflowScreenState extends State<StartWorkflowScreen> {
 class _AssigneePicker extends StatefulWidget {
   final WorkflowStartService service;
   final String nodeId;
-  const _AssigneePicker({required this.service, required this.nodeId});
+  final bool isGroup;
+  const _AssigneePicker({
+    required this.service,
+    required this.nodeId,
+    required this.isGroup,
+  });
   @override
   State<_AssigneePicker> createState() => _AssigneePickerState();
 }
@@ -477,10 +508,13 @@ class _AssigneePickerState extends State<_AssigneePicker> {
       _people = [];
     });
     try {
-      final people = await widget.service.searchAssignees(
-        widget.nodeId,
-        _query.text,
-      );
+      final people =
+          widget.isGroup
+              ? await widget.service.searchGroups(widget.nodeId, _query.text)
+              : await widget.service.searchAssignees(
+                widget.nodeId,
+                _query.text,
+              );
       if (mounted) setState(() => _people = people);
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
@@ -491,7 +525,7 @@ class _AssigneePickerState extends State<_AssigneePicker> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Select assignee'),
+    title: Text(widget.isGroup ? 'Select review group' : 'Select assignee'),
     content: SizedBox(
       width: 480,
       height: 360,
@@ -499,15 +533,17 @@ class _AssigneePickerState extends State<_AssigneePicker> {
         children: [
           TextField(
             controller: _query,
-            decoration: const InputDecoration(
-              labelText: 'Search users',
+            decoration: InputDecoration(
+              labelText: widget.isGroup ? 'Search groups' : 'Search users',
               border: OutlineInputBorder(),
             ),
             onSubmitted: _loading ? null : (_) => _search(),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Only users with verified document access are shown. Search checks up to 25 matches; narrow the name if needed.',
+          Text(
+            widget.isGroup
+                ? 'Only groups with a member who can read this document are shown.'
+                : 'Only users with verified document access are shown. Search checks up to 25 matches; narrow the name if needed.',
           ),
           Align(
             alignment: Alignment.centerRight,
@@ -524,12 +560,16 @@ class _AssigneePickerState extends State<_AssigneePicker> {
                 for (final person in _people)
                   ListTile(
                     title: Text(person.displayName),
-                    subtitle: Text(person.username),
+                    subtitle: Text(widget.isGroup ? 'Group' : person.username),
                     onTap: () => Navigator.pop(context, person),
                   ),
                 if (!_loading && _people.isEmpty)
-                  const ListTile(
-                    title: Text('No matching users with verified access.'),
+                  ListTile(
+                    title: Text(
+                      widget.isGroup
+                          ? 'No matching groups with an eligible member.'
+                          : 'No matching users with verified access.',
+                    ),
                   ),
               ],
             ),

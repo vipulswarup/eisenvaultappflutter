@@ -15,6 +15,11 @@ const definition = WorkflowDefinition(
   'activiti\$activitiReview',
   'Review',
 );
+const pooledDefinition = WorkflowDefinition(
+  'activiti\$activitiReviewPooled:1:9',
+  'activiti\$activitiReviewPooled',
+  'Pooled Review',
+);
 Map<String, dynamic> startNode() => {
   'id': 'doc',
   'name': 'contract.pdf',
@@ -51,12 +56,34 @@ Map<String, dynamic> startMetadata() => {
   },
   'formData': {'prop_bpm_workflowPriority': 2},
 };
+Map<String, dynamic> pooledMetadata() {
+  final form = startMetadata();
+  final fields = form['definition']['fields'] as List;
+  fields[0] = {
+    'name': 'bpm:groupAssignee',
+    'dataKeyName': 'assoc_bpm_groupAssignee',
+    'type': 'association',
+    'endpointType': 'cm:authorityContainer',
+    'endpointMany': false,
+    'endpointMandatory': true,
+  };
+  fields.add(fixture.field('wf:requiredApprovePercent', 'int'));
+  form['formData']['prop_wf_requiredApprovePercent'] = 50;
+  return form;
+}
+
 WorkflowStartForm startForm() =>
     WorkflowStartForm.fromJson(definition, startNode(), startMetadata());
 const reviewer = WorkflowAssignee(
   'reviewer',
   'Reviewer',
   'workspace://SpacesStore/person',
+);
+const reviewGroup = WorkflowAssignee(
+  'GROUP_reviewers',
+  'Reviewers',
+  'GROUP_reviewers',
+  isGroup: true,
 );
 
 class StartFake implements WorkflowStartService {
@@ -72,6 +99,10 @@ class StartFake implements WorkflowStartService {
   @override
   Future<List<WorkflowAssignee>> searchAssignees(String n, String q) async => [
     reviewer,
+  ];
+  @override
+  Future<List<WorkflowAssignee>> searchGroups(String n, String q) async => [
+    reviewGroup,
   ];
   @override
   Future<String> startWorkflow(
@@ -100,6 +131,33 @@ void main() {
       expect(body['assoc_bpm_assignee_added'], reviewer.nodeRef);
       expect(body['prop_bpm_workflowPriority'], 2);
       expect(body['prop_bpm_workflowDueDate'], '2026-10-12T06:30:00.000Z');
+    },
+  );
+  test(
+    'pooled review requires a group association and carries required percentage',
+    () {
+      final form = WorkflowStartForm.fromJson(
+        pooledDefinition,
+        startNode(),
+        pooledMetadata(),
+      );
+      expect(form.unavailableReason, isNull);
+      final body = form.submission(form.initialValues, reviewGroup);
+      expect(body['assoc_bpm_groupAssignee_added'], 'GROUP_reviewers');
+      expect(body.containsKey('assoc_bpm_assignee_added'), isFalse);
+      expect(body['prop_wf_requiredApprovePercent'], 50);
+      expect(
+        () => form.submission(form.initialValues, reviewer),
+        throwsA(isA<WorkflowStartNotSubmitted>()),
+      );
+      expect(
+        WorkflowStartForm.fromJson(
+          definition,
+          startNode(),
+          pooledMetadata(),
+        ).unavailableReason,
+        isNotNull,
+      );
     },
   );
   test('unsupported mandatory controls and non-documents block starts', () {
@@ -287,6 +345,192 @@ void main() {
         hasDocumentReadAccess(node, {'reviewer'}, membershipsKnown: false),
         isFalse,
       );
+    },
+  );
+  test(
+    'group search excludes groups whose members cannot read the document',
+    () async {
+      final node = startNode();
+      node['permissions']['locallySet'] = [
+        {
+          'authorityId': 'GROUP_reviewers',
+          'name': 'Consumer',
+          'accessStatus': 'ALLOWED',
+        },
+      ];
+      final service = AlfrescoWorkflowService(
+        baseUrl: 'https://server/alfresco',
+        authToken: 'ticket',
+        client: MockClient((r) async {
+          Object response;
+          if (r.url.path.endsWith('/nodes/doc')) {
+            response = {'entry': node};
+          } else if (r.url.path.endsWith('/api/groups')) {
+            response = {
+              'data': [
+                {
+                  'fullName': 'GROUP_reviewers',
+                  'shortName': 'reviewers',
+                  'displayName': 'Reviewers',
+                },
+                {
+                  'fullName': 'GROUP_empty',
+                  'shortName': 'empty',
+                  'displayName': 'Empty',
+                },
+              ],
+            };
+          } else if (r.url.path.endsWith('/groups/GROUP_reviewers/members')) {
+            response = {
+              'list': {
+                'entries': [
+                  {
+                    'entry': {'id': 'reviewer', 'memberType': 'PERSON'},
+                  },
+                ],
+                'pagination': {'hasMoreItems': false},
+              },
+            };
+          } else if (r.url.path.endsWith('/groups/GROUP_empty/members')) {
+            response = {
+              'list': {
+                'entries': [],
+                'pagination': {'hasMoreItems': false},
+              },
+            };
+          } else if (r.url.path.endsWith('/people/reviewer')) {
+            response = {'userName': 'reviewer', 'enabled': true};
+          } else if (r.url.path.endsWith('/people/reviewer/groups')) {
+            response = {
+              'list': {
+                'entries': [
+                  {
+                    'entry': {'id': 'GROUP_reviewers'},
+                  },
+                ],
+                'pagination': {'hasMoreItems': false},
+              },
+            };
+          } else {
+            throw StateError('Unexpected ${r.url}');
+          }
+          return http.Response(jsonEncode(response), 200);
+        }),
+      );
+      final groups = await service.searchGroups('doc', 'rev');
+      expect(groups.map((g) => g.username), ['GROUP_reviewers']);
+      expect(groups.single.displayName, 'Reviewers');
+      expect(groups.single.isGroup, isTrue);
+    },
+  );
+  test(
+    'pooled-review start rechecks group membership and posts the group association',
+    () async {
+      final node = startNode();
+      node['permissions']['locallySet'] = [
+        {
+          'authorityId': 'GROUP_reviewers',
+          'name': 'Consumer',
+          'accessStatus': 'ALLOWED',
+        },
+      ];
+      var posts = 0;
+      final service = AlfrescoWorkflowService(
+        baseUrl: 'https://server/alfresco',
+        authToken: 'ticket',
+        client: MockClient((r) async {
+          Object response;
+          if (r.url.path.endsWith('workflow-definitions')) {
+            response = {
+              'data': [
+                {
+                  'id': pooledDefinition.id,
+                  'name': pooledDefinition.name,
+                  'title': pooledDefinition.title,
+                },
+              ],
+            };
+          } else if (r.url.path.endsWith('formdefinitions')) {
+            response = {'data': pooledMetadata()};
+          } else if (r.url.path.endsWith('/nodes/doc')) {
+            response = {'entry': node};
+          } else if (r.url.path.endsWith('/people/-me-')) {
+            response = {
+              'entry': {'id': 'initiator'},
+            };
+          } else if (r.url.path.endsWith('/api/groups')) {
+            response = {
+              'data': [
+                {
+                  'fullName': 'GROUP_reviewers',
+                  'shortName': 'reviewers',
+                  'displayName': 'Reviewers',
+                },
+              ],
+            };
+          } else if (r.url.path.endsWith('/groups/GROUP_reviewers/members')) {
+            response = {
+              'list': {
+                'entries': [
+                  {
+                    'entry': {'id': 'reviewer', 'memberType': 'PERSON'},
+                  },
+                ],
+                'pagination': {'hasMoreItems': false},
+              },
+            };
+          } else if (r.url.path.endsWith('/people/reviewer')) {
+            response = {'userName': 'reviewer', 'enabled': true};
+          } else if (r.url.path.endsWith('/people/reviewer/groups')) {
+            response = {
+              'list': {
+                'entries': [
+                  {
+                    'entry': {'id': 'GROUP_reviewers'},
+                  },
+                ],
+                'pagination': {'hasMoreItems': false},
+              },
+            };
+          } else if (r.url.path.endsWith('/formprocessor')) {
+            posts++;
+            final body = jsonDecode(r.body);
+            expect(body['assoc_bpm_groupAssignee_added'], 'GROUP_reviewers');
+            expect(body['prop_wf_requiredApprovePercent'], 50);
+            expect(body.containsKey('assoc_bpm_assignee_added'), isFalse);
+            response = {
+              'persistedObject':
+                  'WorkflowInstance[id=activiti\$created,active=true]',
+            };
+          } else if (r.url.path.endsWith('/children')) {
+            response = {
+              'list': {
+                'entries': [
+                  {
+                    'entry': {'id': 'doc'},
+                  },
+                ],
+                'pagination': {'hasMoreItems': false},
+              },
+            };
+          } else {
+            response = {
+              'data': {'package': 'workspace://SpacesStore/package'},
+            };
+          }
+          return http.Response(jsonEncode(response), 200);
+        }),
+      );
+      final form = WorkflowStartForm.fromJson(
+        pooledDefinition,
+        node,
+        pooledMetadata(),
+      );
+      expect(
+        await service.startWorkflow(form, form.initialValues, reviewGroup),
+        'activiti\$created',
+      );
+      expect(posts, 1);
     },
   );
   test(

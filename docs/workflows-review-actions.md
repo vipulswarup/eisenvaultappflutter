@@ -64,13 +64,25 @@ characters before decoding, preserving their contents. Other JSON syntax errors
 still fail. This does not change the workflow model on the server.
 
 Validation: all 70 normal tests pass; focused analysis is clean. The opt-in
-`integration_test/document_approval_test.dart` renders the deployed form in
-macOS and cancels rejection, using a client that prevents workflow mutations.
-It takes private `WORKFLOW_TEST_URL` and `WORKFLOW_TEST_AUTH` dart defines for
-an admin account with an existing Document Approval task. Private configuration
-must remain outside the repository; delete it and rebuild the regular app after
-running the test. Payload submission and outcome verification are covered with
-mocked responses; live decision completion is not yet verified. A disposable
-workflow started via the generic form immediately completed without creating a
-review task, so this custom start path remains unsupported. That test workflow
-and document were removed. Existing user tasks were not modified.
+`integration_test/document_approval_test.dart` passed three native macOS checks:
+loading the deployed form and cancelling rejection without mutation; approving
+a disposable review task; and confirming rejection on a second disposable task.
+Both decisions completed through the UI, and the task API recorded the expected
+`scwf_approveRejectOutcome`. Existing user tasks were not modified.
+
+Document Approval derives its reviewer sequence from the workflow context folder's
+`scwf:userSelect` aspect and `scwf:userName` property. Generic starts without that
+context produced no review task. Live fixtures used a dedicated folder with
+`scwf:userName: admin`, one test document, and an explicit `prop_bpm_context` on
+the start request. This establishes the task action path; starting this custom
+workflow from the app remains unsupported pending context/assignment integration.
+Both workflows and the folder/document were removed after testing.
+
+The native test takes private `WORKFLOW_TEST_URL` and `WORKFLOW_TEST_AUTH` dart
+defines for an admin account with an existing Document Approval task. Its optional
+mutation checks additionally require `WORKFLOW_CUSTOM_APPROVE_TASK`,
+`WORKFLOW_CUSTOM_REJECT_TASK`, and `WORKFLOW_CUSTOM_NODE`. Each mutation fixture
+must have workflow description `Codex approval validation` and exactly the
+specified document, whose name starts with `Codex approval validation`. Use
+fresh, disposable tasks. The form-display test uses a mutation-blocking client.
+Delete private configuration and rebuild the regular app after testing.

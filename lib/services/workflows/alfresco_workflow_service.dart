@@ -38,6 +38,7 @@ abstract class WorkflowStartService {
     String nodeId,
   );
   Future<List<WorkflowAssignee>> searchAssignees(String nodeId, String query);
+  Future<List<WorkflowAssignee>> searchGroups(String nodeId, String query);
   Future<String> startWorkflow(
     WorkflowStartForm form,
     Map<String, String> values,
@@ -149,6 +150,91 @@ class AlfrescoWorkflowService
       node,
       Map<String, dynamic>.from(response['data'] as Map),
     );
+  }
+
+  Future<bool> _groupHasReadableMember(
+    Map<String, dynamic> node,
+    String groupId, {
+    Set<String>? visited,
+    int depth = 0,
+  }) async {
+    if (depth > 8) return false;
+    final seen = visited ?? <String>{};
+    if (!seen.add(groupId)) return false;
+    var skip = 0;
+    while (true) {
+      final response = await _get(
+        _uri(
+          'api/-default-/public/alfresco/versions/1/groups/${Uri.encodeComponent(groupId)}/members',
+          {'maxItems': '100', 'skipCount': '$skip'},
+        ),
+      );
+      final list = response!['list'] as Map;
+      final entries = list['entries'] as List;
+      for (final raw in entries) {
+        final member = (raw as Map)['entry'] as Map;
+        final id = member['id']?.toString();
+        if (id == null || id.isEmpty) continue;
+        if (member['memberType'] == 'GROUP' || id.startsWith('GROUP_')) {
+          if (await _groupHasReadableMember(
+            node,
+            id,
+            visited: seen,
+            depth: depth + 1,
+          )) {
+            return true;
+          }
+          continue;
+        }
+        final person = await _get(
+          _uri('s/api/people/${Uri.encodeComponent(id)}'),
+        );
+        if (person != null &&
+            person['userName'] == id &&
+            await _assigneeCanRead(node, person, '')) {
+          return true;
+        }
+      }
+      if ((list['pagination'] as Map?)?['hasMoreItems'] != true) return false;
+      if (entries.isEmpty) {
+        throw const FormatException('Invalid group pagination');
+      }
+      skip += entries.length;
+    }
+  }
+
+  @override
+  Future<List<WorkflowAssignee>> searchGroups(
+    String nodeId,
+    String query,
+  ) async {
+    if (query.trim().length < 2) return [];
+    final node = await _startDocument(nodeId);
+    final response = await _get(
+      _uri('s/api/groups', {
+        'shortNameFilter': query.trim(),
+        'zone': 'APP.DEFAULT',
+        'maxItems': '25',
+      }),
+    );
+    final groups = response!['data'] as List;
+    final result = <WorkflowAssignee>[];
+    for (final row in groups) {
+      final group = row as Map;
+      final id = group['fullName']?.toString();
+      if (id == null || !id.startsWith('GROUP_')) continue;
+      if (await _groupHasReadableMember(node, id)) {
+        result.add(
+          WorkflowAssignee(
+            id,
+            (group['displayName'] ?? group['shortName'] ?? id).toString(),
+            id,
+            isGroup: true,
+          ),
+        );
+      }
+    }
+    return result;
   }
 
   Future<bool> _assigneeCanRead(
@@ -291,25 +377,35 @@ class AlfrescoWorkflowService
           'The document or workflow form changed. Reopen the form.',
         );
       }
-      final person =
-          (await _get(
-            _uri('s/api/people/${Uri.encodeComponent(assignee.username)}'),
-          ))!;
       final profile =
           (await _get(
             _uri('api/-default-/public/alfresco/versions/1/people/-me-'),
           ))!;
       final node = await _startDocument(form.nodeId);
-      if (!await _assigneeCanRead(
-        node,
-        person,
-        profile['entry']['id'] as String,
-      )) {
-        throw const WorkflowStartNotSubmitted(
-          'The selected user no longer has verified document access.',
-        );
+      late final WorkflowAssignee resolved;
+      if (fresh.definition.usesGroupAssignee) {
+        final matches = await searchGroups(form.nodeId, assignee.username);
+        resolved =
+            matches.where((g) => g.username == assignee.username).firstOrNull ??
+            (throw const WorkflowStartNotSubmitted(
+              'The selected group no longer has verified document access.',
+            ));
+      } else {
+        final person =
+            (await _get(
+              _uri('s/api/people/${Uri.encodeComponent(assignee.username)}'),
+            ))!;
+        if (!await _assigneeCanRead(
+          node,
+          person,
+          profile['entry']['id'] as String,
+        )) {
+          throw const WorkflowStartNotSubmitted(
+            'The selected user no longer has verified document access.',
+          );
+        }
+        resolved = await _personReference(person);
       }
-      final resolved = await _personReference(person);
       body = fresh.submission(values, resolved);
     } on WorkflowStartNotSubmitted {
       rethrow;

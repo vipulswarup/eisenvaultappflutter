@@ -2,16 +2,19 @@
 
 The document action menu offers Start workflow for online Classic / Alfresco
 accounts. Choose a server workflow definition and complete its start form.
-The first increment supports built-in New Task (`activiti$activitiAdhoc`) and
-Review and Approve (`activiti$activitiReview`). Permission-request definitions
-are excluded. Other definitions show an unavailable explanation.
+The supported definitions are built-in New Task (`activiti$activitiAdhoc`),
+Review and Approve (`activiti$activitiReview`), and pooled Review and Approve
+(`activiti$activitiReviewPooled`). Permission-request definitions are excluded.
+Other definitions show an unavailable explanation.
 
 The form includes a single assignee, description, priority, optional due date,
 current comment, and compatible mandatory text/integer controls. Required custom
 controls that cannot be represented block submission. Notification options retain
-server defaults. Assignee associations must target one `cm:person`; group and
-multiple-assignee start forms remain for a later increment. Only the selected
-document is included; folders and multiple documents are not supported.
+server defaults. Person-assignee forms target one `cm:person`. Pooled review
+forms target one group authority; groups are searched separately, expanded through
+nested memberships, and offered only when at least one enabled member can read the
+document. Multiple group selection is not supported. Only the selected document
+is included; folders and multiple documents are not supported.
 
 User search checks up to 25 name matches. It excludes disabled users and checks
 the document's direct/inherited ACL against known read-capable roles and group
@@ -24,8 +27,9 @@ cancelled without downloading the document. These restrictions can omit users
 who have access through custom permissions or private groups.
 
 Submission refreshes the definition/version, document and form, rechecks the
-assignee's access and enabled state, resolves its person node, and then sends
-one formprocessor request. Definition names address Alfresco 5.2's start-form
+person's access and enabled state or rechecks that the selected group still has
+an eligible member, resolves a person's node when needed, and then sends one
+formprocessor request. Definition names address Alfresco 5.2's start-form
 endpoints; versioned definition IDs detect deployment changes before submission.
 The result is read back and its package must contain exactly the selected
 document. Permissions can still change between preflight and submission; client
@@ -56,3 +60,9 @@ document whose name starts with `Codex workflow start test`. The reviewer needs
 Collaborator access and the consumer needs Consumer access. The test removes
 its workflows and restores fixture permissions. Remove the document afterwards,
 delete the private configuration, and rebuild the normal macOS app.
+
+`integration_test/workflow_group_start_test.dart` verifies pooled review against
+an admin-created disposable document with an explicit Consumer grant for a
+review group. Its private dart-defines include `WORKFLOW_TEST_URL`,
+`WORKFLOW_TEST_AUTH`, `WORKFLOW_GROUP_TEST_NODE_ID`, and
+`WORKFLOW_GROUP_TEST_NODE_NAME`; it removes the started workflow and document.

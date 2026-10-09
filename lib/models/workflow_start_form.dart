@@ -5,8 +5,12 @@ import 'workflow_task_form.dart';
 class WorkflowDefinition {
   final String id, name, title;
   const WorkflowDefinition(this.id, this.name, this.title);
-  bool get supported =>
-      ['activiti\$activitiAdhoc', 'activiti\$activitiReview'].contains(name);
+  bool get supported => [
+    'activiti\$activitiAdhoc',
+    'activiti\$activitiReview',
+    'activiti\$activitiReviewPooled',
+  ].contains(name);
+  bool get usesGroupAssignee => name == 'activiti\$activitiReviewPooled';
   factory WorkflowDefinition.fromJson(Map row) => WorkflowDefinition(
     row['id'] as String,
     row['name'] as String,
@@ -16,7 +20,13 @@ class WorkflowDefinition {
 
 class WorkflowAssignee {
   final String username, displayName, nodeRef;
-  const WorkflowAssignee(this.username, this.displayName, this.nodeRef);
+  final bool isGroup;
+  const WorkflowAssignee(
+    this.username,
+    this.displayName,
+    this.nodeRef, {
+    this.isGroup = false,
+  });
 }
 
 class WorkflowStartNotSubmitted implements Exception {
@@ -32,6 +42,7 @@ class WorkflowStartForm {
   final List<WorkflowFormField> fields;
   final Map<String, dynamic> defaults;
   final String? unavailableReason;
+  bool get usesGroupAssignee => definition.usesGroupAssignee;
   WorkflowStartForm._(
     this.definition,
     this.nodeId,
@@ -55,21 +66,32 @@ class WorkflowStartForm {
     var hasAssignee = false, hasPackage = false;
     for (final raw in metadata) {
       final f = WorkflowFormField(Map<String, dynamic>.from(raw as Map));
-      if (f.name == 'bpm:assignee' || f.name == 'packageItems') {
+      if ([
+        'bpm:assignee',
+        'bpm:groupAssignee',
+        'packageItems',
+      ].contains(f.name)) {
+        final groupAssignee = f.name == 'bpm:groupAssignee';
+        final assignee = f.name == 'bpm:assignee' || groupAssignee;
         final expected =
             f.name == 'bpm:assignee'
                 ? 'assoc_bpm_assignee'
+                : groupAssignee
+                ? 'assoc_bpm_groupAssignee'
                 : 'assoc_packageItems';
         if (f.metadata['type'] != 'association' ||
             f.key != expected ||
             f.protected ||
+            (assignee && groupAssignee != definition.usesGroupAssignee) ||
+            (assignee && f.metadata['endpointMany'] == true) ||
             (f.name == 'bpm:assignee' &&
-                (f.metadata['endpointType'] != 'cm:person' ||
-                    f.metadata['endpointMany'] == true))) {
+                f.metadata['endpointType'] != 'cm:person') ||
+            (groupAssignee &&
+                f.metadata['endpointType'] != 'cm:authorityContainer')) {
           reason ??=
               'The workflow assignment or document control is unsupported.';
         }
-        if (f.name == 'bpm:assignee') hasAssignee = true;
+        if (assignee) hasAssignee = true;
         if (f.name == 'packageItems') hasPackage = true;
         continue;
       }
@@ -133,10 +155,18 @@ class WorkflowStartForm {
     if (unavailableReason != null) {
       throw WorkflowStartNotSubmitted(unavailableReason!);
     }
+    if (person.isGroup != definition.usesGroupAssignee) {
+      throw const WorkflowStartNotSubmitted(
+        'Choose an assignee of the type required by this workflow.',
+      );
+    }
     final body = <String, dynamic>{
-      'assoc_bpm_assignee_added': person.nodeRef,
       'assoc_packageItems_added': 'workspace://SpacesStore/$nodeId',
     };
+    body[definition.usesGroupAssignee
+            ? 'assoc_bpm_groupAssignee_added'
+            : 'assoc_bpm_assignee_added'] =
+        person.nodeRef;
     for (final f in fields) {
       final value = values[f.key] ?? '';
       if (f.dataType == 'date' || f.dataType == 'datetime') {
