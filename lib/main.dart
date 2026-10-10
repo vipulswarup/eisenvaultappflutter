@@ -1,3 +1,6 @@
+import 'services/notifications/workflow_notification_service.dart';
+import 'screens/workflows/my_tasks_screen.dart';
+import 'services/workflows/alfresco_workflow_service.dart';
 import 'package:eisenvaultappflutter/theme/app_theme.dart';
 import 'package:eisenvaultappflutter/constants/colors.dart';
 import 'package:eisenvaultappflutter/constants/platform_channels.dart';
@@ -138,6 +141,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     PlatformChannels.androidMain,
   );
   bool _isBootstrapping = true;
+  WorkflowNotificationService? _notifications;
 
   @override
   void initState() {
@@ -213,6 +217,59 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     setState(() {
       _isBootstrapping = false;
     });
+    await WidgetsBinding.instance.endOfFrame;
+    if (WorkflowNotificationService.enabled && mounted) {
+      _notifications = WorkflowNotificationService(
+        auth: authState,
+        onOpen: (event) async {
+          if (!mounted || !authState.isAuthenticated) return;
+          if (authState.currentAccount?.id != event.accountId) {
+            if (!await authState.switchAccount(event.accountId)) return;
+          }
+          final account = authState.currentAccount;
+          final navigator = navigatorKey.currentState;
+          if (!mounted ||
+              account == null ||
+              account.id != event.accountId ||
+              navigator == null) {
+            return;
+          }
+          // Task screen re-fetches ownership; never trust push data for access.
+          if (![
+            'classic',
+            'alfresco',
+          ].contains(account.instanceType.toLowerCase())) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'A workflow step needs your attention. Open your server workflow inbox to view it.',
+                ),
+              ),
+            );
+            return;
+          }
+          navigator.pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder:
+                  (_) => WorkflowTaskScreen(
+                    service: AlfrescoWorkflowService(
+                      baseUrl: account.baseUrl,
+                      authToken: account.token,
+                    ),
+                    taskId: event.taskId,
+                    accountId: account.id,
+                  ),
+            ),
+            (route) => route.isFirst,
+          );
+        },
+      );
+      try {
+        await _notifications!.initialize();
+      } catch (error) {
+        EVLogger.warning('Could not initialize workflow notifications');
+      }
+    }
   }
 
   void _setupMethodChannel() {
@@ -242,6 +299,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _notifications?.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -249,6 +307,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && !_isBootstrapping) {
+      _notifications?.poll();
       _resetMacOsKeyboardState('app resumed');
       widget.uploadService.checkForUploadDataWhenAppForeground();
       _saveDMSCredentialsToSharedPrefs();
