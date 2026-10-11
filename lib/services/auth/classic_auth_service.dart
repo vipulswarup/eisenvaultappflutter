@@ -16,16 +16,11 @@ class ClassicAuthService extends ClassicBaseService {
 
   Future<Map<String, dynamic>> login(String username, String password) async {
     try {
-      final credentials = base64Encode(utf8.encode('$username:$password'));
-      final basicAuth = 'Basic $credentials';
       final response = await _post(
         Uri.parse(
           buildUrl('api/-default-/public/authentication/versions/1/tickets'),
         ),
-        headers: {
-          'Authorization': basicAuth,
-          'Content-Type': 'application/json',
-        },
+        headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'userId': username, 'password': password}),
       );
       EVLogger.productionLog('Classic ticket login response', {
@@ -52,17 +47,26 @@ class ClassicAuthService extends ClassicBaseService {
         });
 
         if (profileResponse.statusCode == 200) {
+          final profile = jsonDecode(profileResponse.body)['entry'];
+          if (profile is! Map<String, dynamic> || profile['id'] == null) {
+            throw Exception('Authenticated user profile is missing');
+          }
           final essBaseUrl = await _discoverEssBaseUrl(ticketAuthorization);
           return {
             'token': ticketAuthorization,
             'alfrescoTicket': ticket,
-            'profile': jsonDecode(profileResponse.body)['entry'],
+            'profile': profile,
             if (essBaseUrl != null) 'essBaseUrl': essBaseUrl,
           };
         }
+        throw Exception(
+          'Authenticated profile request failed (status: ${profileResponse.statusCode})',
+        );
       }
 
-      throw Exception('Authentication failed');
+      throw Exception(
+        'Authentication failed (ticket status: ${response.statusCode})',
+      );
     } catch (e) {
       throw Exception('Login failed: $e');
     }

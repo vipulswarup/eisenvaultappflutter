@@ -51,3 +51,6 @@ lib/config/dev_credentials.dart
 /android/key.properties
 /android/app/upload-keystore.jks
 /android/app/upload_certificate.pem
+
+# Local store submission packages
+/release-artifacts/

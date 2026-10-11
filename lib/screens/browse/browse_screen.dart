@@ -287,6 +287,11 @@ class _BrowseScreenState extends State<BrowseScreen> {
       },
     );
 
+    if (mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _cameraUploadHandler().recoverInterruptedCameraUpload();
+      });
+    }
     EVLogger.productionLog('Calling loadDepartments() on controller...');
     if (widget.initialFolder != null) {
       // Wait for the next frame to ensure controller is fully initialized
@@ -1009,16 +1014,19 @@ class _BrowseScreenState extends State<BrowseScreen> {
     await handler.showCreateFolderDialog(currentFolder.id);
   }
 
+  MediaUploadHandler _cameraUploadHandler() => MediaUploadHandler(
+    context: context,
+    cameraCaptureScope:
+        '${widget.instanceType}|${widget.baseUrl}|${Provider.of<AuthStateManager>(context, listen: false).username ?? ''}',
+    instanceType: widget.instanceType,
+    baseUrl: widget.baseUrl,
+    authToken: widget.authToken,
+    getCurrentFolderId: () => _controller?.currentFolder?.id,
+    onUploadComplete: _refreshCurrentFolder,
+  );
+
   void _handleTakePicture() async {
-    final handler = MediaUploadHandler(
-      context: context,
-      instanceType: widget.instanceType,
-      baseUrl: widget.baseUrl,
-      authToken: widget.authToken,
-      getCurrentFolderId: () => _controller?.currentFolder?.id,
-      onUploadComplete: _refreshCurrentFolder,
-    );
-    await handler.takePictureAndUpload();
+    await _cameraUploadHandler().takePictureAndUpload();
   }
 
   void _handleScanDocument() async {

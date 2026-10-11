@@ -1,4 +1,8 @@
-import 'dart:io' show Platform;
+import 'dart:io' show Platform, File;
+import '../../../services/photos/photo_upload_settings.dart';
+import '../../../services/photos/pending_camera_capture.dart';
+import '../../../services/photos/photo_location_service.dart';
+import '../../../services/photos/photo_geostamp_service.dart';
 import 'package:cunning_document_scanner/cunning_document_scanner.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -10,6 +14,8 @@ import 'package:eisenvaultappflutter/utils/logger.dart';
 
 /// Handles camera, gallery, and document-scan uploads from the browse screen.
 class MediaUploadHandler {
+  static bool _recoveringCamera = false;
+  final String cameraCaptureScope;
   final BuildContext context;
   final String instanceType;
   final String baseUrl;
@@ -18,6 +24,7 @@ class MediaUploadHandler {
   final Future<void> Function() onUploadComplete;
 
   MediaUploadHandler({
+    this.cameraCaptureScope = '',
     required this.context,
     required this.instanceType,
     required this.baseUrl,
@@ -39,27 +46,249 @@ class MediaUploadHandler {
       return;
     }
 
-    final picker = ImagePicker();
-    XFile? image;
-
-    if (Platform.isAndroid) {
-      final hasCameraPermission =
-          await PermissionService.checkCameraPermission();
-      if (!hasCameraPermission) {
-        if (!context.mounted) return;
-        final granted = await PermissionService.requestCameraPermission(
-          context,
-        );
-        if (!granted) return;
-      }
-      image = await picker.pickImage(source: ImageSource.camera);
-    } else if (Platform.isIOS) {
-      image = await picker.pickImage(source: ImageSource.camera);
+    final destinationFolderId = getCurrentFolderId();
+    if (destinationFolderId == null) {
+      _showSnackbar('No folder selected', EVColors.statusError);
+      return;
     }
-    if (image == null) return;
-
-    await _uploadFiles([image], isCameraImage: true);
+    File? prepared;
+    try {
+      if (Platform.isAndroid) {
+        final hasPermission = await PermissionService.checkCameraPermission();
+        if (!hasPermission) {
+          if (!context.mounted) return;
+          if (!await PermissionService.requestCameraPermission(context)) return;
+        }
+      }
+      var enabled = await PhotoUploadSettings().isGeostampEnabled();
+      PhotoLocation? location;
+      if (enabled) {
+        final result = await _locateForPhoto();
+        if (result.cancelled || !context.mounted) return;
+        location = result.location;
+        enabled = location != null;
+      }
+      if (!context.mounted) return;
+      if (Platform.isAndroid) {
+        await PendingCameraCapture(
+          scope: cameraCaptureScope,
+          folderId: destinationFolderId,
+          geostampEnabled: enabled,
+        ).save();
+      }
+      XFile? image;
+      try {
+        image = await ImagePicker().pickImage(source: ImageSource.camera);
+      } finally {
+        if (Platform.isAndroid) await PendingCameraCapture.clear();
+      }
+      final capturedImage = image;
+      if (capturedImage == null || !context.mounted) return;
+      if (enabled) {
+        // Refresh on return: the user may have moved while the camera was open.
+        final result = await _locateForPhoto();
+        if (result.cancelled || !context.mounted) return;
+        location = result.location;
+        if (location != null) {
+          while (context.mounted) {
+            try {
+              prepared = await _withPhotoProgress(
+                () => PhotoGeostampService().prepare(
+                  capturedImage.path,
+                  location!,
+                ),
+              );
+              break;
+            } catch (_) {
+              if (!context.mounted) return;
+              final choice = await _geostampFallback(
+                'The photo could not be geostamped. Its image format may not be supported.',
+              );
+              if (choice == null || choice == 'cancel') return;
+              if (choice == 'without') break;
+            }
+          }
+        }
+      }
+      if (!context.mounted) return;
+      await _uploadCameraPhoto(
+        prepared == null ? capturedImage : XFile(prepared.path),
+        destinationFolderId,
+      );
+    } catch (_) {
+      _showSnackbar(
+        'Could not capture or prepare the photo. Please try again.',
+        EVColors.statusError,
+      );
+    } finally {
+      if (prepared != null) {
+        try {
+          await prepared.parent.delete(recursive: true);
+        } catch (_) {}
+      }
+    }
   }
+
+  /// Android may restart the app while the external camera is active.
+  Future<void> recoverInterruptedCameraUpload() async {
+    if (!Platform.isAndroid || _recoveringCamera) return;
+    _recoveringCamera = true;
+    try {
+      final pending = await PendingCameraCapture.read(cameraCaptureScope);
+      if (pending == null) return;
+      final result = await ImagePicker().retrieveLostData();
+      await PendingCameraCapture.clear();
+      if (!context.mounted || result.isEmpty) return;
+      final files = result.files;
+      if (files == null || files.isEmpty) {
+        _showSnackbar(
+          'The interrupted camera photo could not be recovered.',
+          EVColors.statusWarning,
+        );
+        return;
+      }
+      final upload = await showDialog<bool>(
+        context: context,
+        builder:
+            (dialogContext) => AlertDialog(
+              title: const Text('Recovered camera photo'),
+              content: Text(
+                pending.geostampEnabled
+                    ? 'The app restarted while the camera was open. The capture location cannot be verified. Upload this photo without adding a geostamp to the originally selected folder?'
+                    : 'Upload the recovered camera photo to the originally selected folder?',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(dialogContext, true),
+                  child: Text(
+                    pending.geostampEnabled
+                        ? 'Upload without geostamp'
+                        : 'Upload',
+                  ),
+                ),
+              ],
+            ),
+      );
+      if (upload == true && context.mounted) {
+        await _uploadCameraPhoto(files.first, pending.folderId);
+      }
+    } catch (_) {
+      _showSnackbar(
+        'Could not recover the interrupted camera photo.',
+        EVColors.statusWarning,
+      );
+    } finally {
+      _recoveringCamera = false;
+    }
+  }
+
+  Future<void> _uploadCameraPhoto(XFile photo, String folderId) async {
+    while (context.mounted) {
+      if (await _uploadFiles(
+        [photo],
+        isCameraImage: true,
+        destinationFolderId: folderId,
+      )) {
+        return;
+      }
+      if (!context.mounted) return;
+      final retry = await showDialog<bool>(
+        context: context,
+        builder:
+            (dialogContext) => AlertDialog(
+              title: const Text('Photo upload failed'),
+              content: const Text('Retry uploading the same prepared photo?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(dialogContext, true),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+      );
+      if (retry != true) return;
+    }
+  }
+
+  Future<T> _withPhotoProgress<T>(Future<T> Function() action) async {
+    final navigator = Navigator.of(context, rootNavigator: true);
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (_) => const PopScope(
+            canPop: false,
+            child: AlertDialog(
+              content: Row(
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(width: 20),
+                  Expanded(child: Text('Preparing photo geostamp…')),
+                ],
+              ),
+            ),
+          ),
+    );
+    try {
+      return await action();
+    } finally {
+      if (navigator.mounted) navigator.pop();
+    }
+  }
+
+  Future<({PhotoLocation? location, bool cancelled})> _locateForPhoto() async {
+    while (context.mounted) {
+      try {
+        final location = await _withPhotoProgress(
+          () => PhotoLocationService().locate(),
+        );
+        return (location: location, cancelled: false);
+      } catch (error) {
+        if (!context.mounted) break;
+        final message =
+            error is PhotoLocationException
+                ? error.message
+                : 'A fresh location could not be obtained. Please check location access and try again.';
+        final choice = await _geostampFallback(message);
+        if (choice == 'without') return (location: null, cancelled: false);
+        if (choice != 'retry') break;
+      }
+    }
+    return (location: null, cancelled: true);
+  }
+
+  Future<String?> _geostampFallback(String message) => showDialog<String>(
+    context: context,
+    builder:
+        (dialogContext) => AlertDialog(
+          title: const Text('Geostamp unavailable'),
+          content: Text(
+            '$message\n\nYou can continue without adding a geostamp for this photo.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, 'cancel'),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, 'without'),
+              child: const Text('Upload without geostamp'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, 'retry'),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+  );
 
   /// Pick images from gallery and upload them.
   Future<void> uploadFromGallery() async {
@@ -132,14 +361,15 @@ class MediaUploadHandler {
     }
   }
 
-  Future<void> _uploadFiles(
+  Future<bool> _uploadFiles(
     List<XFile> files, {
     required bool isCameraImage,
+    String? destinationFolderId,
   }) async {
-    final parentFolderId = getCurrentFolderId();
+    final parentFolderId = destinationFolderId ?? getCurrentFolderId();
     if (parentFolderId == null) {
       _showSnackbar('No folder selected', EVColors.statusError);
-      return;
+      return false;
     }
 
     final uploadService = UploadServiceFactory.getService(
@@ -177,10 +407,19 @@ class MediaUploadHandler {
               ? 'Image uploaded successfully'
               : 'Images uploaded successfully';
       _showSnackbar(label, EVColors.successGreen);
-      await onUploadComplete();
+      if (isCameraImage) {
+        // A refresh failure must not cause a duplicate upload on retry.
+        try {
+          await onUploadComplete();
+        } catch (_) {}
+      } else {
+        await onUploadComplete();
+      }
+      return true;
     } catch (e) {
       if (context.mounted) Navigator.of(context).pop();
       _showSnackbar('Failed to upload: $e', EVColors.statusError);
+      return false;
     }
   }
 

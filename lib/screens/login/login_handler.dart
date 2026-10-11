@@ -4,6 +4,7 @@ import 'package:eisenvaultappflutter/screens/browse/browse_screen.dart';
 import 'package:eisenvaultappflutter/screens/offline/offline_browse_screen.dart';
 import 'package:eisenvaultappflutter/services/api/base_service.dart';
 import 'package:eisenvaultappflutter/services/auth/classic_auth_service.dart';
+import 'package:eisenvaultappflutter/services/auth/alfresco_server_detector.dart';
 import 'package:eisenvaultappflutter/services/auth/angora_auth_service.dart';
 import 'package:eisenvaultappflutter/services/auth/auth_state_manager.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
@@ -44,22 +45,22 @@ class LoginHandler {
       String customerHostname;
       bool shouldTryBoth = false;
       final uri = Uri.parse(baseUrl);
-      final hostname = uri.host.toLowerCase();
+      final alfrescoDetected =
+          detectedInstanceType.toLowerCase() != 'angora' &&
+          await isAlfrescoServer(baseUrl);
 
       if (detectedInstanceType.toLowerCase() == 'angora') {
         // Angora: Use base URL as-is, extract customer hostname from domain
         customerHostname = uri.host;
       } else {
-        // detectedInstanceType is 'Classic' - check if domain contains "angora"
-        if (hostname.contains('angora')) {
-          // Domain has "angora" but was detected as Classic (shouldn't happen, but handle it)
-          // Treat as Classic with /alfresco suffix
+        if (alfrescoDetected) {
+          // Discovery identifies both Basic and AlfTicket repository challenges.
           if (!baseUrl.endsWith('/alfresco')) {
             baseUrl = '$baseUrl/alfresco';
           }
           customerHostname = 'classic-repository';
         } else {
-          // Domain doesn't contain "angora" - might be custom Angora domain
+          // Discovery was inconclusive; this might be a custom Angora domain.
           // Try Angora first, fall back to Classic if endpoint not found
           shouldTryBoth = true;
           customerHostname = uri.host; // Set for Angora attempt
@@ -491,18 +492,18 @@ class LoginHandler {
 
   String _stripUrlSuffixes(String url) {
     // Remove trailing slashes first
-    url = url.replaceAll(RegExp(r'/+\u0000'), '');
+    url = url.replaceAll(RegExp(r'/+$'), '');
     // List of known suffixes to strip
     final suffixes = ['/share/page', '/share', '/page', '/alfresco', '/s'];
     for (final suffix in suffixes) {
       if (url.endsWith(suffix)) {
         url = url.substring(0, url.length - suffix.length);
         // Remove any trailing slashes after removing suffix
-        url = url.replaceAll(RegExp(r'/+\u0000'), '');
+        url = url.replaceAll(RegExp(r'/+$'), '');
       }
     }
     // Remove any trailing slashes again
-    url = url.replaceAll(RegExp(r'/+\u0000'), '');
+    url = url.replaceAll(RegExp(r'/+$'), '');
     return url;
   }
 

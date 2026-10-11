@@ -4,10 +4,6 @@ PODS:
     - Flutter
   - in_app_file_view (0.0.1):
     - Flutter
-  - open_file_ios (1.0.3):
-    - Flutter
-  - permission_handler_apple (9.3.0):
-    - Flutter
   - printing (1.0.0):
     - Flutter
 
@@ -15,8 +11,6 @@ DEPENDENCIES:
   - Flutter (from `Flutter`)
   - flutter_secure_storage (from `.symlinks/plugins/flutter_secure_storage/ios`)
   - in_app_file_view (from `.symlinks/plugins/in_app_file_view/ios`)
-  - open_file_ios (from `.symlinks/plugins/open_file_ios/ios`)
-  - permission_handler_apple (from `.symlinks/plugins/permission_handler_apple/ios`)
   - printing (from `.symlinks/plugins/printing/ios`)
 
 EXTERNAL SOURCES:
@@ -26,10 +20,6 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/flutter_secure_storage/ios"
   in_app_file_view:
     :path: ".symlinks/plugins/in_app_file_view/ios"
-  open_file_ios:
-    :path: ".symlinks/plugins/open_file_ios/ios"
-  permission_handler_apple:
-    :path: ".symlinks/plugins/permission_handler_apple/ios"
   printing:
     :path: ".symlinks/plugins/printing/ios"
 
@@ -37,10 +27,8 @@ SPEC CHECKSUMS:
   Flutter: 71a624a5bc0c04062bf19101d501e466baf2fb47
   flutter_secure_storage: 1ed9476fba7e7a782b22888f956cce43e2c62f13
   in_app_file_view: af3879a2d120727f943e311cba73caf60209577b
-  open_file_ios: 46184d802ee7959203f6392abcfa0dd49fdb5be0
-  permission_handler_apple: 4ed2196e43d0651e8ff7ca3483a069d469701f2d
   printing: 54ff03f28fe9ba3aa93358afb80a8595a071dd07
 
-PODFILE CHECKSUM: f18e1dcd39dde2d3fbca496b9cb9fd02e8d17efd
+PODFILE CHECKSUM: 23ccf0ae3a40a75bb789f632ac3d7f104618b2ea
 
 COCOAPODS: 1.16.2

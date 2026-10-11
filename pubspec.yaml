@@ -2,7 +2,7 @@ name: eisenvaultappflutter
 description: "EisenVault Desktop - Document Management System"
 publish_to: 'none'
 
-version: 1.4.2+142
+version: 2.0.0+200
 
 environment:
   sdk: '>=3.7.0 <4.0.0'
@@ -77,6 +77,9 @@ dependencies:
   
   # Document Scanning (VisionKit on iOS, Play Services document scanner on Android)
   cunning_document_scanner: ^3.0.1
+  geolocator: ^14.0.2
+  image: ^4.10.2
+  open_location_code: ^1.0.1
 
 # pdfrx 2.4.7 still resolves pdfrx_engine 0.4.5, which fails to compile on Dart 3.13.
 dependency_overrides:
@@ -124,6 +127,8 @@ msix_config:
   publisher_display_name: EisenVault
   identity_name: EisenVault.EisenVaultDesktop
   publisher: CN=95E049EA-2EEE-4276-80A1-1B29770CF6A1
-  msix_version: 1.4.2.142
+  msix_version: 2.0.200.0
+  store: true
+  sign_msix: false
   logo_path: assets/icon/app_icon_other.png
   capabilities: "internetClient,privateNetworkClientServer,documentsLibrary"

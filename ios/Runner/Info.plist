@@ -87,11 +87,11 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.4.2</string>
+	<string>2.0.0</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
-	<string>142</string>
+	<string>201</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSApplicationQueriesSchemes</key>
@@ -117,8 +117,10 @@
 	<string>EisenVault uses Face ID for secure access to your documents.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>EisenVault needs local network access to connect to your organization's document management system.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>EisenVault uses your location while you capture photos for upload to add a visible geostamp and GPS metadata. You can turn this off in Photo upload settings. EisenVault does not track your location in the background.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>EisenVault needs location access to tag documents with location metadata when required.</string>
+	<string>EisenVault uses your location to add a visible geostamp and GPS metadata to photos you take for upload. You can turn this off in Photo upload settings.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>EisenVault needs microphone access for voice annotations in documents.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

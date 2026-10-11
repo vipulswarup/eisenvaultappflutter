@@ -52,7 +52,7 @@ class PersistentAuthService {
       await _storage.write(key: _customerHostnameKey, value: customerHostname);
 
       // Store password for Angora instances only (needed for token refresh)
-      // Classic uses Basic Auth which doesn't expire, so password not needed
+      // Classic stores an Alfresco ticket; rejected tickets require login again.
       if (password != null && instanceType.toLowerCase() == 'angora') {
         await _storage.write(key: _passwordKey, value: password);
       }

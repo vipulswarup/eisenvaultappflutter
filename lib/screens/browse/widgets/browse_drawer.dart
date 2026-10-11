@@ -10,6 +10,8 @@ import 'package:eisenvaultappflutter/screens/login_screen.dart';
 import 'package:eisenvaultappflutter/screens/signing/opensign_settings_screen.dart';
 import 'package:eisenvaultappflutter/services/offline/offline_manager.dart';
 import 'package:eisenvaultappflutter/services/auth/auth_state_manager.dart';
+import 'dart:io' show Platform;
+import '../../settings/photo_upload_settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -404,6 +406,20 @@ class _BrowseDrawerState extends State<BrowseDrawer> {
                   );
                 },
               ),
+              if (Platform.isAndroid || Platform.isIOS)
+                ListTile(
+                  leading: const Icon(Icons.add_location_alt),
+                  title: const Text('Photo upload settings'),
+                  onTap: () {
+                    _closeDrawer();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const PhotoUploadSettingsScreen(),
+                      ),
+                    );
+                  },
+                ),
               ListTile(
                 leading: const Icon(Icons.offline_pin),
                 title: const Text('Offline Settings'),

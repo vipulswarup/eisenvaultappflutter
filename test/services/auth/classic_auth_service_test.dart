@@ -50,6 +50,11 @@ void main() {
       expect(result['token'], isNot(contains('password')));
       expect(result['essBaseUrl'], 'https://signing.example.test');
       expect(requests, hasLength(3));
+      expect(requests[0].headers, isNot(contains('authorization')));
+      expect(jsonDecode(requests[0].body), {
+        'userId': 'mobile-user',
+        'password': 'password',
+      });
 
       final expectedTicketAuthorization =
           'Basic ${base64Encode(utf8.encode('TICKET_mobile-user'))}';
@@ -112,4 +117,34 @@ void main() {
       ),
     );
   });
+
+  test(
+    'reports rejection of a newly issued ticket by the profile API',
+    () async {
+      final service = ClassicAuthService(
+        'https://alfresco.example/alfresco',
+        client: MockClient(
+          (request) async =>
+              request.method == 'POST'
+                  ? http.Response(
+                    jsonEncode({
+                      'entry': {'id': 'TICKET_test'},
+                    }),
+                    201,
+                  )
+                  : http.Response('', 401),
+        ),
+      );
+      await expectLater(
+        service.login('admin', 'password'),
+        throwsA(
+          isA<Exception>().having(
+            (e) => e.toString(),
+            'message',
+            contains('profile request failed (status: 401)'),
+          ),
+        ),
+      );
+    },
+  );
 }
