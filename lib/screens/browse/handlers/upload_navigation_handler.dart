@@ -44,7 +44,9 @@ class UploadNavigationHandler {
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Cannot upload at this level. Please navigate to a subfolder.'),
+              content: const Text(
+                'Cannot upload at this level. Please navigate to a subfolder.',
+              ),
               backgroundColor: EVColors.statusError,
             ),
           );
@@ -55,19 +57,20 @@ class UploadNavigationHandler {
       }
     }
 
-    final result = await Navigator.push(
+    await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => DocumentUploadScreen(
-          repositoryType: instanceType,
-          parentFolderId: parentFolderId,
-          baseUrl: baseUrl,
-          authToken: authToken,
-        ),
+        builder:
+            (context) => DocumentUploadScreen(
+              repositoryType: instanceType,
+              parentFolderId: parentFolderId,
+              baseUrl: baseUrl,
+              authToken: authToken,
+            ),
       ),
     );
 
-    if (result == true) {
+    if (context.mounted) {
       refreshCurrentFolder();
     }
   }

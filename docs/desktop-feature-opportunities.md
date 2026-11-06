@@ -16,7 +16,8 @@ Make routine document changes and multi-file work efficient from the desktop.
 
 - **Open, edit, and save back** — Open a document in its default desktop application and return the saved version to EisenVault, with clear status and conflict handling.
 - **Batch file operations** — Select multiple documents to move, download, tag, or submit for approval in one action.
-- **Capture and upload from anywhere** — Support drag and drop, clipboard image upload, and a tray or menu-bar drop target for quick uploads.
+- **Drag-and-drop file and folder upload** — Let users drop individual documents or folders onto the upload screen. Upload folder contents recursively while preserving their folder structure, and show which items were accepted or skipped.
+- **Capture and upload from anywhere** — Support clipboard image upload and a tray or menu-bar drop target for quick uploads.
 
 ## 3. Work across tasks and people
 

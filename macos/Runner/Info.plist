@@ -17,9 +17,9 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>2.0.0</string>
+	<string>2.1.0</string>
 	<key>CFBundleVersion</key>
-	<string>200</string>
+	<string>201</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.business</string>
 	<key>LSMinimumSystemVersion</key>
@@ -48,6 +48,15 @@
 				<string>eisenvault</string>
 			</array>
 		</dict>
+	</array>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>EisenVault looks for scanners on your local network so you can scan documents straight into an upload.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_uscan._tcp</string>
+		<string>_uscans._tcp</string>
+		<string>_scanner._tcp</string>
+		<string>_ica-networking._tcp</string>
 	</array>
 </dict>
 </plist>

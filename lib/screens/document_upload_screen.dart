@@ -1,15 +1,18 @@
+import 'dart:async';
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:file_selector/file_selector.dart';
 import '../constants/colors.dart';
-// Add this import for the model classes
 import '../models/upload/batch_upload_models.dart';
-// Add this import for BatchUploadManager
 import '../services/upload/batch_upload_manager.dart';
+import '../services/upload/upload_folder_resolver.dart';
+import '../services/upload/upload_selection.dart';
 import '../services/upload/upload_service_factory.dart';
-
 import '../utils/logger.dart';
-import '../widgets/failed_upload_list.dart';
+import '../widgets/scan_dialog.dart';
 import '../widgets/file_type_icon.dart';
 
 class DocumentUploadScreen extends StatefulWidget {
@@ -19,406 +22,394 @@ class DocumentUploadScreen extends StatefulWidget {
   final String authToken;
 
   const DocumentUploadScreen({
-    super.key, 
-    required this.repositoryType, 
+    super.key,
+    required this.repositoryType,
     required this.parentFolderId,
     required this.baseUrl,
     required this.authToken,
   });
 
   @override
-  _DocumentUploadScreenState createState() => _DocumentUploadScreenState();
+  State<DocumentUploadScreen> createState() => _DocumentUploadScreenState();
 }
 
 class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
-  // List of files to upload
-  List<UploadFileItem> _selectedFiles = [];
+  final List<UploadFileItem> _selectedFiles = [];
+  final List<String> _selectionWarnings = [];
+  final List<Uint8List> _bookmarks = [];
+  final Map<String, FileUploadProgress> _fileProgress = {};
+  final List<UploadFileItem> _failedFiles = [];
   bool _isUploading = false;
-  // Remove this line:
-  // String? _description;
-  // Remove this line:
-  // final _descriptionController = TextEditingController();
-  
-  // Batch upload progress tracking
+  bool _isSelecting = false;
+  bool _dragging = false;
   BatchUploadProgress? _batchProgress;
-  
-  // Add these properties to track upload results
-  List<UploadFileItem> _failedFiles = [];
-  bool _showFailedFiles = false;
-  
-  // File picker method using file_selector package
-  Future<void> _pickFiles() async {
-    try {
-      // Note: file_selector uses SAF (Storage Access Framework) on Android
-      // and doesn't require storage permissions. The file picker handles
-      // access through the system file picker UI.
+  late final UploadFolderResolver _folderResolver;
+  bool get _desktop =>
+      !kIsWeb && (Platform.isMacOS || Platform.isWindows || Platform.isLinux);
+  bool get _busy => _isUploading || _isSelecting;
 
-      // Define accepted file types for documents with proper UTIs for Apple platforms
-      final XTypeGroup documentsTypeGroup = XTypeGroup(
-        label: 'Documents',
-        extensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'],
-        uniformTypeIdentifiers: [
-          'com.adobe.pdf',
-          'org.openxmlformats.wordprocessingml.document',
-          'com.microsoft.word.doc',
-          'org.openxmlformats.spreadsheetml.sheet',
-          'com.microsoft.excel.xls',
-          'org.openxmlformats.presentationml.presentation',
-          'com.microsoft.powerpoint.ppt',
-          'public.plain-text',
-        ],
-      );
-      
-      // Define accepted file types for images with proper UTIs
-      final XTypeGroup imagesTypeGroup = XTypeGroup(
-        label: 'Images',
-        extensions: ['jpg', 'jpeg', 'png', 'gif'],
-        uniformTypeIdentifiers: [
-          'public.jpeg',
-          'public.png',
-          'com.compuserve.gif',
-        ],
-      );
-      
-      // Open file picker dialog with allowMultiple set to true
-      final List<XFile> files = await openFiles(
-        acceptedTypeGroups: [documentsTypeGroup, imagesTypeGroup],
-      );
-      
-      // Process the selected files
-      if (files.isNotEmpty) {
-        List<UploadFileItem> newFiles = [];
-        
-        for (var file in files) {
-          UploadFileItem fileItem = UploadFileItem(
-            name: file.name,
-            path: kIsWeb ? null : file.path,
-          );
-          
-          // Handle differently based on platform
-          if (kIsWeb) {
-            // On web, get bytes
-            final bytes = await file.readAsBytes();
-            fileItem = UploadFileItem(
-              name: file.name,
-              bytes: bytes,
-            );
-          }
-          
-          newFiles.add(fileItem);
-        }
-        
-        setState(() {
-          _selectedFiles = newFiles;
-          _showFailedFiles = false; // Hide failed files when new files are selected
-        });
-        
-
-      }
-    } catch (e) {
-      EVLogger.error('Error picking files', {'error': e.toString()});
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error selecting files: $e'),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: EVColors.errorRed,
-        )
-      );
-    }
-  }
-
-  // Handle multiple file uploads using BatchUploadManager
-  Future<void> _uploadFiles() async {
-    // Validate that files were selected
-    if (_selectedFiles.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select files first'))
-      );
-      return;
-    }
-
-    setState(() {
-      _isUploading = true;
-      _batchProgress = BatchUploadProgress(
-        totalFiles: _selectedFiles.length,
-        completedFiles: 0,
-        successfulFiles: 0,
-        failedFiles: 0,
-        status: BatchUploadStatus.notStarted,
-      );
-    });
-
-    try {
-      // Create batch upload manager with progress callbacks
-      final batchManager = BatchUploadManager(
-        onBatchProgressUpdate: (progress) {
-          if (mounted) {
-            setState(() {
-              _batchProgress = progress;
-            });
-          }
-        },
-        onFileProgressUpdate: (progress) {
-          // Optional: Handle individual file progress
-
-        },
-      );
-      
-      // Create the appropriate upload service using the factory
-      final uploadService = UploadServiceFactory.getService(
-        instanceType: widget.repositoryType,
-        baseUrl: widget.baseUrl,
-        authToken: widget.authToken,
-      );
-      
-      // Start batch upload using the common interface
-      final result = await batchManager.uploadBatch(
-        files: _selectedFiles,
-        uploadService: uploadService,
-        parentFolderId: widget.parentFolderId,
-        // Remove this line:
-        // description: _description,
-      );
-      
-      // Handle result
-      if (!mounted) return;
-      
-      if (result.isFullySuccessful) {
-        // All uploads successful
-        Navigator.pop(context, true); // Return success result
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${result.successCount} files uploaded successfully'),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: EVColors.successGreen,
-          )
-        );
-      } else if (result.isFullyFailed) {
-        // All uploads failed
-        setState(() {
-          _failedFiles = result.failed;
-          _showFailedFiles = true;
-        });
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to upload ${result.failureCount} files. See details below.'),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: EVColors.errorRed,
-          )
-        );
-      } else {
-        // Mixed results
-        setState(() {
-          _failedFiles = result.failed;
-          _showFailedFiles = true;
-        });
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Uploaded ${result.successCount} files, ${result.failureCount} failed. See details below.'),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: EVColors.warningOrange,
-          )
-        );
-      }
-      
-    } catch (e) {
-      if (!mounted) return;
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error during upload process: $e'),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: EVColors.errorRed,
-        )
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isUploading = false;
-        });
-      }
-    }
-  }
-
-  // New method to retry failed uploads
-  Future<void> _retryFailedUploads() async {
-    if (_failedFiles.isEmpty) return;
-    
-    setState(() {
-      _isUploading = true;
-      _showFailedFiles = false;
-      _selectedFiles = _failedFiles;
-      _failedFiles = [];
-      _batchProgress = BatchUploadProgress(
-        totalFiles: _selectedFiles.length,
-        completedFiles: 0,
-        successfulFiles: 0,
-        failedFiles: 0,
-        status: BatchUploadStatus.notStarted,
-      );
-    });
-    
-    // Call the upload method again with the failed files
-    await _uploadFiles();
-  }
-  
-  // Method to retry a single failed file
-  Future<void> _retryFile(UploadFileItem file) async {
-    setState(() {
-      _isUploading = true;
-      _selectedFiles = [file];
-      _failedFiles.removeWhere((f) => f.name == file.name && f.id == file.id);
-      if (_failedFiles.isEmpty) {
-        _showFailedFiles = false;
-      }
-      _batchProgress = BatchUploadProgress(
-        totalFiles: 1,
-        completedFiles: 0,
-        successfulFiles: 0,
-        failedFiles: 0,
-        status: BatchUploadStatus.notStarted,
-      );
-    });
-    
-    // Upload the single file
-    await _uploadFiles();
-  }
-
-  // UI for the document upload screen
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Upload Documents'),
-        backgroundColor: EVColors.appBarBackground,
-        foregroundColor: EVColors.appBarForeground,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Repository: ${widget.repositoryType.toUpperCase()}',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: _isUploading ? null : _pickFiles,
-              icon: const Icon(Icons.attach_file),
-              label: const Text('Select Files'),
-            ),
-            const SizedBox(height: 16),
-            
-            // Show either selected files or failed files based on state
-            if (_showFailedFiles && _failedFiles.isNotEmpty) ...[
-              Expanded(
-                child: FailedUploadList(
-                  failedFiles: _failedFiles,
-                  isUploading: _isUploading,
-                  onRetryFile: _retryFile,
-                  onRetryAll: _retryFailedUploads,
-                ),
-              ),
-            ] else if (_selectedFiles.isNotEmpty) ...[
-              Text(
-                'Selected Files (${_selectedFiles.length}):',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: _selectedFiles.length,
-                  itemBuilder: (context, index) {
-                    final file = _selectedFiles[index];
-                    return Card(
-                      child: ListTile(
-                        leading: FileTypeIcon(
-                          fileName: file.name,
-                                                    iconSize: 24,
-                        ),
-                        title: Text(file.name),
-                        subtitle: Text(kIsWeb ? 'Selected file (Web)' : 'Selected file'),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: _isUploading ? null : () {
-                            setState(() {
-                              _selectedFiles.removeAt(index);
-                            });
-                          },
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              // Remove the TextField for description:
-              // const SizedBox(height: 16),
-              // TextField(
-              //   controller: _descriptionController,
-              //   decoration: const InputDecoration(
-              //     labelText: 'Description (optional - applies to all files)',
-              //     border: OutlineInputBorder(),
-              //   ),
-              //   onChanged: (value) {
-              //     _description = value;
-              //   },
-              //   maxLines: 3,
-              // ),
-            ],
-            
-            const SizedBox(height: 24),
-            if (_batchProgress != null && _isUploading) ...[
-              LinearProgressIndicator(
-                value: _batchProgress!.totalFiles > 0 
-                    ? _batchProgress!.completedFiles / _batchProgress!.totalFiles 
-                    : 0,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Uploading ${_batchProgress!.completedFiles} of ${_batchProgress!.totalFiles} files...',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Text(
-                'Success: ${_batchProgress!.successfulFiles}, Failed: ${_batchProgress!.failedFiles}',
-              ),
-              const SizedBox(height: 16),
-            ],
-            
-            if (!_showFailedFiles) ...[
-              Center(
-                child: _isUploading 
-                  ? const CircularProgressIndicator() 
-                  : ElevatedButton.icon(
-                      onPressed: _selectedFiles.isEmpty ? null : _uploadFiles,
-                      icon: const Icon(Icons.cloud_upload),
-                      label: const Text('Upload All Files'),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      ),
-                    ),
-              ),
-            ],
-            
-            if (_selectedFiles.isEmpty && !_showFailedFiles) ...[
-              const SizedBox(height: 30),
-              const Center(
-                child: Text('No files selected'),
-              ),
-            ],
-          ],
-        ),
+  void initState() {
+    super.initState();
+    _folderResolver = UploadFolderResolver(
+      repositoryType: widget.repositoryType,
+      baseUrl: widget.baseUrl,
+      authToken: widget.authToken,
+      parentFolderId: widget.parentFolderId,
+    );
+  }
+
+  Future<void> _pickFiles() => _select(() async => openFiles());
+  Future<void> _pickFolder() => _select(() async {
+    final path = await getDirectoryPath();
+    return path == null ? <XFile>[] : [XFile(path)];
+  });
+
+  Future<void> _select(Future<List<XFile>> Function() choose) async {
+    if (_busy) return;
+    setState(() {
+      _isSelecting = true;
+      _dragging = false;
+    });
+    try {
+      final files = await choose();
+      if (!mounted) return;
+      // A sandboxed macOS drop may require access beyond the drag callback.
+      for (final file in files) {
+        if (file is DropItem && file.extraAppleBookmark?.isNotEmpty == true) {
+          final bookmark = file.extraAppleBookmark!;
+          final granted = await DesktopDrop.instance
+              .startAccessingSecurityScopedResource(bookmark: bookmark);
+          if (granted) {
+            if (!mounted) {
+              await DesktopDrop.instance.stopAccessingSecurityScopedResource(
+                bookmark: bookmark,
+              );
+              return;
+            }
+            _bookmarks.add(bookmark);
+          }
+        }
+      }
+      final UploadSelection selection;
+      if (kIsWeb) {
+        final items = <UploadFileItem>[];
+        for (final file in files) {
+          items.add(
+            UploadFileItem(name: file.name, bytes: await file.readAsBytes()),
+          );
+        }
+        selection = UploadSelection(items, []);
+      } else {
+        selection = await UploadSelectionScanner().scan(
+          files.map((f) => f.path).toList(),
+        );
+      }
+      if (!mounted) return;
+      _addSelection(selection);
+    } catch (e) {
+      EVLogger.error('Error selecting upload items', {'error': e.toString()});
+      if (mounted) _message('Could not select items: $e', error: true);
+    } finally {
+      if (mounted) setState(() => _isSelecting = false);
+    }
+  }
+
+  void _addSelection(UploadSelection selection) {
+    setState(() {
+      _selectionWarnings.addAll(selection.skipped);
+      final rejectedDirectories = <String>[];
+      for (final item in selection.items) {
+        if (rejectedDirectories.any(
+          (dir) => item.destinationPath.startsWith('$dir/'),
+        )) {
+          continue;
+        }
+        final matches = _selectedFiles.where(
+          (f) =>
+              f.destinationPath.toLowerCase() ==
+              item.destinationPath.toLowerCase(),
+        );
+        if (matches.isNotEmpty) {
+          if (matches.first.path != item.path) {
+            _selectionWarnings.add(
+              '${item.destinationPath}: another item already uses this destination',
+            );
+            if (item.isDirectory) {
+              rejectedDirectories.add(item.destinationPath);
+            }
+          }
+          continue;
+        }
+        _selectedFiles.add(item);
+      }
+    });
+  }
+
+  Future<void> _scan() async {
+    if (_busy) return;
+    final pdfPath = await showScanDialog(context);
+    if (pdfPath == null || !mounted) return;
+    await _select(() async => [XFile(pdfPath)]);
+  }
+
+  void _message(String message, {bool error = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: error ? EVColors.errorRed : EVColors.successGreen,
       ),
     );
   }
-  
+
+  Future<void> _uploadFiles([List<UploadFileItem>? retry]) async {
+    if (_busy) return;
+    final files = List<UploadFileItem>.of(retry ?? _selectedFiles);
+    if (files.isEmpty) return;
+    setState(() {
+      _isUploading = true;
+      _fileProgress.clear();
+      _batchProgress = null;
+    });
+    try {
+      final manager = BatchUploadManager(
+        onBatchProgressUpdate: (progress) {
+          if (mounted) setState(() => _batchProgress = progress);
+        },
+        onFileProgressUpdate: (progress) {
+          if (mounted) {
+            setState(() => _fileProgress[progress.fileName] = progress);
+          }
+        },
+      );
+      final result = await manager.uploadBatch(
+        files: files,
+        uploadService: UploadServiceFactory.getService(
+          instanceType: widget.repositoryType,
+          baseUrl: widget.baseUrl,
+          authToken: widget.authToken,
+        ),
+        parentFolderId: widget.parentFolderId,
+        resolveFolder: _folderResolver.resolve,
+      );
+      if (!mounted) return;
+      setState(() {
+        final uploaded =
+            result.successful.map((f) => f.destinationPath).toSet();
+        _selectedFiles.removeWhere((f) => uploaded.contains(f.destinationPath));
+        final attempted = files.map((f) => f.destinationPath).toSet();
+        _failedFiles.removeWhere((f) => attempted.contains(f.destinationPath));
+        _failedFiles.addAll(result.failed);
+      });
+      _message(
+        '${result.successCount} items uploaded, ${result.failureCount} failed.',
+        error: result.failed.isNotEmpty,
+      );
+      // Stay on the review screen so results are visible and more items can be added.
+    } catch (e) {
+      if (mounted) _message('Upload failed: $e', error: true);
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
+  }
+
+  void _remove(UploadFileItem item) {
+    setState(() {
+      bool removed(UploadFileItem f) =>
+          f.destinationPath == item.destinationPath ||
+          (item.isDirectory &&
+              f.destinationPath.startsWith('${item.destinationPath}/'));
+      _selectedFiles.removeWhere(removed);
+      _failedFiles.removeWhere(removed);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final content = Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Repository: ${widget.repositoryType.toUpperCase()}',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          if (_desktop)
+            Container(
+              key: const Key('upload-drop-zone'),
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color:
+                    _dragging
+                        ? EVColors.buttonBackground.withValues(alpha: .15)
+                        : EVColors.cardBackground,
+                border: Border.all(
+                  color:
+                      _dragging
+                          ? EVColors.buttonBackground
+                          : EVColors.textSecondary,
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  const Icon(Icons.drive_folder_upload_outlined, size: 32),
+                  Text(
+                    _dragging
+                        ? 'Drop to add to upload queue'
+                        : 'Drop files or folders here',
+                  ),
+                  const Text(
+                    'Review before uploading. Folder structure is preserved.',
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            children: [
+              ElevatedButton.icon(
+                onPressed: _busy ? null : _pickFiles,
+                icon: const Icon(Icons.attach_file),
+                label: const Text('Select Files'),
+              ),
+              if (_desktop)
+                OutlinedButton.icon(
+                  onPressed: _busy ? null : _pickFolder,
+                  icon: const Icon(Icons.folder_open),
+                  label: const Text('Select Folder'),
+                ),
+              if (_desktop)
+                OutlinedButton.icon(
+                  key: const Key('upload-scan-button'),
+                  onPressed: _busy ? null : _scan,
+                  icon: const Icon(Icons.document_scanner_outlined),
+                  label: const Text('Scan'),
+                ),
+            ],
+          ),
+          if (_isSelecting) const LinearProgressIndicator(),
+          if (_selectionWarnings.isNotEmpty)
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 90),
+              child: SingleChildScrollView(
+                child: Text(
+                  'Skipped items:\n${_selectionWarnings.join('\n')}',
+                  style: const TextStyle(color: EVColors.errorRed),
+                ),
+              ),
+            ),
+          const SizedBox(height: 12),
+          Text('Upload queue (${_selectedFiles.length} items)'),
+          Expanded(
+            child:
+                _selectedFiles.isEmpty
+                    ? const Center(child: Text('No items selected'))
+                    : ListView.builder(
+                      itemCount: _selectedFiles.length,
+                      itemBuilder: (context, index) {
+                        final file = _selectedFiles[index];
+                        final errors = _failedFiles.where(
+                          (f) => f.destinationPath == file.destinationPath,
+                        );
+                        final progress = _fileProgress[file.destinationPath];
+                        return ListTile(
+                          leading:
+                              file.isDirectory
+                                  ? const Icon(Icons.folder)
+                                  : FileTypeIcon(
+                                    fileName: file.name,
+                                    iconSize: 24,
+                                  ),
+                          title: Text(file.destinationPath),
+                          subtitle: Text(
+                            errors.isNotEmpty
+                                ? errors.first.errorMessage!
+                                : progress?.status ??
+                                    (file.isDirectory
+                                        ? 'Folder'
+                                        : 'Ready to upload'),
+                          ),
+                          trailing: IconButton(
+                            tooltip: 'Remove from queue',
+                            icon: const Icon(Icons.close),
+                            onPressed: _busy ? null : () => _remove(file),
+                          ),
+                        );
+                      },
+                    ),
+          ),
+          if (_batchProgress != null) ...[
+            LinearProgressIndicator(
+              value:
+                  _batchProgress!.completedFiles / _batchProgress!.totalFiles,
+            ),
+            Text(
+              '${_batchProgress!.completedFiles} of ${_batchProgress!.totalFiles} items complete; '
+              '${_batchProgress!.successfulFiles} successful, ${_batchProgress!.failedFiles} failed',
+            ),
+          ],
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            children: [
+              ElevatedButton.icon(
+                onPressed:
+                    _busy || _selectedFiles.isEmpty
+                        ? null
+                        : () => _uploadFiles(),
+                icon: const Icon(Icons.cloud_upload),
+                label: Text(_isUploading ? 'Uploading…' : 'Upload All Items'),
+              ),
+              if (_failedFiles.isNotEmpty)
+                OutlinedButton.icon(
+                  onPressed: _busy ? null : () => _uploadFiles(_failedFiles),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry Failed Items'),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+    return PopScope(
+      canPop: !_busy,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Upload Documents'),
+          backgroundColor: EVColors.appBarBackground,
+          foregroundColor: EVColors.appBarForeground,
+        ),
+        body:
+            _desktop
+                ? DropTarget(
+                  enable: !_busy,
+                  onDragEntered: (_) => setState(() => _dragging = true),
+                  onDragExited: (_) => setState(() => _dragging = false),
+                  onDragDone: (details) => _select(() async => details.files),
+                  child: content,
+                )
+                : content,
+      ),
+    );
+  }
+
   @override
   void dispose() {
-    // Remove this line:
-    // _descriptionController.dispose();
+    for (final bookmark in _bookmarks) {
+      unawaited(
+        DesktopDrop.instance.stopAccessingSecurityScopedResource(
+          bookmark: bookmark,
+        ),
+      );
+    }
+    _folderResolver.dispose();
     super.dispose();
   }
 }

@@ -31,8 +31,8 @@ extensions.configure<ApplicationExtension> {
         applicationId = "com.eisenvault"
         minSdk = 24 // Android 7.0 (Nougat)
         targetSdk = 36 // Android 16
-        versionCode = 200
-        versionName = "2.0.0"
+        versionCode = 201
+        versionName = "2.1.0"
         externalNativeBuild {
             cmake {
                 arguments("-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON")

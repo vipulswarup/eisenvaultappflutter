@@ -1,0 +1,26 @@
+name: ev_scanner
+description: Desktop hardware scanner access for EisenVault (TWAIN/WIA, Image Capture, SANE scanimage).
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.8.1
+  flutter: ">=3.3.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  pdf: ^3.12.0
+  path: ^1.8.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  plugin:
+    platforms:
+      macos:
+        pluginClass: EvScannerPlugin
+      windows:
+        pluginClass: EvScannerPluginCApi

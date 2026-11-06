@@ -31,6 +31,7 @@ EisenVault is a comprehensive document management system that enables organizati
 • User permissions management
 
 #### Desktop Integration
+• Scan paper documents straight from a network or USB scanner into an upload (needs the scanner maker's driver)
 • Windows native file handling
 • System tray integration
 • File explorer integration
